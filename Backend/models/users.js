@@ -6,7 +6,8 @@ const userSchema = mongoose.Schema({
   password: { type: String, required: true },
   id: { type: String },
   isAdmin: { type: Boolean, default: false },
-  // Add recommendation-related fields
+  
+  // Add recommendation-related field
   likedPosts: [{ type: mongoose.Schema.Types.ObjectId, ref: "Post" }],
   viewedPosts: [{ type: mongoose.Schema.Types.ObjectId, ref: "Post" }],
   commentedPosts: [{ type: mongoose.Schema.Types.ObjectId, ref: "Post" }],

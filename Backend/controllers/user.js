@@ -93,13 +93,14 @@ export const editUser = async (req, res, next) => {
     }
 
     if (!email){
-      updateData.email = user.email; // Keep existing email if not provided
+      updateData.email = user.email; // Keep existing email, if not available
     }
     
     const updatedUser = await User.findByIdAndUpdate(
       id,
       updateData,
       { new: true }
+
     );
     
     if (updatedUser) {
