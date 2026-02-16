@@ -75,7 +75,7 @@ function Navbar() {
                 </Button>
               )}
 
-              {/* Recommendations Button */}
+              {/* Recommendation Button */}
               <Button
                 component={Link}
                 to="/recommendations"
