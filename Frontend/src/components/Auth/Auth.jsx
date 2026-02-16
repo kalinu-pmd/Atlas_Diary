@@ -24,6 +24,7 @@ const Auth = () => {
     password: "",
     confirmPassword: "",
   };
+
   const classes = useStyles();
   const dispatch = useDispatch();
   const history = useHistory();
@@ -37,14 +38,18 @@ const Auth = () => {
     const newErrors = {};
     const namePattern = /^[a-zA-Z]+$/;
     const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    const passwordPattern = /^(?=.*[A-Z]).{8,}$/;
+
+    // Strong password:
+    // Minimum 8 chars, 1 uppercase, 1 lowercase, 1 number, 1 special char
+    const passwordPattern =
+      /^(?=.*[A-Z])(?=.*[a-z])(?=.*\d)(?=.*[@$!%*?&]).{8,}$/;
 
     if (isSignup) {
       if (!namePattern.test(formData.firstName)) {
-        newErrors.firstName = "First Name must contain only letters.";
+        newErrors.firstName = "First name must contain only letters.";
       }
       if (!namePattern.test(formData.lastName)) {
-        newErrors.lastName = "Last Name must contain only letters.";
+        newErrors.lastName = "Last name must contain only letters.";
       }
     }
 
@@ -54,7 +59,7 @@ const Auth = () => {
 
     if (!passwordPattern.test(formData.password)) {
       newErrors.password =
-        "Password must be at least 8 characters long and start with an uppercase letter.";
+        "Password must be at least 8 characters and include uppercase, lowercase, number and special character.";
     }
 
     if (isSignup && formData.password !== formData.confirmPassword) {
@@ -63,23 +68,21 @@ const Auth = () => {
 
     setErrors(newErrors);
 
-    // Show toast for validation errors
-    if (Object.keys(newErrors).length > 0) {
-      toast.error("Please fix the form errors before submitting.");
-    }
-
     return Object.keys(newErrors).length === 0;
   };
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (validate()) {
-      if (isSignup) {
-        dispatch(signUp(formData, history));
-      } else {
-        const hello = dispatch(signIn(formData, history));
-        console.log(hello);
-      }
+
+    if (!validate()) {
+      toast.error("Please fix the form errors before submitting.");
+      return;
+    }
+
+    if (isSignup) {
+      dispatch(signUp(formData, history));
+    } else {
+      dispatch(signIn(formData, history));
     }
   };
 
@@ -96,7 +99,6 @@ const Auth = () => {
     setIsSignUp((prevState) => !prevState);
     setErrors({});
     setFormData(initialFormData);
-    toast.info(`Switched to ${!isSignup ? "Sign Up" : "Sign In"} mode`);
   };
 
   return (
@@ -105,7 +107,9 @@ const Auth = () => {
         <Avatar className={classes.avatar}>
           <LockOutlinedIcon />
         </Avatar>
-        <Typography variant="h5">{isSignup ? "Sign Up" : "Sign In"}</Typography>
+        <Typography variant="h5">
+          {isSignup ? "Sign Up" : "Sign In"}
+        </Typography>
 
         <form className={classes.form} onSubmit={handleSubmit}>
           <Grid container spacing={2}>
@@ -129,6 +133,7 @@ const Auth = () => {
                 />
               </>
             )}
+
             <Input
               name="email"
               label="Email Address"
@@ -137,6 +142,7 @@ const Auth = () => {
               error={!!errors.email}
               helperText={errors.email}
             />
+
             <Input
               name="password"
               label="Password"
@@ -146,6 +152,7 @@ const Auth = () => {
               error={!!errors.password}
               helperText={errors.password}
             />
+
             {isSignup && (
               <Input
                 name="confirmPassword"
@@ -167,7 +174,8 @@ const Auth = () => {
               {isSignup ? "Sign Up" : "Sign In"}
             </Button>
 
-            <Grid container justify="center">
+            {/* FIXED deprecated prop */}
+            <Grid container justifyContent="center">
               <Grid item>
                 <Button onClick={switchMode}>
                   {isSignup

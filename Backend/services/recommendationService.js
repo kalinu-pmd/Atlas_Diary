@@ -230,50 +230,47 @@ class RecommendationService {
 
   // Update user preferences based on interaction
   async updateUserPreferences(userId, postId, interactionType) {
-    try {
-      const user = await User.findById(userId);
-      const post = await PostMessage.findById(postId);
+  try {
+    const user = await User.findById(userId);
+    const post = await PostMessage.findById(postId);
 
-      if (!user || !post) return;
+    if (!user || !post) return;
 
-      // Update interaction arrays
-      switch (interactionType) {
-        case "like":
-          if (!user.likedPosts.includes(postId)) {
-            user.likedPosts.push(postId);
-          }
-          break;
-        case "view":
-          if (!user.viewedPosts.includes(postId)) {
-            user.viewedPosts.push(postId);
-          }
-          break;
-        case "comment":
-          if (!user.commentedPosts.includes(postId)) {
-            user.commentedPosts.push(postId);
-          }
-          break;
-      }
+    const alreadyExists = (arr) =>
+      arr.some((id) => id.toString() === postId);
 
-      // Update preferred tags
-      post.tags.forEach((tag) => {
-        const existingTagIndex = user.preferredTags.findIndex(
-          (pt) => pt.tag.toLowerCase() === tag.toLowerCase()
-        );
-
-        if (existingTagIndex >= 0) {
-          user.preferredTags[existingTagIndex].score += 1;
-        } else {
-          user.preferredTags.push({ tag: tag.toLowerCase(), score: 1 });
-        }
-      });
-
-      user.lastRecommendationUpdate = new Date();
-      await user.save();
-    } catch (error) {
-      console.error("Error updating user preferences:", error);
+    switch (interactionType) {
+      case "like":
+        if (!alreadyExists(user.likedPosts))
+          user.likedPosts.push(postId);
+        break;
+      case "view":
+        if (!alreadyExists(user.viewedPosts))
+          user.viewedPosts.push(postId);
+        break;
+      case "comment":
+        if (!alreadyExists(user.commentedPosts))
+          user.commentedPosts.push(postId);
+        break;
     }
+
+    post.tags.forEach((tag) => {
+      const existingTagIndex = user.preferredTags.findIndex(
+        (pt) => pt.tag === tag.toLowerCase()
+      );
+
+      if (existingTagIndex >= 0)
+        user.preferredTags[existingTagIndex].score += 1;
+      else
+        user.preferredTags.push({ tag: tag.toLowerCase(), score: 1 });
+    });
+
+    await user.save();
+  } catch (error) {
+    console.error(error);
   }
+}
+
 }
 
 export default new RecommendationService();
