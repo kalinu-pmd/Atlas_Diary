@@ -2,12 +2,12 @@ import React, { useState } from "react";
 import { useDispatch } from "react-redux";
 import { useHistory } from "react-router-dom";
 import {
-  Avatar,
-  Button,
-  Paper,
-  Grid,
-  Typography,
-  Container,
+	Avatar,
+	Button,
+	Paper,
+	Grid,
+	Typography,
+	Container,
 } from "@material-ui/core";
 import LockOutlinedIcon from "@material-ui/icons/LockOutlined";
 import { toast } from "react-toastify";
@@ -16,179 +16,187 @@ import useStyles from "./styles";
 import Input from "./Input/Input";
 import { signUp, signIn } from "../../actions/auth";
 
+const initialFormData = {
+	firstName: "",
+	lastName: "",
+	email: "",
+	password: "",
+	confirmPassword: "",
+};
+
 const Auth = () => {
-  const initialFormData = {
-    firstName: "",
-    lastName: "",
-    email: "",
-    password: "",
-    confirmPassword: "",
-  };
+	const classes = useStyles();
+	const dispatch = useDispatch();
+	const history = useHistory();
 
-  const classes = useStyles();
-  const dispatch = useDispatch();
-  const history = useHistory();
+	const [showPassword, setShowPassword] = useState(false);
+	const [isSignup, setIsSignUp] = useState(false);
+	const [formData, setFormData] = useState(initialFormData);
+	const [errors, setErrors] = useState({});
 
-  const [showPassword, setShowPassword] = useState(false);
-  const [isSignup, setIsSignUp] = useState(false);
-  const [formData, setFormData] = useState(initialFormData);
-  const [errors, setErrors] = useState({});
+	const validate = () => {
+		const newErrors = {};
+		const namePattern = /^[a-zA-Z]+$/;
+		const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+		const passwordPattern =
+			/^(?=.*[A-Z])(?=.*[a-z])(?=.*\d)(?=.*[@$!%*?&]).{8,}$/;
 
-  const validate = () => {
-    const newErrors = {};
-    const namePattern = /^[a-zA-Z]+$/;
-    const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+		if (isSignup) {
+			if (!namePattern.test(formData.firstName)) {
+				newErrors.firstName = "First name must contain only letters.";
+			}
+			if (!namePattern.test(formData.lastName)) {
+				newErrors.lastName = "Last name must contain only letters.";
+			}
+		}
 
-    // Strong password:
-    // Minimum 8 chars, 1 uppercase, 1 lowercase, 1 number, 1 special char
-    const passwordPattern =
-      /^(?=.*[A-Z])(?=.*[a-z])(?=.*\d)(?=.*[@$!%*?&]).{8,}$/;
+		if (!emailPattern.test(formData.email)) {
+			newErrors.email = "Invalid email format.";
+		}
 
-    if (isSignup) {
-      if (!namePattern.test(formData.firstName)) {
-        newErrors.firstName = "First name must contain only letters.";
-      }
-      if (!namePattern.test(formData.lastName)) {
-        newErrors.lastName = "Last name must contain only letters.";
-      }
-    }
+		if (!passwordPattern.test(formData.password)) {
+			newErrors.password =
+				"Password must be at least 8 characters and include uppercase, lowercase, number and special character.";
+		}
 
-    if (!emailPattern.test(formData.email)) {
-      newErrors.email = "Invalid email format.";
-    }
+		if (isSignup && formData.password !== formData.confirmPassword) {
+			newErrors.confirmPassword = "Passwords do not match.";
+		}
 
-    if (!passwordPattern.test(formData.password)) {
-      newErrors.password =
-        "Password must be at least 8 characters and include uppercase, lowercase, number and special character.";
-    }
+		setErrors(newErrors);
 
-    if (isSignup && formData.password !== formData.confirmPassword) {
-      newErrors.confirmPassword = "Passwords do not match.";
-    }
+		return Object.keys(newErrors).length === 0;
+	};
 
-    setErrors(newErrors);
+	const handleSubmit = (e) => {
+		e.preventDefault();
 
-    return Object.keys(newErrors).length === 0;
-  };
+		if (!validate()) {
+			toast.error("Please fix the form errors before submitting.");
+			return;
+		}
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
+		if (isSignup) {
+			dispatch(signUp(formData, history));
+		} else {
+			dispatch(signIn(formData, history));
+		}
+	};
 
-    if (!validate()) {
-      toast.error("Please fix the form errors before submitting.");
-      return;
-    }
+	const handleChange = (event) => {
+		setFormData({ ...formData, [event.target.name]: event.target.value });
+		setErrors({ ...errors, [event.target.name]: "" });
+	};
 
-    if (isSignup) {
-      dispatch(signUp(formData, history));
-    } else {
-      dispatch(signIn(formData, history));
-    }
-  };
+	const handleShowPassword = () => {
+		setShowPassword((prevState) => !prevState);
+	};
 
-  const handleChange = (event) => {
-    setFormData({ ...formData, [event.target.name]: event.target.value });
-    setErrors({ ...errors, [event.target.name]: "" });
-  };
+	const switchMode = () => {
+		setIsSignUp((prevState) => !prevState);
+		setErrors({});
+		setFormData(initialFormData);
+		setShowPassword(false);
+	};
 
-  const handleShowPassword = () => {
-    setShowPassword((prevState) => !prevState);
-  };
+	return (
+		<Container component="main" maxWidth="xs">
+			<Paper className={classes.paper} elevation={3}>
+				<Avatar className={classes.avatar}>
+					<LockOutlinedIcon />
+				</Avatar>
+				<Typography variant="h5">
+					{isSignup ? "Sign Up" : "Sign In"}
+				</Typography>
 
-  const switchMode = () => {
-    setIsSignUp((prevState) => !prevState);
-    setErrors({});
-    setFormData(initialFormData);
-  };
+				<form
+					className={classes.form}
+					onSubmit={handleSubmit}
+					noValidate
+				>
+					<Grid container spacing={2}>
+						{isSignup && (
+							<>
+								<Input
+									name="firstName"
+									label="First Name"
+									handleChange={handleChange}
+									half
+									error={!!errors.firstName}
+									helperText={errors.firstName}
+									autoFocus
+								/>
+								<Input
+									name="lastName"
+									label="Last Name"
+									handleChange={handleChange}
+									half
+									error={!!errors.lastName}
+									helperText={errors.lastName}
+								/>
+							</>
+						)}
 
-  return (
-    <Container component="main" maxWidth="xs">
-      <Paper className={classes.paper} elevation={3}>
-        <Avatar className={classes.avatar}>
-          <LockOutlinedIcon />
-        </Avatar>
-        <Typography variant="h5">
-          {isSignup ? "Sign Up" : "Sign In"}
-        </Typography>
+						<Input
+							name="email"
+							label="Email Address"
+							handleChange={handleChange}
+							type="email"
+							error={!!errors.email}
+							helperText={errors.email}
+							autoFocus={!isSignup}
+						/>
 
-        <form className={classes.form} onSubmit={handleSubmit}>
-          <Grid container spacing={2}>
-            {isSignup && (
-              <>
-                <Input
-                  name="firstName"
-                  label="First Name"
-                  handleChange={handleChange}
-                  half
-                  error={!!errors.firstName}
-                  helperText={errors.firstName}
-                />
-                <Input
-                  name="lastName"
-                  label="Last Name"
-                  handleChange={handleChange}
-                  half
-                  error={!!errors.lastName}
-                  helperText={errors.lastName}
-                />
-              </>
-            )}
+						<Input
+							name="password"
+							label="Password"
+							handleChange={handleChange}
+							type={showPassword ? "text" : "password"}
+							handleShowPassword={handleShowPassword}
+							error={!!errors.password}
+							helperText={errors.password}
+						/>
 
-            <Input
-              name="email"
-              label="Email Address"
-              handleChange={handleChange}
-              type="email"
-              error={!!errors.email}
-              helperText={errors.email}
-            />
+						{isSignup && (
+							<Input
+								name="confirmPassword"
+								label="Repeat Password"
+								handleChange={handleChange}
+								type="password"
+								error={!!errors.confirmPassword}
+								helperText={errors.confirmPassword}
+							/>
+						)}
 
-            <Input
-              name="password"
-              label="Password"
-              handleChange={handleChange}
-              type={showPassword ? "text" : "password"}
-              handleShowPassword={handleShowPassword}
-              error={!!errors.password}
-              helperText={errors.password}
-            />
+						<Grid item xs={12}>
+							<Button
+								type="submit"
+								fullWidth
+								variant="contained"
+								color="primary"
+								className={classes.submit}
+							>
+								{isSignup ? "Sign Up" : "Sign In"}
+							</Button>
+						</Grid>
 
-            {isSignup && (
-              <Input
-                name="confirmPassword"
-                label="Repeat Password"
-                handleChange={handleChange}
-                type="password"
-                error={!!errors.confirmPassword}
-                helperText={errors.confirmPassword}
-              />
-            )}
-
-            <Button
-              type="submit"
-              fullWidth
-              variant="contained"
-              color="primary"
-              className={classes.submit}
-            >
-              {isSignup ? "Sign Up" : "Sign In"}
-            </Button>
-
-            {/* FIXED deprecated prop */}
-            <Grid container justifyContent="center">
-              <Grid item>
-                <Button onClick={switchMode}>
-                  {isSignup
-                    ? "Already have an account? Sign In"
-                    : "Don't have an account? Sign Up"}
-                </Button>
-              </Grid>
-            </Grid>
-          </Grid>
-        </form>
-      </Paper>
-    </Container>
-  );
+						<Grid item xs={12}>
+							<Button
+								onClick={switchMode}
+								fullWidth
+								color="secondary"
+								style={{ marginTop: 8 }}
+							>
+								{isSignup
+									? "Already have an account? Sign In"
+									: "Don't have an account? Sign Up"}
+							</Button>
+						</Grid>
+					</Grid>
+				</form>
+			</Paper>
+		</Container>
+	);
 };
 
 export default Auth;
