@@ -1,0 +1,24 @@
+/* Global Color Variables */
+:root {
+    --color-off-white: #fef9f5;
+    --color-light-green: #affa01;
+    --color-orange: #ff3d11;
+    --color-black: #333333;
+    --color-dark-green: #0c342c;
+
+    /* Additional shades for better design */
+    --color-dark-green-hover: #0a2d26;
+    --color-light-green-hover: #9ee100;
+    --color-orange-hover: #e6350e;
+    --color-gray-light: #f8f8f8;
+    --color-gray-medium: #666666;
+}
+
+body {
+    background-color: var(--color-off-white);
+    color: var(--color-black);
+    font-family: 'Roboto', 'Arial', sans-serif;
+    margin: 0;
+    padding: 0;
+    line-height: 1.6;
+}

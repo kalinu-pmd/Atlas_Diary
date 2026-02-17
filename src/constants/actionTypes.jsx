@@ -1,0 +1,15 @@
+export const CREATE = "CREATE";
+export const UPDATE = "UPDATE";
+export const DELETE = "DELETE";
+export const FETCH_ALL = "FETCH_ALL";
+export const LIKE = "LIKE";
+export const SELECTED_POST = "SELECTED_POST";
+export const AUTH = "AUTH";
+export const LOGOUT = "LOGOUT";
+export const FETCH_BY_SEARCH = "FETCH_BY_SEARCH";
+export const END_LOADING = "END_LOADING";
+export const START_LOADING = "START_LOADING";
+export const FETCH_BY_ID = "FETCH_BY_ID";
+export const COMMENT = "COMMENT";
+export const FETCH_RECOMMENDATIONS = "FETCH_RECOMMENDATIONS";
+export const FETCH_SIMILAR_POSTS = "FETCH_SIMILAR_POSTS";
