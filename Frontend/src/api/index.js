@@ -11,8 +11,10 @@ API.interceptors.request.use((req) => {
 	return req;
 });
 
-export const fetchPosts = (page) => {
-	return API.get(`/posts?page=${page}`);
+export const fetchPosts = (page, options = {}) => {
+	let url = `/posts?page=${page}`;
+	if (options.summary) url += `&summary=true`;
+	return API.get(url);
 };
 
 export const createPost = (newPost) => {
@@ -66,6 +68,10 @@ export const deleteUser = (userId) => {
 
 export const editUser = (userId, userData) => {
 	return API.patch(`/users/${userId}`, userData);
+};
+
+export const getUserStats = (userId) => {
+  return API.get(`/users/${userId}/stats`);
 };
 
 // Recommendation system APIs

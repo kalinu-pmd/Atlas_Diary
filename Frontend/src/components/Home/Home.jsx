@@ -4,7 +4,6 @@ import { useLocation, useHistory } from "react-router-dom";
 import { MdSearch, MdClose, MdAdd, MdTune } from "react-icons/md";
 
 import Posts from "../Posts/Posts";
-import Form from "../Form/Form";
 import Paginate from "../Pagination/Pagination";
 import Footer from "../Footer/Footer";
 import { getPostsBySearch } from "../../actions/posts";
@@ -230,50 +229,7 @@ export default function Home() {
 						</div>
 					)}
 				</div>
-
-				{/* Sidebar: Create post form (right, sticky on desktop) */}
-				<aside className="lg:w-64 lg:sticky lg:top-24 h-fit shrink-0">
-						{/* Mobile: toggle button */}
-						<div className="lg:hidden mb-3">
-							{user?.result?.name && (
-								<button
-									onClick={() => setShowForm((s) => !s)}
-									className="w-full flex items-center justify-center gap-2 bg-dark-green hover:bg-dark-green-hover text-off-white font-bold py-2.5 rounded-xl transition-colors"
-								>
-									<MdAdd size={20} />
-									{showForm ? "Hide Form" : "Create a Post"}
-								</button>
-							)}
-						</div>
-
-						{/* Form visibility: always on lg+, toggle on mobile */}
-						<div
-							className={`${
-								showForm ? "block" : "hidden"
-							} lg:block`}
-						>
-							<Form />
-						</div>
-
-						{/* Hint for guests */}
-						{!user?.result?.name && (
-							<div className="hidden lg:block bg-gradient-to-br from-dark-green/5 to-light-green/10 border border-dark-green/20 rounded-xl p-4 text-center">
-								<p className="text-dark-green font-semibold text-sm mb-2">
-									Ready to share your adventure?
-								</p>
-								<p className="text-text-gray text-xs mb-3">
-									Sign in to create posts, like and comment on
-									stories.
-								</p>
-								<a
-									href="/auth"
-									className="inline-block bg-dark-green text-off-white font-bold text-sm px-4 py-2 rounded-lg hover:bg-dark-green-hover transition-colors no-underline"
-								>
-									Sign In
-								</a>
-							</div>
-						)}
-					</aside>
+				{/* Sidebar removed - create post moved to separate page */}
 				</div>
 			</main>
 

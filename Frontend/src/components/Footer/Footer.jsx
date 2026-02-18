@@ -3,29 +3,7 @@ import { Link as RouterLink } from "react-router-dom";
 export default function Footer() {
 	return (
 		<footer aria-label="Site footer">
-			{/* CTA Strip */}
-			<div
-				role="region"
-				aria-labelledby="create-your-atlas"
-				className="bg-gradient-to-b from-[#e9f3ea] to-[#e1efe5] py-16 sm:py-10 flex items-center justify-center"
-			>
-				<div className="w-full max-w-[1100px] mx-auto px-4 flex items-center justify-between gap-4 sm:flex-col sm:items-center sm:gap-3">
-					<p
-						id="create-your-atlas"
-						className="text-[#163a31] font-bold tracking-wide text-lg sm:text-base text-left sm:text-center"
-					>
-						Your memories deserve more than temporary posts.
-					</p>
 
-					<RouterLink
-						to="/signup"
-						aria-label="Create Your Atlas"
-						className="inline-flex items-center justify-center bg-gradient-to-b from-accent-green to-accent-green-2 text-white font-bold no-underline px-6 py-2.5 rounded-lg shadow-[0_12px_36px_rgba(47,107,79,0.12)] transition-all hover:-translate-y-0.5 hover:shadow-[0_18px_44px_rgba(47,107,79,0.18)] xs:w-full"
-					>
-						Create Your Atlas
-					</RouterLink>
-				</div>
-			</div>
 
 			{/* Footer bar */}
 			<div

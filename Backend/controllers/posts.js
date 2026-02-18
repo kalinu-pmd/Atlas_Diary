@@ -4,18 +4,38 @@ import mongoose from "mongoose";
 import recommendationService from "../services/recommendationService.js";
 
 export const getPosts = async (req, res) => {
-  const { page } = req.query;
+  const { page, summary } = req.query;
 
   try {
     const LIMIT = 8;
     const pageNumber = Number(page) || 1;
     const startIndex = (pageNumber - 1) * LIMIT;
 
-    const total = await PostMessage.countDocuments({});
+    // Use estimated count for faster count when no filter is applied
+    const total = await PostMessage.estimatedDocumentCount();
+
     const posts = await PostMessage.find()
       .sort({ _id: -1 })
       .limit(LIMIT)
       .skip(startIndex);
+
+    // If caller requested a lightweight summary (e.g., dashboard), remove heavy fields
+    if (summary === "true") {
+      const summarized = posts.map((p) => {
+        const obj = p.toObject();
+        obj.commentsCount = Array.isArray(p.comments) ? p.comments.length : 0;
+        delete obj.comments;
+        delete obj.message;
+        delete obj.selectedFile;
+        return obj;
+      });
+
+      return res.status(200).json({
+        data: summarized,
+        currentPage: pageNumber,
+        numberOfPages: Math.ceil(total / LIMIT),
+      });
+    }
 
     res.status(200).json({
       data: posts,

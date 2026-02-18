@@ -204,9 +204,15 @@ class RecommendationService {
       const targetPost = await PostMessage.findById(postId);
       if (!targetPost) return [];
 
+      // Limit the number of posts scanned for similarity to improve performance.
+      // Sort by recency so we compare against recent posts first.
+      const SCAN_LIMIT = 200;
       const allPosts = await PostMessage.find({
         _id: { $ne: postId },
-      }).populate("creator", "name");
+      })
+        .sort({ createdAt: -1 })
+        .limit(SCAN_LIMIT)
+        .populate("creator", "name");
 
       const similarPosts = allPosts.map((post) => ({
         post,

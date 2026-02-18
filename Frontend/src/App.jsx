@@ -6,6 +6,8 @@ import Landing from "./components/Landing/Landing";
 import Auth from "./components/Auth/Auth";
 import Signup from "./components/Auth/Signup";
 import PostDetails from "./components/PostDetails/PostDetails";
+import CreatePost from "./components/CreatePost/CreatePost";
+import Settings from "./components/Settings/Settings";
 import Dashboard from "./components/Dashboard/Dashboard";
 import Recommendations from "./components/Recommendations/Recommendations";
 import HowItWorks from "./components/HowItWorks/HowItWorks";
@@ -38,6 +40,12 @@ const App = () => {
 						<Route path="/posts" exact component={Home} />
 						<Route path="/posts/search" exact component={Home} />
 						<Route path="/posts/:id" component={PostDetails} />
+
+						{/* Create post page */}
+						<Route path="/create-post" exact component={() => (user ? <CreatePost /> : <Redirect to="/auth" />)} />
+
+						{/* Account settings */}
+						<Route path="/settings" exact component={() => (user ? <Settings /> : <Redirect to="/auth" />)} />
 
 						{/* Explore goes to the same feed */}
 						<Route

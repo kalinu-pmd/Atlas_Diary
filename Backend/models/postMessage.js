@@ -20,6 +20,10 @@ const postSchema = mongoose.Schema({
     default: new Date(),
   },
 });
+// Add indexes to speed up common queries (filtering, sorting, text search)
+postSchema.index({ tags: 1 });
+postSchema.index({ createdAt: -1 });
+postSchema.index({ title: "text", message: "text", tags: "text" });
 
 const PostMessage = mongoose.model("Post", postSchema);
 export default PostMessage;
