@@ -45,12 +45,12 @@ function Navbar() {
 			className="fixed top-0 left-0 right-0 z-[1300] bg-cream shadow-nav border-b border-accent-green/10"
 			style={{ minHeight: 64 }}
 		>
-			<div className="max-w-[1100px] mx-auto px-5 h-16 flex items-center justify-between relative">
-				{/* Brand (left) */}
+			<div className="w-full px-5 h-16 flex items-center">
+				{/* Brand (fixed left) */}
 				<Link
 					to="/"
 					aria-label="Atlas Diary"
-					className="flex items-center shrink-0 transition-opacity hover:opacity-90"
+					className="flex items-center flex-shrink-0 transition-opacity hover:opacity-90"
 				>
 					<img
 						src={logo}
@@ -59,24 +59,33 @@ function Navbar() {
 					/>
 				</Link>
 
-				{/* Center navigation (desktop only) */}
-				<nav
-					aria-label="Primary navigation"
-					className="hidden md:flex absolute left-1/2 -translate-x-1/2 gap-7 items-center"
-				>
-					{navItems.map((item) => (
-						<Link
-							key={item.to}
-							to={item.to}
-							className="no-underline text-muted font-semibold px-2.5 py-2 rounded-lg transition-colors hover:bg-accent-green/10 hover:text-accent-green"
-						>
-							{item.label}
-						</Link>
-					))}
-				</nav>
+				{/* Spacer */}
+				<div className="flex-1"></div>
 
-				{/* Right side */}
-				<div className="flex items-center gap-3 ml-auto">
+				{/* Right section: Nav items + User controls */}
+				<div className="flex items-center gap-6">
+					{/* Center navigation (desktop only) */}
+					<nav
+						aria-label="Primary navigation"
+						className="hidden md:flex gap-6 items-center"
+					>
+						{navItems.map((item) => {
+							// Hide "How it Works" when user is logged in
+							if (item.label === "How it Works" && user) {
+								return null;
+							}
+							return (
+								<Link
+									key={item.to}
+									to={item.to}
+									className="no-underline text-muted font-semibold px-2.5 py-2 rounded-lg transition-colors hover:bg-accent-green/10 hover:text-accent-green whitespace-nowrap"
+								>
+									{item.label}
+								</Link>
+							);
+						})}
+					</nav>
+
 					{/* Mobile hamburger */}
 					<button
 						className="md:hidden text-accent-green p-1 rounded"
@@ -96,7 +105,7 @@ function Navbar() {
 							{user.result.isAdmin && (
 								<Link
 									to="/dashboard"
-									className="hidden md:inline-flex text-accent-green font-extrabold text-sm px-3 py-1.5 rounded hover:bg-accent-green/10 transition-colors no-underline"
+									className="hidden md:inline-flex text-accent-green font-extrabold text-sm px-3 py-1.5 rounded hover:bg-accent-green/10 transition-colors no-underline whitespace-nowrap"
 								>
 									Dashboard
 								</Link>
@@ -105,7 +114,7 @@ function Navbar() {
 							{/* For You */}
 							<Link
 								to="/recommendations"
-								className="hidden sm:inline-flex items-center border border-accent-green text-accent-green font-bold text-sm px-4 py-1.5 rounded-full hover:bg-[#eef7ef] hover:text-[#1f4f3f] transition-all no-underline"
+								className="hidden sm:inline-flex items-center border border-accent-green text-accent-green font-bold text-sm px-4 py-1.5 rounded-full hover:bg-[#eef7ef] hover:text-[#1f4f3f] transition-all no-underline whitespace-nowrap"
 							>
 								For You
 							</Link>
@@ -145,13 +154,13 @@ function Navbar() {
 						<div className="flex items-center gap-3">
 							<Link
 								to="/auth"
-								className="text-muted font-semibold text-sm px-2 py-1.5 hover:text-accent-green transition-colors no-underline"
+								className="text-dark-green font-semibold text-sm px-4 py-2 rounded-full border border-dark-green/30 hover:border-dark-green hover:bg-dark-green/5 transition-all no-underline whitespace-nowrap"
 							>
 								Login
 							</Link>
 							<Link
 								to="/signup"
-								className="bg-gradient-to-b from-accent-green to-accent-green-2 text-white font-bold text-sm px-4 py-2 rounded-full shadow-md hover:brightness-95 transition-all no-underline"
+								className="bg-gradient-to-b from-accent-green to-accent-green-2 text-white font-bold text-sm px-6 py-2 rounded-full shadow-md hover:brightness-95 transition-all no-underline whitespace-nowrap"
 							>
 								Sign Up
 							</Link>
@@ -167,16 +176,22 @@ function Navbar() {
 					aria-label="Mobile navigation"
 					className="md:hidden absolute top-16 left-2 right-2 bg-cream rounded-xl shadow-[0_8px_24px_rgba(0,0,0,0.08)] flex flex-col gap-2 p-3 z-[1200]"
 				>
-					{navItems.map((item) => (
-						<Link
-							key={item.to}
-							to={item.to}
-							onClick={() => setMobileOpen(false)}
-							className="px-3 py-2.5 rounded-lg no-underline text-accent-green font-semibold hover:bg-accent-green/10 transition-colors"
-						>
-							{item.label}
-						</Link>
-					))}
+					{navItems.map((item) => {
+						// Hide "How it Works" when user is logged in
+						if (item.label === "How it Works" && user) {
+							return null;
+						}
+						return (
+							<Link
+								key={item.to}
+								to={item.to}
+								onClick={() => setMobileOpen(false)}
+								className="px-3 py-2.5 rounded-lg no-underline text-accent-green font-semibold hover:bg-accent-green/10 transition-colors"
+							>
+								{item.label}
+							</Link>
+						);
+					})}
 
 					{user ? (
 						<>

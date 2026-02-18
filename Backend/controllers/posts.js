@@ -1,4 +1,5 @@
 import PostMessage from "../models/postMessage.js";
+import User from "../models/users.js";
 import mongoose from "mongoose";
 import recommendationService from "../services/recommendationService.js";
 
@@ -91,11 +92,35 @@ export const deletePost = async (req, res) => {
   const { id } = req.params;
   try {
     if (!mongoose.Types.ObjectId.isValid(id))
-      return res.status(404).send("No post with that id");
-    await PostMessage.findByIdAndRemove(id);
-    res.status(200).json({ message: "Post deleted sucessfully" });
+      return res.status(404).json({ message: "No post with that id" });
+
+    // Find the post first
+    const post = await PostMessage.findById(id);
+    if (!post) {
+      return res.status(404).json({ message: "Post not found" });
+    }
+
+    // Find the user to check if they are admin
+    const user = await User.findById(req.userId);
+    
+    const postCreatorStr = String(post.creator);
+    const userIdStr = String(req.userId);
+    const isCreator = postCreatorStr === userIdStr;
+    const isAdmin = user && user.isAdmin;
+
+    // Check authorization: allow if user is creator OR admin
+    if (!isCreator && !isAdmin) {
+      return res.status(403).json({ 
+        message: "Unauthorized to delete this post" 
+      });
+    }
+
+    // Delete the post
+    await PostMessage.findByIdAndDelete(id);
+    res.status(200).json({ message: "Post deleted successfully" });
   } catch (error) {
-    res.status(409).json({ message: error });
+    console.error("Delete post error:", error);
+    res.status(409).json({ message: error.message || "Error deleting post" });
   }
 };
 
