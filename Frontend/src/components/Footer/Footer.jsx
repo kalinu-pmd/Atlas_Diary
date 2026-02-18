@@ -53,7 +53,7 @@ export default function Footer() {
 						</span>
 
 						<RouterLink
-							to="/posts"
+							to="/public-diaries"
 							className="text-white/90 no-underline font-semibold text-[0.95rem] px-1 py-0.5 hover:text-white hover:underline transition-colors"
 						>
 							Public Diaries

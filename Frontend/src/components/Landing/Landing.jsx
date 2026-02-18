@@ -177,7 +177,7 @@ export default function Landing() {
 							)}
 
 							<RouterLink
-								to="/posts"
+								to="/public-diaries"
 								className="inline-flex items-center gap-2 bg-[rgba(250,248,244,0.15)] hover:bg-[rgba(250,248,244,0.22)] text-white font-bold text-base px-5 py-3 rounded-full no-underline border border-white/30 transition-all backdrop-blur-sm hover:-translate-y-px"
 							>
 								Explore Public Diaries

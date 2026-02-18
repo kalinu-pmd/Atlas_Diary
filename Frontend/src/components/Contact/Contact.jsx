@@ -415,7 +415,7 @@ export default function Contact() {
 										},
 										{
 											label: "Browse Diaries",
-											to: "/posts",
+											to: "/public-diaries",
 										},
 									].map((link) => (
 										<li key={link.label}>

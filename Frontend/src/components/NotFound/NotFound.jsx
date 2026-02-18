@@ -51,7 +51,7 @@ export default function NotFound() {
 					</button>
 
 					<Link
-							to="/posts"
+						to="/public-diaries"
 						className="inline-flex items-center gap-2 text-dark-green font-semibold text-sm px-5 py-3 rounded-full border border-dark-green/20 hover:border-dark-green hover:bg-dark-green/5 transition-all bg-off-white no-underline"
 					>
 						<MdExplore size={18} />

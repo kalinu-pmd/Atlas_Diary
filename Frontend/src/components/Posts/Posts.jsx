@@ -14,9 +14,9 @@ const Posts = () => {
 
 	if (isLoading) {
 		return (
-			<div className="flex justify-center items-center h-[77vh] bg-transparent">
+			<div className="flex justify-center items-center h-[77vh] bg-off-white border-2 border-dark-green rounded-[15px]">
 				<div
-					className="w-12 h-12 rounded-full border-4 border-transparent border-t-dark-green animate-spin"
+					className="w-12 h-12 rounded-full border-4 border-off-white border-t-dark-green animate-spin"
 					role="status"
 					aria-label="Loading posts"
 				/>
@@ -25,7 +25,7 @@ const Posts = () => {
 	}
 
 	return (
-		<div className="space-y-4 max-w-2xl">
+		<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
 			{posts.map((post) => (
 				<Post key={post._id} post={post} />
 			))}
