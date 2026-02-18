@@ -1,6 +1,14 @@
 import { useState, useRef } from "react";
 import { useDispatch, useSelector } from "react-redux";
+import PropTypes from "prop-types";
 import { commentPost } from "../../actions/posts";
+
+CommentSection.propTypes = {
+	post: PropTypes.shape({
+		_id: PropTypes.string.isRequired,
+		comments: PropTypes.arrayOf(PropTypes.string),
+	}).isRequired,
+};
 
 const CommentSection = ({ post }) => {
 	const [comments, setComments] = useState(post?.comments);
@@ -43,7 +51,7 @@ const CommentSection = ({ post }) => {
 										{c?.split(": ")[0]}
 									</strong>
 									<span className="ml-2">
-										{c?.split(":")[1]}
+										{c?.split(": ").slice(1).join(": ")}
 									</span>
 								</p>
 							</div>

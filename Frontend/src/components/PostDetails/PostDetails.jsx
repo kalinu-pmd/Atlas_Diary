@@ -43,8 +43,6 @@ function PostDetails() {
 		window.scrollTo({ top: 0, behavior: "smooth" });
 	};
 
-	if (!post) return null;
-
 	if (isLoading) {
 		return (
 			<div className="flex justify-center items-center h-[77vh] bg-off-white border-2 border-dark-green rounded-[15px]">
@@ -56,6 +54,8 @@ function PostDetails() {
 			</div>
 		);
 	}
+
+	if (!post) return null;
 
 	const renderImages = () => {
 		if (Array.isArray(post.selectedFile) && post.selectedFile.length > 0) {

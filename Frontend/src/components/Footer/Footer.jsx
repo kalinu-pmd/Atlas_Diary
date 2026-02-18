@@ -39,6 +39,48 @@ export default function Footer() {
 						className="flex items-center gap-1 flex-wrap justify-center text-white/90"
 					>
 						<RouterLink
+							to="/posts"
+							className="text-white/90 no-underline font-semibold text-[0.95rem] px-1 py-0.5 hover:text-white hover:underline transition-colors"
+						>
+							Explore
+						</RouterLink>
+
+						<span
+							aria-hidden
+							className="text-white/60 mx-1 select-none"
+						>
+							|
+						</span>
+
+						<RouterLink
+							to="/public-diaries"
+							className="text-white/90 no-underline font-semibold text-[0.95rem] px-1 py-0.5 hover:text-white hover:underline transition-colors"
+						>
+							Public Diaries
+						</RouterLink>
+
+						<span
+							aria-hidden
+							className="text-white/60 mx-1 select-none"
+						>
+							|
+						</span>
+
+						<RouterLink
+							to="/how-it-works"
+							className="text-white/90 no-underline font-semibold text-[0.95rem] px-1 py-0.5 hover:text-white hover:underline transition-colors"
+						>
+							How It Works
+						</RouterLink>
+
+						<span
+							aria-hidden
+							className="text-white/60 mx-1 select-none"
+						>
+							|
+						</span>
+
+						<RouterLink
 							to="/about"
 							className="text-white/90 no-underline font-semibold text-[0.95rem] px-1 py-0.5 hover:text-white hover:underline transition-colors"
 						>

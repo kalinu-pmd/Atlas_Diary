@@ -4,6 +4,7 @@ import { useHistory } from "react-router-dom";
 import { MdLockOutline } from "react-icons/md";
 import { toast } from "react-toastify";
 
+import PropTypes from "prop-types";
 import Input from "./Input/Input";
 import { signUp } from "../../actions/auth";
 
@@ -161,6 +162,10 @@ const Signup = ({ onSwitchToSignIn }) => {
 			</div>
 		</div>
 	);
+};
+
+Signup.propTypes = {
+	onSwitchToSignIn: PropTypes.func,
 };
 
 export default Signup;

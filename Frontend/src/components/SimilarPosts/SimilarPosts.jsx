@@ -37,7 +37,7 @@ const SimilarPosts = ({ postId }) => {
 			</h3>
 
 			<ul className="flex flex-col gap-0">
-				{similarPosts.map((post, index) => (
+				{similarPosts.map((post) => (
 					<li
 						key={post._id}
 						onClick={() => handleViewPost(post._id)}
