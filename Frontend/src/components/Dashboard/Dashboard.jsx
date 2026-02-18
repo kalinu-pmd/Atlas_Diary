@@ -334,12 +334,18 @@ const Dashboard = () => {
 	const confirmDelete = async () => {
 		if (!confirmModal) return;
 		setActionLoading(true);
+		
+		// Close modal immediately for better UX
+		const modalType = confirmModal.type;
+		const modalId = confirmModal.id;
+		setConfirmModal(null);
+		
 		try {
-			if (confirmModal.type === "post") {
-				await api.deletePost(confirmModal.id);
+			if (modalType === "post") {
+				await api.deletePost(modalId);
 				toast.success("Post deleted successfully.");
 			} else {
-				await api.deleteUser(confirmModal.id);
+				await api.deleteUser(modalId);
 				toast.success("User deleted successfully.");
 			}
 			await fetchData();
@@ -348,7 +354,6 @@ const Dashboard = () => {
 			toast.error("Delete failed. Please try again.");
 		} finally {
 			setActionLoading(false);
-			setConfirmModal(null);
 		}
 	};
 

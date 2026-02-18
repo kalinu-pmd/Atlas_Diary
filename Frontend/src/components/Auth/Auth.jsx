@@ -22,6 +22,7 @@ const Auth = () => {
 
 	const [showPassword, setShowPassword] = useState(false);
 	const [isSignup, setIsSignUp] = useState(false);
+	const [rememberMe, setRememberMe] = useState(false);
 	const [formData, setFormData] = useState(initialFormData);
 	const [errors, setErrors] = useState({});
 
@@ -49,7 +50,7 @@ const Auth = () => {
 			toast.error("Please fix the form errors before submitting.");
 			return;
 		}
-		dispatch(signIn(formData, history));
+		dispatch(signIn({ ...formData, rememberMe }, history));
 	};
 
 	const handleChange = (event) => {
@@ -108,7 +109,22 @@ const Auth = () => {
 						error={!!errors.password}
 						helperText={errors.password}
 					/>
-
+				{/* Remember Me Checkbox */}
+				<div className="flex items-center gap-2">
+					<input
+						type="checkbox"
+						id="rememberMe"
+						checked={rememberMe}
+						onChange={(e) => setRememberMe(e.target.checked)}
+						className="w-4 h-4 rounded cursor-pointer accent-dark-green"
+					/>
+					<label
+						htmlFor="rememberMe"
+						className="text-sm text-text-gray cursor-pointer select-none"
+					>
+						Remember me
+					</label>
+				</div>
 					<button
 						type="submit"
 						className="w-full mt-2 bg-light-green hover:bg-light-green-hover text-text-dark font-bold py-2.5 rounded-md transition-colors"

@@ -97,10 +97,16 @@ export const updatePost = (postId, post) => async (dispatch) => {
 	}
 };
 
-export const deletePost = (postId) => async (dispatch) => {
+export const deletePost = (postId, currentPage = 1) => async (dispatch) => {
 	try {
 		await api.deletePost(postId);
 		dispatch({ type: DELETE, payload: postId });
+		
+		// Refetch posts for the current page to update the list
+		setTimeout(() => {
+			dispatch(getPosts(currentPage));
+		}, 500);
+		
 		toast.success("Post deleted successfully!");
 	} catch (error) {
 		console.log("Error message : " + error);

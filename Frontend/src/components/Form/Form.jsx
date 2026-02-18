@@ -64,14 +64,7 @@ const Posts = () => {
 	};
 
 	if (!user?.result?.name) {
-		return (
-			<div className="bg-off-white border border-dark-green rounded-[15px] shadow-form p-6">
-				<p className="text-lg font-semibold text-text-dark">
-					Please Sign In to create your own posts and like others
-					posts.
-				</p>
-			</div>
-		);
+		return null;
 	}
 
 	return (

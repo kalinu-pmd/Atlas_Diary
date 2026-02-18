@@ -6,7 +6,7 @@ const JWT_SECRET = process.env.JWT_SECRET || "secret";
 import User from "../models/users.js";
 
 export const signIn = async (req, res) => {
-	const { email, password } = req.body;
+	const { email, password, rememberMe } = req.body;
 
 	try {
 		const existingUser = await User.findOne({ email });
@@ -28,10 +28,13 @@ export const signIn = async (req, res) => {
 				.json({ message: "Invalid username or password" });
 		}
 
+		// Set token expiration: 7 days if remember me, 1 hour otherwise
+		const tokenExpiry = rememberMe ? "7d" : "1h";
+
 		const token = jwt.sign(
 			{ email: existingUser.email, id: existingUser._id },
 			JWT_SECRET,
-			{ expiresIn: "1h" },
+			{ expiresIn: tokenExpiry },
 		);
 
 		res.status(200).json({ result: existingUser, token });

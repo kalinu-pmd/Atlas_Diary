@@ -64,7 +64,7 @@ const recuder = (state = { isLoading: true, posts: [] }, action) => {
       };
 
     case FETCH_BY_SEARCH:
-      return { ...state, posts: action.payload };
+      return { ...state, posts: action.payload, isLoading: false };
 
     case FETCH_BY_ID:
       return { ...state, post: action.payload };

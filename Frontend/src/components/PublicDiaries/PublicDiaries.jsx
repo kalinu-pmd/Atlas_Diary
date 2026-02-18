@@ -37,7 +37,7 @@ const POPULAR_TAGS = [
 export default function PublicDiaries() {
 	const location = useLocation();
 	const query = new URLSearchParams(location.search);
-	const page = query.get("page") || 1;
+	const page = parseInt(query.get("page") || 1);
 
 	const dispatch = useDispatch();
 	const history = useHistory();
@@ -50,12 +50,19 @@ export default function PublicDiaries() {
 	const [showFilters, setShowFilters] = useState(false);
 	const [isSearchMode, setIsSearchMode] = useState(false);
 
-	// Fetch posts on mount / page change
+	// Fetch posts when page changes (only when not in search mode)
 	useEffect(() => {
 		if (!isSearchMode) {
 			dispatch(getPosts(page));
 		}
-	}, [dispatch, page, isSearchMode]);
+	}, [dispatch, page]);
+
+	// Return to normal posts when clearing search
+	useEffect(() => {
+		if (!isSearchMode) {
+			dispatch(getPosts(1));
+		}
+	}, [isSearchMode, dispatch]);
 
 	const handleSearch = (e) => {
 		e.preventDefault();
@@ -73,7 +80,7 @@ export default function PublicDiaries() {
 		setSearch("");
 		setActiveTags([]);
 		setIsSearchMode(false);
-		dispatch(getPosts(1));
+		// useEffect will handle fetching when isSearchMode becomes false
 	};
 
 	const toggleTag = (tag) => {

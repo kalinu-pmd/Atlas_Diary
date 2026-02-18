@@ -8,7 +8,6 @@ import Signup from "./components/Auth/Signup";
 import PostDetails from "./components/PostDetails/PostDetails";
 import Dashboard from "./components/Dashboard/Dashboard";
 import Recommendations from "./components/Recommendations/Recommendations";
-import PublicDiaries from "./components/PublicDiaries/PublicDiaries";
 import HowItWorks from "./components/HowItWorks/HowItWorks";
 import About from "./components/About/About";
 import Contact from "./components/Contact/Contact";
@@ -46,12 +45,6 @@ const App = () => {
 							component={() => <Redirect to="/posts" />}
 						/>
 
-						{/* Public browsing (no form) */}
-						<Route
-							path="/public-diaries"
-							exact
-							component={PublicDiaries}
-						/>
 
 						{/* Personalized recommendations (auth required) */}
 						<Route

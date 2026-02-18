@@ -1,7 +1,7 @@
 import { useState } from "react";
 import PropTypes from "prop-types";
 import { useDispatch, useSelector } from "react-redux";
-import { useHistory } from "react-router-dom";
+import { useHistory, useLocation } from "react-router-dom";
 import moment from "moment";
 import { toast } from "react-toastify";
 import {
@@ -16,7 +16,12 @@ import { deletePost, likePost } from "../../../actions/posts";
 const Post = ({ post }) => {
 	const dispatch = useDispatch();
 	const history = useHistory();
+	const location = useLocation();
 	const user = useSelector((state) => state.auth.authData);
+
+	// Get current page from URL query params
+	const queryParams = new URLSearchParams(location.search);
+	const currentPage = queryParams.get("page") || 1;
 
 	const [likes, setLikes] = useState(post?.likes);
 	const userId = user?.result?.googleId || user?.result?._id;
@@ -161,7 +166,7 @@ const Post = ({ post }) => {
 				{isOwner && (
 					<button
 						className="flex items-center gap-1 text-orange text-sm font-medium hover:bg-orange/10 px-2 py-1 rounded transition-colors"
-						onClick={() => dispatch(deletePost(post._id))}
+						onClick={() => dispatch(deletePost(post._id, parseInt(currentPage)))}
 					>
 						<MdDelete size={16} />
 						Delete

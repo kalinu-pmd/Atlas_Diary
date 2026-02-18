@@ -9,9 +9,8 @@ import { LOGOUT } from "../../constants/actionTypes";
 import logo from "../../Images/logo.svg";
 
 const navItems = [
-	{ label: "Explore", to: "/posts" },
+	{ label: "Public Diaries", to: "/posts" },
 	{ label: "How it Works", to: "/how-it-works" },
-	{ label: "Public Diaries", to: "/public-diaries" },
 ];
 
 function Navbar() {
