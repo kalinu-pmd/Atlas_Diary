@@ -3,13 +3,6 @@ import { useDispatch, useSelector } from "react-redux";
 import PropTypes from "prop-types";
 import { commentPost } from "../../actions/posts";
 
-CommentSection.propTypes = {
-	post: PropTypes.shape({
-		_id: PropTypes.string.isRequired,
-		comments: PropTypes.arrayOf(PropTypes.string),
-	}).isRequired,
-};
-
 const CommentSection = ({ post }) => {
 	const [comments, setComments] = useState(post?.comments);
 	const commentRef = useRef();
@@ -92,6 +85,13 @@ const CommentSection = ({ post }) => {
 			</div>
 		</div>
 	);
+};
+
+CommentSection.propTypes = {
+	post: PropTypes.shape({
+		_id: PropTypes.string.isRequired,
+		comments: PropTypes.arrayOf(PropTypes.string),
+	}).isRequired,
 };
 
 export default CommentSection;
