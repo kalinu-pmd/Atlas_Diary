@@ -1,41 +1,37 @@
-import React from 'react'
-import {useSelector} from 'react-redux';
-import { Grid, CircularProgress, Paper} from '@material-ui/core';
-import Post from './Post/Post';
-import useStyles from './styles';
+import React from "react";
+import { useSelector } from "react-redux";
+import Post from "./Post/Post";
 
+const Posts = () => {
+	const { posts, isLoading } = useSelector((state) => state.posts);
 
- const Posts = () => {
-    const classes = useStyles();
-    const {posts, isLoading} = useSelector((state) => state.posts);
+	if (!posts.length && !isLoading) {
+		return (
+			<p className="text-center text-text-dark font-medium py-10">
+				No posts
+			</p>
+		);
+	}
 
-    //remove due to pagination handle fetching posts
-    // const dispatch = useDispatch();
+	if (isLoading) {
+		return (
+			<div className="flex justify-center items-center h-[77vh] bg-off-white border-2 border-dark-green rounded-[15px]">
+				<div
+					className="w-12 h-12 rounded-full border-4 border-off-white border-t-dark-green animate-spin"
+					role="status"
+					aria-label="Loading posts"
+				/>
+			</div>
+		);
+	}
 
-    // useEffect(() => {
-    //     dispatch(getPosts());
-    // }, [dispatch]);
-
-    if (!posts.length && !isLoading) return 'No posts';
-
-    return (
-        isLoading ? (
-            <Paper elevation={6} className={classes.loadingPaper}>
-                <CircularProgress size="3em"/>
-            </Paper>
-        )
-        : (
-            <Grid className={classes.container} container alignItems="stretch" spacing={3}>
-                
-                { posts.map((post) => (
-                    <Grid key={post._id} item xs={12} sm={12} md={6} lg={3}>
-                        <Post post={post}/>
-                    </Grid>
-                ))}
-
-            </Grid>
-        )
-    );
-}
+	return (
+		<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+			{posts.map((post) => (
+				<Post key={post._id} post={post} />
+			))}
+		</div>
+	);
+};
 
 export default Posts;

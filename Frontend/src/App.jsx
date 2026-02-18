@@ -1,10 +1,9 @@
-// import React from "react";
 import { useSelector } from "react-redux";
-import { Container, Toolbar } from "@material-ui/core";
 import { Route, Switch, BrowserRouter, Redirect } from "react-router-dom";
 import Navbar from "./components/Navbar/Navbar";
 import Home from "./components/Home/Home";
 import Auth from "./components/Auth/Auth";
+import Signup from "./components/Auth/Signup";
 import PostDetails from "./components/PostDetails/PostDetails";
 import Dashboard from "./components/Dashboard/Dashboard";
 import Recommendations from "./components/Recommendations/Recommendations";
@@ -13,18 +12,11 @@ const App = () => {
 	const user = useSelector((state) => state.auth.authData);
 	return (
 		<BrowserRouter>
-			<Container
-				maxWidth="xl"
-				style={{
-					backgroundColor: "#fef9f5", // Off white
-					// minHeight: "100vh",
-					maxHeight: "100vh",
-					padding: "0",
-				}}
-			>
+			<div className="min-h-screen bg-off-white">
 				<Navbar />
-				<Toolbar />
-				<div style={{ padding: "0 24px" }}>
+				{/* Spacer to offset sticky navbar (~64px) */}
+				<div className="h-16" />
+				<div className="px-0">
 					<Switch>
 						<Route
 							path="/"
@@ -46,9 +38,16 @@ const App = () => {
 								!user ? <Auth /> : <Redirect to="/posts" />
 							}
 						/>
+						<Route
+							path="/signup"
+							exact
+							component={() =>
+								!user ? <Signup /> : <Redirect to="/posts" />
+							}
+						/>
 					</Switch>
 				</div>
-			</Container>
+			</div>
 		</BrowserRouter>
 	);
 };

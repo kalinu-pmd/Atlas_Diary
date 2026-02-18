@@ -10,21 +10,18 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@material-ui/core": "^4.12.4",
-    "@material-ui/icons": "^4.11.3",
-    "@material-ui/lab": "^4.0.0-alpha.58",
+    "@react-oauth/google": "^0.13.4",
     "@testing-library/jest-dom": "^5.17.0",
     "@testing-library/react": "^11.2.7",
     "@testing-library/user-event": "^12.8.3",
     "axios": "^1.7.7",
     "jwt-decode": "^3.1.2",
-    "material-ui-chip-input": "^1.1.0",
     "moment": "^2.30.1",
     "moments": "0.0.2",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-file-base64": "^1.0.3",
-    "react-google-login": "^5.2.2",
+    "react-icons": "^5.5.0",
     "react-lines-ellipsis": "^0.15.4",
     "react-redux": "^7.2.9",
     "react-router-dom": "^5.2.0",
@@ -41,11 +38,14 @@
     "@types/react": "^18.3.10",
     "@types/react-dom": "^18.3.0",
     "@vitejs/plugin-react": "^4.3.1",
+    "autoprefixer": "^10.4.24",
     "eslint": "^9.11.1",
     "eslint-plugin-react": "^7.37.0",
     "eslint-plugin-react-hooks": "^5.1.0-rc.0",
     "eslint-plugin-react-refresh": "^0.4.12",
     "globals": "^15.9.0",
+    "postcss": "^8.5.6",
+    "tailwindcss": "^3.4.19",
     "vite": "^5.4.8"
   }
 }

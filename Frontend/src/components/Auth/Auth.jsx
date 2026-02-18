@@ -1,196 +1,132 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useDispatch } from "react-redux";
 import { useHistory } from "react-router-dom";
-import {
-  Avatar,
-  Button,
-  Paper,
-  Grid,
-  Typography,
-  Container,
-} from "@material-ui/core";
-import LockOutlinedIcon from "@material-ui/icons/LockOutlined";
+import { MdLockOutline } from "react-icons/md";
 import { toast } from "react-toastify";
 
-import useStyles from "./styles";
 import Input from "./Input/Input";
-import { signUp, signIn } from "../../actions/auth";
+import Signup from "./Signup";
+import { signIn } from "../../actions/auth";
 
 const initialFormData = {
-  firstName: "",
-  lastName: "",
-  email: "",
-  password: "",
-  confirmPassword: "",
+	firstName: "",
+	lastName: "",
+	email: "",
+	password: "",
+	confirmPassword: "",
 };
 
 const Auth = () => {
-  const classes = useStyles();
-  const dispatch = useDispatch();
-  const history = useHistory();
+	const dispatch = useDispatch();
+	const history = useHistory();
 
-  const [showPassword, setShowPassword] = useState(false);
-  const [isSignup, setIsSignUp] = useState(false);
-  const [formData, setFormData] = useState(initialFormData);
-  const [errors, setErrors] = useState({});
+	const [showPassword, setShowPassword] = useState(false);
+	const [isSignup, setIsSignUp] = useState(false);
+	const [formData, setFormData] = useState(initialFormData);
+	const [errors, setErrors] = useState({});
 
-  const validate = () => {
-    const newErrors = {};
-    const namePattern = /^[a-zA-Z]+$/;
-    const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    const passwordPattern =
-      /^(?=.*[A-Z])(?=.*[a-z])(?=.*\d)(?=.*[@$!%*?&]).{8,}$/;
+	const validate = () => {
+		const newErrors = {};
+		const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+		const passwordPattern =
+			/^(?=.*[A-Z])(?=.*[a-z])(?=.*\d)(?=.*[@$!%*?&]).{8,}$/;
 
-    if (isSignup) {
-      if (!namePattern.test(formData.firstName)) {
-        newErrors.firstName = "First name must contain only letters.";
-      }
-      if (!namePattern.test(formData.lastName)) {
-        newErrors.lastName = "Last name must contain only letters.";
-      }
-    }
+		if (!emailPattern.test(formData.email)) {
+			newErrors.email = "Invalid email format.";
+		}
+		if (!passwordPattern.test(formData.password)) {
+			newErrors.password =
+				"Password must be at least 8 characters and include uppercase, lowercase, number and special character.";
+		}
 
-    if (!emailPattern.test(formData.email)) {
-      newErrors.email = "Invalid email format.";
-    }
+		setErrors(newErrors);
+		return Object.keys(newErrors).length === 0;
+	};
 
-    if (!passwordPattern.test(formData.password)) {
-      newErrors.password =
-        "Password must be at least 8 characters and include uppercase, lowercase, number and special character.";
-    }
+	const handleSubmit = (e) => {
+		e.preventDefault();
+		if (!validate()) {
+			toast.error("Please fix the form errors before submitting.");
+			return;
+		}
+		dispatch(signIn(formData, history));
+	};
 
-    if (isSignup && formData.password !== formData.confirmPassword) {
-      newErrors.confirmPassword = "Passwords do not match.";
-    }
+	const handleChange = (event) => {
+		setFormData({ ...formData, [event.target.name]: event.target.value });
+		setErrors({ ...errors, [event.target.name]: "" });
+	};
 
-    setErrors(newErrors);
+	const handleShowPassword = () => {
+		setShowPassword((prev) => !prev);
+	};
 
-    return Object.keys(newErrors).length === 0;
-  };
+	const switchMode = () => {
+		setIsSignUp((prev) => !prev);
+		setErrors({});
+		setFormData(initialFormData);
+		setShowPassword(false);
+	};
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
+	if (isSignup) {
+		return <Signup onSwitchToSignIn={switchMode} />;
+	}
 
-    if (!validate()) {
-      toast.error("Please fix the form errors before submitting.");
-      return;
-    }
+	return (
+		<div className="min-h-screen flex items-center justify-center bg-off-white px-4 py-12">
+			<div className="w-full max-w-sm bg-off-white border border-dark-green rounded-[15px] shadow-form p-6 flex flex-col items-center">
+				{/* Avatar icon */}
+				<div className="w-12 h-12 rounded-full bg-dark-green flex items-center justify-center mb-3">
+					<MdLockOutline size={24} className="text-off-white" />
+				</div>
 
-    if (isSignup) {
-      dispatch(signUp(formData, history));
-    } else {
-      dispatch(signIn(formData, history));
-    }
-  };
+				<h2 className="text-2xl font-bold text-text-dark mb-4">
+					Sign In
+				</h2>
 
-  const handleChange = (event) => {
-    setFormData({ ...formData, [event.target.name]: event.target.value });
-    setErrors({ ...errors, [event.target.name]: "" });
-  };
+				<form
+					onSubmit={handleSubmit}
+					noValidate
+					className="w-full flex flex-col gap-3"
+				>
+					<Input
+						name="email"
+						label="Email Address"
+						handleChange={handleChange}
+						type="email"
+						error={!!errors.email}
+						helperText={errors.email}
+						autoFocus
+					/>
 
-  const handleShowPassword = () => {
-    setShowPassword((prevState) => !prevState);
-  };
+					<Input
+						name="password"
+						label="Password"
+						handleChange={handleChange}
+						type={showPassword ? "text" : "password"}
+						handleShowPassword={handleShowPassword}
+						error={!!errors.password}
+						helperText={errors.password}
+					/>
 
-  const switchMode = () => {
-    setIsSignUp((prevState) => !prevState);
-    setErrors({});
-    setFormData(initialFormData);
-    setShowPassword(false);
-  };
+					<button
+						type="submit"
+						className="w-full mt-2 bg-light-green hover:bg-light-green-hover text-text-dark font-bold py-2.5 rounded-md transition-colors"
+					>
+						Sign In
+					</button>
 
-  return (
-    <Container component="main" maxWidth="xs">
-      <Paper className={classes.paper} elevation={3}>
-        <Avatar className={classes.avatar}>
-          <LockOutlinedIcon />
-        </Avatar>
-        <Typography variant="h5">{isSignup ? "Sign Up" : "Sign In"}</Typography>
-
-        <form className={classes.form} onSubmit={handleSubmit} noValidate>
-          <Grid container spacing={2}>
-            {isSignup && (
-              <>
-                <Input
-                  half
-                  name="firstName"
-                  label="First Name"
-                  handleChange={handleChange}
-                  error={!!errors.firstName}
-                  helperText={errors.firstName}
-                  autoFocus
-                />
-                <Input
-                  half
-                  name="lastName"
-                  label="Last Name"
-                  handleChange={handleChange}
-                  error={!!errors.lastName}
-                  helperText={errors.lastName}
-                />
-              </>
-            )}
-            <Input
-              name="email"
-              label="Email Address"
-              handleChange={handleChange}
-              type="email"
-              error={!!errors.email}
-              helperText={errors.email}
-              autoFocus={!isSignup}
-            />
-
-            <Input
-              name="password"
-              label="Password"
-              handleChange={handleChange}
-              type={showPassword ? "text" : "password"}
-              handleShowPassword={handleShowPassword}
-              error={!!errors.password}
-              helperText={errors.password}
-            />
-
-            {isSignup && (
-              <Input
-                name="confirmPassword"
-                label="Repeat Password"
-                handleChange={handleChange}
-                //type="password"
-                type={showPassword ? "text" : "password"}
-                error={!!errors.confirmPassword}
-                helperText={errors.confirmPassword}
-              />
-            )}
-
-            <Grid item xs={12}>
-              <Button
-                type="submit"
-                fullWidth
-                variant="contained"
-                color="primary"
-                className={classes.submit}
-              >
-                {isSignup ? "Sign Up" : "Sign In"}
-              </Button>
-            </Grid>
-
-            <Grid item xs={12}>
-              <Button
-                onClick={switchMode}
-                fullWidth
-                color="secondary"
-                style={{ marginTop: 8 }}
-              >
-                {isSignup
-                  ? "Already have an account? Sign In"
-                  : "Don't have an account? Sign Up"}
-              </Button>
-            </Grid>
-          </Grid>
-        </form>
-      </Paper>
-    </Container>
-  );
+					<button
+						type="button"
+						onClick={switchMode}
+						className="w-full text-sm text-dark-green font-semibold py-2 hover:underline transition-colors"
+					>
+						Don't have an account? Sign Up
+					</button>
+				</form>
+			</div>
+		</div>
+	);
 };
 
 export default Auth;

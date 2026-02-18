@@ -1,21 +1,9 @@
 import { useEffect } from "react";
-import {
-	Paper,
-	Typography,
-	CircularProgress,
-	Divider,
-	Grid,
-	Box,
-	Chip,
-} from "@material-ui/core";
-import { useTheme } from "@material-ui/core/styles";
-import { useMediaQuery } from "@material-ui/core";
 import { useDispatch, useSelector } from "react-redux";
 import moment from "moment";
 import { useParams, useHistory } from "react-router-dom";
 import LinesEllipsis from "react-lines-ellipsis";
 
-import useStyles from "./styles";
 import {
 	getPostById,
 	getPostsBySearch,
@@ -28,11 +16,7 @@ function PostDetails() {
 	const { post, posts, isLoading } = useSelector((state) => state.posts);
 	const dispatch = useDispatch();
 	const history = useHistory();
-	const classes = useStyles();
 	const { id } = useParams();
-
-	const theme = useTheme();
-	const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
 
 	useEffect(() => {
 		dispatch(getPostById(id));
@@ -63,29 +47,32 @@ function PostDetails() {
 
 	if (isLoading) {
 		return (
-			<Paper elevation={6} className={classes.loadingPaper}>
-				<CircularProgress size="3em" />
-			</Paper>
+			<div className="flex justify-center items-center h-[77vh] bg-off-white border-2 border-dark-green rounded-[15px]">
+				<div
+					className="w-12 h-12 rounded-full border-4 border-off-white border-t-dark-green animate-spin"
+					role="status"
+					aria-label="Loading post"
+				/>
+			</div>
 		);
 	}
 
-	// Helper for rendering images (gallery or single)
 	const renderImages = () => {
 		if (Array.isArray(post.selectedFile) && post.selectedFile.length > 0) {
 			return (
-				<Box>
+				<div>
 					{post.selectedFile.map((image, idx) => (
 						<img
 							key={idx}
-							className={classes.media}
 							src={image}
 							alt={`${post.title} - ${idx + 1}`}
 							loading="lazy"
+							className="w-full rounded-[15px] object-cover border-2 border-dark-green shadow-card hover:scale-[1.02] transition-transform duration-200"
 							style={{
+								maxHeight: 500,
+								minHeight: 300,
 								marginBottom:
-									idx < post.selectedFile.length - 1
-										? "10px"
-										: "0",
+									idx < post.selectedFile.length - 1 ? 10 : 0,
 							}}
 							onError={(e) => {
 								e.target.onerror = null;
@@ -94,18 +81,19 @@ function PostDetails() {
 							}}
 						/>
 					))}
-				</Box>
+				</div>
 			);
 		}
 		return (
 			<img
-				className={classes.media}
 				src={
 					post.selectedFile ||
 					"https://user-images.githubusercontent.com/194400/49531010-48dad180-f8b1-11e8-8d89-1e61320e1d82.png"
 				}
 				alt={post.title}
 				loading="lazy"
+				className="w-full rounded-[15px] object-cover border-2 border-dark-green shadow-card hover:scale-[1.02] transition-transform duration-200"
+				style={{ maxHeight: 500, minHeight: 300 }}
 				onError={(e) => {
 					e.target.onerror = null;
 					e.target.src =
@@ -116,84 +104,58 @@ function PostDetails() {
 	};
 
 	return (
-		<Box mt={isMobile ? 7 : 8}>
-			<Paper style={{ padding: 24, borderRadius: 18 }} elevation={6}>
-				<Grid
-					container
-					spacing={isMobile ? 2 : 4}
-					className={classes.card}
-					direction={isMobile ? "column" : "row"}
-				>
-					{/* Main Content */}
-					<Grid item xs={12} md={7}>
-						<Box className={classes.section}>
-							<Typography
-								variant={isMobile ? "h5" : "h3"}
-								component="h2"
-								gutterBottom
-								style={{ fontWeight: 700 }}
-							>
-								{post.title}
-							</Typography>
-							<Box mb={1}>
-								{post.tags.map((tag) => (
-									<Chip
-										key={tag}
-										label={`#${tag}`}
-										size="small"
-										style={{
-											marginRight: 6,
-											background: "#affa01",
-											color: "#0c342c",
-											fontWeight: 600,
-										}}
-									/>
-								))}
-							</Box>
-							<Typography
-								gutterBottom
-								variant="body1"
-								component="p"
-								style={{
-									marginBottom: 12,
-									whiteSpace: "pre-line",
-								}}
-							>
-								{post.message}
-							</Typography>
-							<Typography
-								variant="subtitle1"
-								color="textSecondary"
-							>
-								<strong>Created by:</strong> {post.name}
-							</Typography>
-							<Typography variant="caption" color="textSecondary">
-								{moment(post.createdAt).fromNow()}
-							</Typography>
-							<Divider style={{ margin: "20px 0" }} />
-							<CommentSection post={post} />
-							<Divider style={{ margin: "20px 0" }} />
-						</Box>
-					</Grid>
+		<div className="mt-8 sm:mt-7">
+			<div className="bg-off-white rounded-[18px] shadow-lg p-6">
+				{/* Main grid */}
+				<div className="flex flex-col md:flex-row gap-6 md:gap-8 border border-light-green rounded-[20px] p-4 shadow-form">
+					{/* Content */}
+					<div className="flex-1 bg-off-white rounded-[20px] p-2">
+						<h2 className="text-3xl sm:text-2xl font-bold text-text-dark mb-2">
+							{post.title}
+						</h2>
 
-					{/* Image Gallery */}
-					<Grid item xs={12} md={5}>
-							{renderImages()}
-					</Grid>
-				</Grid>
+						{/* Tags */}
+						<div className="flex flex-wrap gap-1.5 mb-3">
+							{post.tags.map((tag) => (
+								<span
+									key={tag}
+									className="bg-light-green text-dark-green text-xs font-semibold px-2.5 py-0.5 rounded-full"
+								>
+									#{tag}
+								</span>
+							))}
+						</div>
 
-				{/* Recommended Posts */}
+						{/* Message */}
+						<p className="text-text-dark text-base whitespace-pre-line mb-3">
+							{post.message}
+						</p>
+
+						<p className="text-sm text-text-gray mb-1">
+							<strong>Created by:</strong> {post.name}
+						</p>
+						<p className="text-xs text-text-gray mb-4">
+							{moment(post.createdAt).fromNow()}
+						</p>
+
+						<hr className="border-text-gray/20 my-5" />
+						<CommentSection post={post} />
+						<hr className="border-text-gray/20 my-5" />
+					</div>
+
+					{/* Images */}
+					<div className="w-full md:w-5/12">{renderImages()}</div>
+				</div>
+
+				{/* Recommended posts */}
 				{recommendedPosts.length > 0 && (
-					<Box mt={4} mb={2}>
-						<Typography
-							variant="h5"
-							gutterBottom
-							style={{ fontWeight: 600 }}
-						>
+					<div className="mt-8 mb-4">
+						<h2 className="text-xl font-semibold text-text-dark mb-2">
 							You might also like
-						</Typography>
-						<Divider />
-						<Box className={classes.recommendedPosts} mt={2}>
+						</h2>
+						<hr className="border-text-gray/20 mb-4" />
+
+						<div className="flex flex-wrap flex-row justify-start gap-4 bg-light-green/5 p-4 rounded-xl border border-light-green">
 							{recommendedPosts.map(
 								({
 									title,
@@ -203,118 +165,75 @@ function PostDetails() {
 									selectedFile,
 									_id,
 								}) => (
-									<Paper
+									<div
 										key={_id}
-										className={classes.postWrap}
-										elevation={3}
-										style={{
-											margin: 16,
-											cursor: "pointer",
-											transition:
-												"box-shadow 0.2s, transform 0.2s",
-										}}
+										className="bg-off-white rounded-xl border border-dark-green/10 shadow-md p-4 cursor-pointer hover:shadow-card-hover hover:-translate-y-0.5 transition-all duration-200 w-full sm:w-[calc(50%-8px)] lg:w-[calc(25%-12px)]"
 										onClick={() => openPost(_id)}
 										tabIndex={0}
+										role="button"
 										onKeyPress={(e) => {
 											if (e.key === "Enter")
 												openPost(_id);
 										}}
 									>
-										<Box p={2}>
-											<Typography
-												gutterBottom
-												variant="subtitle1"
-												style={{ fontWeight: 600 }}
-											>
-												{title}
-											</Typography>
-											<Typography
-												gutterBottom
-												variant="body2"
-												color="textSecondary"
-											>
-												{name}
-											</Typography>
-											<LinesEllipsis
-												className={classes.postContent}
-												text={message}
-												maxLine="3"
-												ellipsis="..."
-												trimRight
-												basedOn="letters"
-												style={{
-													fontFamily: "inherit",
+										<p className="font-semibold text-text-dark text-sm mb-1 leading-snug">
+											{title}
+										</p>
+										<p className="text-xs text-text-gray mb-1">
+											{name}
+										</p>
+										<LinesEllipsis
+											text={message}
+											maxLine="3"
+											ellipsis="..."
+											trimRight
+											basedOn="letters"
+											className="text-xs text-text-dark leading-snug"
+										/>
+										<p className="text-xs text-text-gray mt-1">
+											Likes: {likes.length}
+										</p>
+										<div className="mt-2">
+											<img
+												src={
+													Array.isArray(
+														selectedFile,
+													) && selectedFile.length > 0
+														? selectedFile[0]
+														: selectedFile
+												}
+												alt="recommended"
+												loading="lazy"
+												className="w-full h-20 object-cover rounded-lg border border-light-green bg-off-white"
+												onError={(e) => {
+													e.target.onerror = null;
+													e.target.src =
+														"https://user-images.githubusercontent.com/194400/49531010-48dad180-f8b1-11e8-8d89-1e61320e1d82.png";
 												}}
 											/>
-											<Typography
-												variant="caption"
-												color="textSecondary"
-												style={{
-													display: "block",
-													marginTop: 4,
-												}}
-											>
-												Likes: {likes.length}
-											</Typography>
-											<Box mt={1}>
-												<img
-													src={
-														Array.isArray(
-															selectedFile,
-														) &&
-														selectedFile.length > 0
-															? selectedFile[0]
-															: selectedFile
-													}
-													height="80"
-													style={{
-														width: "100%",
-														objectFit: "cover",
-														borderRadius: 8,
-														border: "1px solid #affa01",
-														background: "#fef9f5",
-													}}
-													alt="recommended_img"
-													loading="lazy"
-													onError={(e) => {
-														e.target.onerror = null;
-														e.target.src =
-															"https://user-images.githubusercontent.com/194400/49531010-48dad180-f8b1-11e8-8d89-1e61320e1d82.png";
-													}}
-												/>
-												{Array.isArray(selectedFile) &&
-													selectedFile.length > 1 && (
-														<Typography
-															variant="caption"
-															style={{
-																display:
-																	"block",
-																marginTop:
-																	"2px",
-																color: "#888",
-															}}
-														>
-															+
-															{selectedFile.length -
-																1}{" "}
-															more images
-														</Typography>
-													)}
-											</Box>
-										</Box>
-									</Paper>
+											{Array.isArray(selectedFile) &&
+												selectedFile.length > 1 && (
+													<p className="text-xs text-text-gray mt-0.5">
+														+
+														{selectedFile.length -
+															1}{" "}
+														more images
+													</p>
+												)}
+										</div>
+									</div>
 								),
 							)}
-						</Box>
-					</Box>
+						</div>
+					</div>
 				)}
 
-				{/* Content-based Similar Posts */}
-				<Box mt={4}>
+				{/* Similar posts */}
+				<div className="mt-8">
 					<SimilarPosts postId={post._id} />
-				</Box>
-			</Paper>
-		</Box>
+				</div>
+			</div>
+		</div>
 	);
 }
 
