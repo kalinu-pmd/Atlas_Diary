@@ -60,7 +60,7 @@ const Posts = () => {
 		setError("");
 		dispatch({ type: "SELECTED_POST", payload: "" });
 		toast.info("Form cleared!");
-		history.push();
+		history.push("/posts");
 	};
 
 	if (!user?.result?.name) {

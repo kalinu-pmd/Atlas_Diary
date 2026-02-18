@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { MdVisibility, MdVisibilityOff } from "react-icons/md";
 import PropTypes from "prop-types";
 

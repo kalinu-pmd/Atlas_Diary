@@ -1,9 +1,10 @@
 import { useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { Link } from "react-router-dom";
+import PropTypes from "prop-types";
 import { getPosts } from "../../actions/posts";
 
-const Paginate = ({ page }) => {
+const Paginate = ({ page, basePath = "/posts" }) => {
 	const dispatch = useDispatch();
 	const totalPages = useSelector((state) => state.posts.numberOfPages);
 
@@ -71,7 +72,7 @@ const Paginate = ({ page }) => {
 			{/* Previous */}
 			{currentPage > 1 ? (
 				<Link
-					to={`/posts?page=${currentPage - 1}`}
+					to={`${basePath}?page=${currentPage - 1}`}
 					className={`${btnBase} ${btnDefault} no-underline`}
 					aria-label="Previous page"
 				>
@@ -95,7 +96,7 @@ const Paginate = ({ page }) => {
 				) : (
 					<Link
 						key={p}
-						to={`/posts?page=${p}`}
+						to={`${basePath}?page=${p}`}
 						className={`${btnBase} no-underline ${
 							p === currentPage ? btnActive : btnDefault
 						}`}
@@ -110,7 +111,7 @@ const Paginate = ({ page }) => {
 			{/* Next */}
 			{currentPage < totalPages ? (
 				<Link
-					to={`/posts?page=${currentPage + 1}`}
+					to={`${basePath}?page=${currentPage + 1}`}
 					className={`${btnBase} ${btnDefault} no-underline`}
 					aria-label="Next page"
 				>
@@ -123,6 +124,11 @@ const Paginate = ({ page }) => {
 			)}
 		</nav>
 	);
+};
+
+Paginate.propTypes = {
+	page: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+	basePath: PropTypes.string,
 };
 
 export default Paginate;

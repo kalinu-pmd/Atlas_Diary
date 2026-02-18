@@ -1,4 +1,5 @@
-import React, { useState } from "react";
+import { useState } from "react";
+import PropTypes from "prop-types";
 import { useDispatch, useSelector } from "react-redux";
 import { useHistory } from "react-router-dom";
 import moment from "moment";
@@ -169,6 +170,24 @@ const Post = ({ post }) => {
 			</div>
 		</div>
 	);
+};
+
+Post.propTypes = {
+	post: PropTypes.shape({
+		_id: PropTypes.string.isRequired,
+		title: PropTypes.string,
+		message: PropTypes.string,
+		name: PropTypes.string,
+		creator: PropTypes.string,
+		tags: PropTypes.arrayOf(PropTypes.string),
+		selectedFile: PropTypes.oneOfType([
+			PropTypes.string,
+			PropTypes.arrayOf(PropTypes.string),
+		]),
+		likes: PropTypes.arrayOf(PropTypes.string),
+		comments: PropTypes.arrayOf(PropTypes.string),
+		createdAt: PropTypes.string,
+	}).isRequired,
 };
 
 export default Post;

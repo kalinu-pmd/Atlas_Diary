@@ -121,7 +121,7 @@ const Auth = () => {
 						onClick={switchMode}
 						className="w-full text-sm text-dark-green font-semibold py-2 hover:underline transition-colors"
 					>
-						Don't have an account? Sign Up
+						Don&apos;t have an account? Sign Up
 					</button>
 				</form>
 			</div>

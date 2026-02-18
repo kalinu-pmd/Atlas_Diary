@@ -1,10 +1,12 @@
 import { combineReducers } from "redux";
-import posts from './posts';
-import selectedPost from './selectedPost';
-import auth from './auth';
+import posts from "./posts";
+import selectedPost from "./selectedPost";
+import auth from "./auth";
 
-export default combineReducers({
-    posts,
-    selectedPost,
-    auth,
+const rootReducer = combineReducers({
+	posts,
+	selectedPost,
+	auth,
 });
+
+export default rootReducer;
