@@ -186,7 +186,7 @@ export default function HowItWorks() {
 						Get Started Free
 					</Link>
 					<Link
-						to="/public-diaries"
+						to="/posts"
 						className="inline-flex items-center gap-2 text-white/75 hover:text-white font-semibold text-sm px-5 py-3 rounded-full no-underline border border-white/20 hover:border-white/40 transition-all"
 					>
 						Browse Diaries First
@@ -353,7 +353,7 @@ export default function HowItWorks() {
 							Create Free Account
 						</Link>
 						<Link
-							to="/public-diaries"
+							to="/posts"
 							className="inline-flex items-center gap-2 text-white/70 hover:text-white font-semibold text-sm px-5 py-3.5 rounded-full no-underline border border-white/20 hover:border-white/40 transition-all"
 						>
 							Explore First

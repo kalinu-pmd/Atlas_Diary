@@ -65,7 +65,7 @@ export default function Hero() {
 						</RouterLink>
 
 						<RouterLink
-							to="/public-diaries"
+							to="/posts"
 							aria-label="Explore public diaries"
 							className="inline-flex items-center justify-center bg-[#f2efe6] text-[#274b3f] font-bold text-base px-5 py-3 rounded-full no-underline border border-[rgba(39,75,63,0.08)] transition-all hover:bg-[#efece1] hover:-translate-y-px"
 						>
