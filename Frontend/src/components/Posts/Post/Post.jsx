@@ -9,6 +9,7 @@ import {
 	MdThumbUpOffAlt,
 	MdDelete,
 	MdMoreHoriz,
+	MdComment,
 } from "react-icons/md";
 
 import { deletePost, likePost } from "../../../actions/posts";
@@ -74,14 +75,64 @@ const Post = ({ post }) => {
 				"https://user-images.githubusercontent.com/194400/49531010-48dad180-f8b1-11e8-8d89-1e61320e1d82.png";
 
 	return (
-		<div className="flex flex-col justify-between bg-off-white border border-dark-green rounded-[15px] shadow-card hover:-translate-y-1 hover:shadow-card-hover transition-all duration-200 h-full overflow-hidden">
-			{/* Media */}
-			<div className="relative" style={{ paddingTop: "56.25%" }}>
+		<div className="bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow duration-200 overflow-hidden border border-gray-200">
+			{/* Header with author info */}
+			<div className="px-4 pt-4 pb-3 flex items-center justify-between">
+				<div className="flex items-center gap-3 flex-1 min-w-0">
+					<div className="w-10 h-10 rounded-full bg-gradient-to-br from-dark-green to-light-green flex items-center justify-center text-white font-bold text-sm shrink-0">
+						{post.name?.charAt(0)?.toUpperCase() || "U"}
+					</div>
+					<div className="flex-1 min-w-0">
+						<p className="font-semibold text-text-dark text-sm truncate">
+							{post.name}
+						</p>
+						<p className="text-xs text-text-gray">
+							{moment(post.createdAt).fromNow()}
+						</p>
+					</div>
+				</div>
+				{isOwner && (
+					<button
+						className="text-text-gray hover:text-text-dark transition-colors p-1"
+						onClick={() => {
+							dispatch({
+								type: "SELECTED_POST",
+								payload: post._id,
+							});
+							toast.info("Post selected for editing!");
+						}}
+						title="Edit post"
+					>
+						<MdMoreHoriz size={18} />
+					</button>
+				)}
+			</div>
+
+			{/* Tags (subtitle) */}
+			{post.tags?.length > 0 && (
+				<div className="px-4 pb-2">
+					<p className="text-xs text-light-green font-semibold">
+						{post.tags.slice(0, 3).map((tag) => `#${tag}`).join(" • ")}
+						{post.tags.length > 3 && ` +${post.tags.length - 3}`}
+					</p>
+				</div>
+			)}
+
+			{/* Title */}
+			<div className="px-4 pb-3">
+				<h2 className="text-base font-bold text-text-dark leading-snug line-clamp-2">
+					{post.title}
+				</h2>
+			</div>
+
+			{/* Image */}
+			<div className="relative w-full bg-gray-200 overflow-hidden" style={{ paddingTop: "56.25%" }}>
 				<img
 					src={imageUrl}
 					alt={post.title}
-					className="absolute inset-0 w-full h-full object-cover rounded-t-[15px]"
-					style={{ backgroundColor: "rgba(12,52,44,0.7)" }}
+					className="absolute inset-0 w-full h-full object-cover hover:scale-105 transition-transform duration-300 cursor-pointer"
+					onClick={openPost}
+					style={{ backgroundColor: "rgba(12,52,44,0.1)" }}
 					onError={(e) => {
 						e.target.onerror = null;
 						e.target.src =
@@ -92,84 +143,70 @@ const Post = ({ post }) => {
 				{/* Image counter badge */}
 				{Array.isArray(post.selectedFile) &&
 					post.selectedFile.length > 1 && (
-						<div className="absolute top-2 right-2 bg-black/80 text-white text-xs font-bold px-2 py-0.5 rounded-xl shadow z-10">
-							+{post.selectedFile.length - 1} more
+						<div className="absolute top-3 right-3 bg-black/75 text-white text-xs font-bold px-2.5 py-1 rounded-lg backdrop-blur-sm">
+							+{post.selectedFile.length - 1}
 						</div>
 					)}
+			</div>
 
-				{/* Author overlay (bottom-left) */}
-				<div className="absolute top-5 left-5 bg-dark-green/80 text-off-white px-3 py-2 rounded-lg z-10">
-					<p className="font-bold text-sm leading-tight">
-						{post.name}
-					</p>
-					<p className="text-xs">
-						{moment(post.createdAt).fromNow()}
-					</p>
-				</div>
+			{/* Description excerpt */}
+			<div className="px-4 pt-3 pb-2">
+				<p className="text-sm text-text-gray line-clamp-2 leading-relaxed">
+					{post.message}
+				</p>
+			</div>
 
-				{/* Edit overlay (top-right) */}
-				{isOwner && (
-					<div className="absolute top-5 right-5 z-10">
-						<button
-							className="text-white bg-light-green/90 hover:bg-light-green rounded-lg px-2 py-1 transition-colors"
-							onClick={() => {
-								dispatch({
-									type: "SELECTED_POST",
-									payload: post._id,
-								});
-								toast.info("Post selected for editing!");
-							}}
-						>
-							<MdMoreHoriz size={20} />
-						</button>
-					</div>
+			{/* Stats */}
+			<div className="px-4 py-2 border-t border-gray-100 flex items-center justify-between text-xs text-text-gray">
+				<span className="flex items-center gap-1">
+					<span className="w-5 h-5 rounded-full bg-dark-green text-white text-xs flex items-center justify-center">
+						👍
+					</span>
+					{likes.length} {likes.length === 1 ? "like" : "likes"}
+				</span>
+				{post.comments?.length > 0 && (
+					<span>{post.comments.length} {post.comments.length === 1 ? "comment" : "comments"}</span>
 				)}
 			</div>
 
-			{/* Clickable body */}
-			<button
-				onClick={openPost}
-				className="flex-1 flex flex-col text-left w-full bg-transparent border-0 cursor-pointer"
-			>
-				{/* Tags */}
-				<div className="px-4 pt-3 pb-1">
-					<p className="text-xs text-text-gray">
-						{post.tags.map((tag) => `#${tag} `)}
-					</p>
-				</div>
-
-				{/* Title */}
-				<div className="px-4 pb-1">
-					<h2 className="text-lg font-bold text-text-dark leading-snug">
-						{post.title}
-					</h2>
-				</div>
-
-				{/* Message excerpt */}
-				<div className="px-4 pb-3">
-					<p className="text-sm text-text-gray line-clamp-3">
-						{post.message.split(" ").splice(0, 25).join(" ")}...
-					</p>
-				</div>
-			</button>
-
-			{/* Actions */}
-			<div className="flex items-center justify-between px-4 py-2 bg-light-green/10 border-t border-dark-green/10">
+			{/* Action buttons */}
+			<div className="flex items-center justify-between px-2 py-2 border-t border-gray-100">
 				<button
-					className="flex items-center gap-1 text-dark-green text-sm font-medium hover:bg-light-green/20 px-2 py-1 rounded transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+					className="flex-1 flex items-center justify-center gap-2 text-text-gray hover:bg-gray-100 py-2 rounded font-semibold text-sm transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
 					disabled={!user?.result}
 					onClick={handleLike}
+					title={!user?.result ? "Sign in to like posts" : "Like this post"}
 				>
-					<Likes />
+					{hasAlreadyLiked ? (
+						<>
+							<MdThumbUp size={18} className="text-dark-green" />
+							<span className="text-dark-green">Like</span>
+						</>
+					) : (
+						<>
+							<MdThumbUpOffAlt size={18} />
+							<span>Like</span>
+						</>
+					)}
+				</button>
+
+				<button
+					className="flex-1 flex items-center justify-center gap-2 text-text-gray hover:bg-gray-100 py-2 rounded font-semibold text-sm transition-colors"
+					onClick={openPost}
+					title="View comments and details"
+				>
+					<MdComment size={18} />
+					<span>Comment</span>
 				</button>
 
 				{isOwner && (
 					<button
-						className="flex items-center gap-1 text-orange text-sm font-medium hover:bg-orange/10 px-2 py-1 rounded transition-colors"
+						className="flex-1 flex items-center justify-center gap-2 text-text-gray hover:bg-red-50 py-2 rounded font-semibold text-sm transition-colors hover:text-orange"
 						onClick={() => dispatch(deletePost(post._id, parseInt(currentPage)))}
+						title="Delete this post"
 					>
-						<MdDelete size={16} />
-						Delete
+						<MdDelete size={18} />
+						<span>Delete</span>
 					</button>
 				)}
 			</div>

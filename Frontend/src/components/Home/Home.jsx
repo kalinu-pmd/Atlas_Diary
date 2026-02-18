@@ -219,20 +219,20 @@ export default function Home() {
 			)}
 
 			{/* ── Main content ─────────────────────────────────────────── */}
-			<main className="flex-1 max-w-6xl mx-auto w-full px-4 py-6">
-				<div className="flex flex-col lg:flex-row gap-6">
-					{/* Posts grid */}
-					<div className="flex-1 min-w-0">
-						<Posts />
-						{!isSearchActive && (
-							<div className="mt-6">
-								<Paginate page={page} />
-							</div>
-						)}
-					</div>
+		<main className="flex-1 max-w-7xl mx-auto w-full px-4 py-6">
+			<div className="flex flex-col lg:flex-row gap-8 justify-center">
+				{/* Posts feed (centered) */}
+				<div className="w-full lg:max-w-2xl">
+					<Posts />
+					{!isSearchActive && (
+						<div className="mt-8">
+							<Paginate page={page} />
+						</div>
+					)}
+				</div>
 
-					{/* Sidebar: Create post form */}
-					<aside className="lg:w-72 xl:w-80 shrink-0">
+				{/* Sidebar: Create post form (right, sticky on desktop) */}
+				<aside className="lg:w-64 lg:sticky lg:top-24 h-fit shrink-0">
 						{/* Mobile: toggle button */}
 						<div className="lg:hidden mb-3">
 							{user?.result?.name && (
