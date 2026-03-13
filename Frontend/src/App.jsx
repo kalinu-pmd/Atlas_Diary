@@ -17,96 +17,88 @@ import Privacy from "./components/Privacy/Privacy";
 import NotFound from "./components/NotFound/NotFound";
 
 const App = () => {
-	const user = useSelector((state) => state.auth.authData);
+  const user = useSelector((state) => state.auth.authData);
 
-	return (
-		<BrowserRouter>
-			<div className="min-h-screen bg-off-white">
-				<Navbar />
-				{/* Spacer to offset sticky navbar (~64px) */}
-				<div className="h-16" />
-				<div className="px-0">
-					<Switch>
-						{/* Root: Landing for guests, feed for logged-in users */}
-						<Route
-							path="/"
-							exact
-							component={() =>
-								user ? <Redirect to="/posts" /> : <Landing />
-							}
-						/>
+  return (
+    <BrowserRouter>
+      <div className="min-h-screen bg-off-white ">
+        <Navbar />
+        {/* Spacer to offset sticky navbar (~64px) */}
+        <div className="h-16" />
+        <div className="px-0">
+          <Switch>
+            {/* Root: Landing for guests, feed for logged-in users */}
+            <Route
+              path="/"
+              exact
+              component={() => (user ? <Redirect to="/posts" /> : <Landing />)}
+            />
 
-						{/* Main posts feed */}
-						<Route path="/posts" exact component={Home} />
-						<Route path="/posts/search" exact component={Home} />
-						<Route path="/posts/:id" component={PostDetails} />
+            {/* Main posts feed */}
+            <Route path="/posts" exact component={Home} />
+            <Route path="/posts/search" exact component={Home} />
+            <Route path="/posts/:id" component={PostDetails} />
 
-						{/* Create post page */}
-						<Route path="/create-post" exact component={() => (user ? <CreatePost /> : <Redirect to="/auth" />)} />
+            {/* Create post page */}
+            <Route
+              path="/create-post"
+              exact
+              component={() =>
+                user ? <CreatePost /> : <Redirect to="/auth" />
+              }
+            />
 
-						{/* Account settings */}
-						<Route path="/settings" exact component={() => (user ? <Settings /> : <Redirect to="/auth" />)} />
+            {/* Account settings */}
+            <Route
+              path="/settings"
+              exact
+              component={() => (user ? <Settings /> : <Redirect to="/auth" />)}
+            />
 
-						{/* Explore goes to the same feed */}
-						<Route
-							path="/explore"
-							component={() => <Redirect to="/posts" />}
-						/>
+            {/* Explore goes to the same feed */}
+            <Route path="/explore" component={() => <Redirect to="/posts" />} />
 
+            {/* Personalized recommendations (auth required) */}
+            <Route
+              path="/recommendations"
+              component={() =>
+                user ? <Recommendations /> : <Redirect to="/auth" />
+              }
+            />
 
-						{/* Personalized recommendations (auth required) */}
-						<Route
-							path="/recommendations"
-							component={() =>
-								user ? (
-									<Recommendations />
-								) : (
-									<Redirect to="/auth" />
-								)
-							}
-						/>
+            {/* Admin dashboard (admin only) */}
+            <Route
+              path="/dashboard"
+              component={() =>
+                user?.result?.isAdmin ? <Dashboard /> : <Redirect to="/posts" />
+              }
+            />
 
-						{/* Admin dashboard (admin only) */}
-						<Route
-							path="/dashboard"
-							component={() =>
-								user?.result?.isAdmin ? (
-									<Dashboard />
-								) : (
-									<Redirect to="/posts" />
-								)
-							}
-						/>
+            {/* Static / info pages */}
+            <Route path="/how-it-works" component={HowItWorks} />
+            <Route path="/about" component={About} />
+            <Route path="/contact" component={Contact} />
+            <Route path="/privacy" component={Privacy} />
 
-						{/* Static / info pages */}
-						<Route path="/how-it-works" component={HowItWorks} />
-						<Route path="/about" component={About} />
-						<Route path="/contact" component={Contact} />
-						<Route path="/privacy" component={Privacy} />
+            {/* Auth pages */}
+            <Route
+              path="/auth"
+              exact
+              component={() => (!user ? <Auth /> : <Redirect to="/posts" />)}
+            />
+            <Route
+              path="/signup"
+              exact
+              component={() => (!user ? <Signup /> : <Redirect to="/posts" />)}
+            />
 
-						{/* Auth pages */}
-						<Route
-							path="/auth"
-							exact
-							component={() =>
-								!user ? <Auth /> : <Redirect to="/posts" />
-							}
-						/>
-						<Route
-							path="/signup"
-							exact
-							component={() =>
-								!user ? <Signup /> : <Redirect to="/posts" />
-							}
-						/>
-
-						{/* 404 fallback */}
-						<Route component={NotFound} />
-					</Switch>
-				</div>
-			</div>
-		</BrowserRouter>
-	);
+            {/* 404 fallback */}
+            <Route component={NotFound} />
+          </Switch>
+        </div>
+      </div>
+    </BrowserRouter>
+  );
 };
 
 export default App;
