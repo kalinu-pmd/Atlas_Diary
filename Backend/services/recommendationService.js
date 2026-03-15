@@ -1,3 +1,4 @@
+
 import PostMessage from "../models/postMessage.js";
 import User from "../models/users.js";
 import natural from "natural";
@@ -12,6 +13,28 @@ class RecommendationService {
     this.tfidf = new TfIdf();
     this.tokenizer = new tokenizer();
   }
+
+  // Get posts near a given location
+  async getNearbyPosts({ lng, lat }, radius = 5000, limit = 10) {
+    // radius in meters
+    try {
+      const posts = await PostMessage.find({
+        location: {
+          $near: {
+            $geometry: { type: "Point", coordinates: [lng, lat] },
+            $maxDistance: radius,
+          },
+        },
+      })
+        .limit(limit)
+        .populate("creator", "name");
+      return posts;
+    } catch (error) {
+      console.error("Error getting nearby posts:", error);
+      return [];
+    }
+  }
+
 
   // Clean and preprocess text
   preprocessText(text) {
@@ -125,7 +148,7 @@ class RecommendationService {
   calculateRecommendationScore(post, userProfile) {
     let score = 0;
 
-    // Tag similarity score (40% weight)
+    // Tag similarity score (30% weight)
     const postTags = post.tags.map((tag) => tag.toLowerCase());
     let tagScore = 0;
     postTags.forEach((tag) => {
@@ -135,15 +158,15 @@ class RecommendationService {
     });
     score +=
       (tagScore / Math.max(1, Object.keys(userProfile.tagFrequency).length)) *
-      0.4;
+      0.3;
 
-    // Content similarity score (40% weight)
+    // Content similarity score (30% weight)
     let maxContentSimilarity = 0;
     userProfile.contentProfile.forEach((userPost) => {
       const similarity = this.calculateContentSimilarity(post, userPost);
       maxContentSimilarity = Math.max(maxContentSimilarity, similarity);
     });
-    score += maxContentSimilarity * 0.4;
+    score += maxContentSimilarity * 0.3;
 
     // Popularity score (10% weight) - based on likes and comments
     const popularityScore = (post.likes.length + post.comments.length) / 100;
@@ -155,12 +178,41 @@ class RecommendationService {
     const recencyScore = Math.max(0, 1 - daysSinceCreated / 30); // Boost for posts within 30 days
     score += recencyScore * 0.1;
 
+    // Location proximity score (20% weight)
+    // If userProfile.location and post.location exist, calculate distance and score
+    let locationScore = 0;
+    if (userProfile.location && post.location && Array.isArray(post.location.coordinates)) {
+      const userLoc = userProfile.location;
+      const postLoc = post.location.coordinates;
+      // Haversine formula for distance in meters
+      function toRad(x) { return (x * Math.PI) / 180; }
+      const R = 6371000; // Earth radius in meters
+      const dLat = toRad(postLoc[1] - userLoc.lat);
+      const dLon = toRad(postLoc[0] - userLoc.lng);
+      const a =
+        Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+        Math.cos(toRad(userLoc.lat)) *
+        Math.cos(toRad(postLoc[1])) *
+        Math.sin(dLon / 2) * Math.sin(dLon / 2);
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+      const distance = R * c;
+      // Score: 1 if within 1km, 0 if farther than 10km, linear in between
+      if (distance <= 1000) locationScore = 1;
+      else if (distance >= 10000) locationScore = 0;
+      else locationScore = 1 - (distance - 1000) / 9000;
+    }
+    score += locationScore * 0.2;
+
     return score;
   }
 
   // Get content-based recommendations for a user
-  async getRecommendations(userId, limit = 10) {
+  async getRecommendations(userId, limit = 10, location = null, radius = 5000) {
     try {
+      // If location is provided, return nearby posts
+      if (location && location.lng && location.lat) {
+        return await this.getNearbyPosts(location, radius, limit);
+      }
       const userProfile = await this.buildUserProfile(userId);
 
       if (!userProfile || userProfile.contentProfile.length === 0) {

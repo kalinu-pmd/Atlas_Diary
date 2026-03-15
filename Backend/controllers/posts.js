@@ -73,10 +73,19 @@ export const getPostById = async (req, res) => {
   }
 };
 
+
 export const createPost = async (req, res) => {
   const post = req.body;
+  let location = undefined;
+  if (post.location && post.location.lat && post.location.lng) {
+    location = {
+      type: 'Point',
+      coordinates: [post.location.lng, post.location.lat],
+    };
+  }
   const newPost = new PostMessage({
     ...post,
+    location,
     creator: req.userId,
     createdAt: new Date().toISOString(),
   });
@@ -204,10 +213,16 @@ export const getRecommendations = async (req, res) => {
     if (!req.userId)
       return res.status(401).json({ message: "Unauthenticated" });
 
-    const { limit = 10 } = req.query;
+    const { limit = 10, lng, lat, radius = 5000 } = req.query;
+    let location = null;
+    if (lng && lat) {
+      location = { lng: parseFloat(lng), lat: parseFloat(lat) };
+    }
     const recommendations = await recommendationService.getRecommendations(
       req.userId,
-      parseInt(limit)
+      parseInt(limit),
+      location,
+      parseInt(radius)
     );
 
     res.status(200).json(recommendations);

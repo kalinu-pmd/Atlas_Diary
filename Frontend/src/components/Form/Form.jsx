@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import LocationPicker from "./LocationPicker";
 import FileBase from "react-file-base64";
 import { useHistory } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
@@ -6,7 +7,7 @@ import { toast } from "react-toastify";
 import { createPost, updatePost } from "../../actions/posts";
 
 const Posts = () => {
-	const initial = { title: "", message: "", tags: "", selectedFile: [] };
+	const initial = { title: "", message: "", tags: "", selectedFile: [], location: null };
 	const [postData, setPostData] = useState(initial);
 	const [error, setError] = useState("");
 
@@ -153,6 +154,20 @@ const Posts = () => {
 						placeholder="travel, adventure, journal"
 						className="w-full bg-off-white border border-dark-green hover:border-light-green focus:border-dark-green focus:outline-none rounded-md px-3 py-2 text-sm text-text-dark transition-colors"
 					/>
+				</div>
+
+				{/* Location Picker */}
+				<div className="flex flex-col gap-1">
+					<label className="text-xs font-semibold text-dark-green">
+						Select Location (click on map)
+					</label>
+					<LocationPicker
+						value={postData.location}
+						onChange={(loc) => setPostData({ ...postData, location: loc })}
+					/>
+					{postData.location && (
+						<div className="text-xs text-text-gray">Selected: Lat {postData.location.lat}, Lng {postData.location.lng}</div>
+					)}
 				</div>
 
 				{/* File upload */}

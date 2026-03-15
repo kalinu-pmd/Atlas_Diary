@@ -15,6 +15,17 @@ const postSchema = mongoose.Schema({
     default: [],
   },
   comments: { type: [String], default: [] },
+  location: {
+    type: {
+      type: String,
+      enum: ['Point'],
+      default: 'Point',
+    },
+    coordinates: {
+      type: [Number], // [lng, lat]
+      default: undefined,
+    },
+  },
   createdAt: {
     type: Date,
     default: new Date(),
@@ -24,6 +35,7 @@ const postSchema = mongoose.Schema({
 postSchema.index({ tags: 1 });
 postSchema.index({ createdAt: -1 });
 postSchema.index({ title: "text", message: "text", tags: "text" });
+postSchema.index({ location: "2dsphere" });
 
 const PostMessage = mongoose.model("Post", postSchema);
 export default PostMessage;

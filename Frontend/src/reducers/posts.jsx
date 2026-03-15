@@ -13,7 +13,17 @@ import {
   FETCH_SIMILAR_POSTS,
 } from "../constants/actionTypes";
 
-const recuder = (state = { isLoading: true, posts: [] }, action) => {
+const initialState = {
+  isLoading: true,
+  posts: [],
+  post: null,
+  similarPosts: [],
+  recommendations: [],
+  currentPage: 1,
+  numberOfPages: 1,
+};
+
+const recuder = (state = initialState, action) => {
   switch (action.type) {
     case START_LOADING:
       return {
@@ -33,6 +43,8 @@ const recuder = (state = { isLoading: true, posts: [] }, action) => {
         posts: action.payload.data,
         currentPage: action.payload.currentPage,
         numberOfPages: action.payload.numberOfPages,
+        similarPosts: state.similarPosts,
+        recommendations: state.recommendations,
       };
 
     case UPDATE:
@@ -41,18 +53,24 @@ const recuder = (state = { isLoading: true, posts: [] }, action) => {
         posts: state.posts.map((post) =>
           post._id === action.payload._id ? action.payload : post
         ),
+        similarPosts: state.similarPosts,
+        recommendations: state.recommendations,
       };
 
     case CREATE:
       return {
         ...state,
         posts: [...state.posts, action.payload],
+        similarPosts: state.similarPosts,
+        recommendations: state.recommendations,
       };
 
     case DELETE:
       return {
         ...state,
         posts: state.posts.filter((post) => post._id !== action.payload),
+        similarPosts: state.similarPosts,
+        recommendations: state.recommendations,
       };
 
     case LIKE:
@@ -61,13 +79,15 @@ const recuder = (state = { isLoading: true, posts: [] }, action) => {
         posts: state.posts.map((post) =>
           post._id === action.payload._id ? action.payload : post
         ),
+        similarPosts: state.similarPosts,
+        recommendations: state.recommendations,
       };
 
     case FETCH_BY_SEARCH:
-      return { ...state, posts: action.payload, isLoading: false };
+      return { ...state, posts: action.payload, isLoading: false, similarPosts: state.similarPosts, recommendations: state.recommendations };
 
     case FETCH_BY_ID:
-      return { ...state, post: action.payload };
+      return { ...state, post: action.payload, similarPosts: state.similarPosts, recommendations: state.recommendations };
 
     case COMMENT:
       return {
@@ -75,6 +95,8 @@ const recuder = (state = { isLoading: true, posts: [] }, action) => {
         posts: state.posts.map((post) =>
           post._id === action.payload._id ? action.payload : post
         ),
+        similarPosts: state.similarPosts,
+        recommendations: state.recommendations,
       };
 
     case FETCH_RECOMMENDATIONS:
