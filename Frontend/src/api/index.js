@@ -75,8 +75,17 @@ export const getUserStats = (userId) => {
 };
 
 // Recommendation system APIs
-export const fetchRecommendations = (limit = 10) => {
-	return API.get(`/posts/recommendations?limit=${limit}`);
+// options can include { location: { lat, lng }, radius } where radius is in meters
+export const fetchRecommendations = (limit = 10, options = {}) => {
+	const { location, radius } = options || {};
+	let url = `/posts/recommendations?limit=${limit}`;
+	if (location && location.lng != null && location.lat != null) {
+		url += `&lng=${location.lng}&lat=${location.lat}`;
+		if (radius) {
+			url += `&radius=${radius}`;
+		}
+	}
+	return API.get(url);
 };
 
 export const fetchSimilarPosts = (postId, limit = 5) => {
@@ -85,4 +94,25 @@ export const fetchSimilarPosts = (postId, limit = 5) => {
 
 export const trackPostView = (postId) => {
 	return API.post(`/posts/${postId}/view`);
+};
+
+// Notifications APIs
+export const fetchNotifications = () => {
+	return API.get("/notifications");
+};
+
+export const markNotificationRead = (id) => {
+	return API.patch(`/notifications/${id}/read`);
+};
+
+export const markAllNotificationsRead = () => {
+	return API.patch("/notifications/mark-all-read");
+};
+
+export const deleteNotification = (id) => {
+	return API.delete(`/notifications/${id}`);
+};
+
+export const clearNotifications = () => {
+	return API.delete("/notifications");
 };

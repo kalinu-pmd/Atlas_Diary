@@ -24,14 +24,39 @@ const Recommendations = () => {
 	const [user] = useState(
 		JSON.parse(localStorage.getItem("traveller-profile")),
 	);
+	const [userLocation, setUserLocation] = useState(null);
 	const [fullScreenImage, setFullScreenImage] = useState(null);
 	const [imageDialogOpen, setImageDialogOpen] = useState(false);
 	const [currentImageIndex, setCurrentImageIndex] = useState(0);
 
 	useEffect(() => {
-		if (user?.token) {
+		if (!user?.token) return;
+
+		if (typeof navigator === "undefined" || !navigator.geolocation) {
+			// Fallback: fetch recommendations without location
 			dispatch(getRecommendations(10));
+			return;
 		}
+
+		navigator.geolocation.getCurrentPosition(
+			(position) => {
+				const { latitude, longitude } = position.coords;
+				const location = { lat: latitude, lng: longitude };
+				setUserLocation(location);
+				dispatch(
+					getRecommendations(10, {
+						location,
+						radius: 50000, // 50km radius in meters
+					}),
+				);
+			},
+			(error) => {
+				console.error("Geolocation error:", error);
+				// If user denies location or it fails, fall back to non-location-based
+				dispatch(getRecommendations(10));
+			},
+			{ enableHighAccuracy: true, timeout: 10000 },
+		);
 	}, [dispatch, user]);
 
 	const handleViewPost = (postId) => {
@@ -99,9 +124,14 @@ const Recommendations = () => {
 
 	return (
 		<div className="mt-14 sm:mt-16 px-4">
-			<h1 className="text-3xl font-bold text-center text-text-dark mb-6">
+			<h1 className="text-3xl font-bold text-center text-text-dark mb-2">
 				Recommended for You
 			</h1>
+			{userLocation && (
+				<p className="text-center text-xs text-text-gray mb-4">
+					Showing posts within 50km of your current location.
+				</p>
+			)}
 
 			<div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
 				{recommendations.map((post) => (
@@ -170,11 +200,17 @@ const Recommendations = () => {
 								))}
 							</div>
 
-							{/* Match score */}
-							<p className="text-[#1976d2] font-bold text-xs">
-								Match Score:{" "}
-								{(post.recommendationScore * 100).toFixed(0)}%
-							</p>
+							{/* Match or nearby score */}
+							{typeof post.recommendationScore === "number" ? (
+								<p className="text-[#1976d2] font-bold text-xs">
+									Match Score: {" "}
+									{(post.recommendationScore * 100).toFixed(0)}%
+								</p>
+							) : (
+								<p className="text-[#1976d2] font-bold text-xs">
+									Nearby recommendation based on your location
+								</p>
+							)}
 						</div>
 
 						{/* Actions */}

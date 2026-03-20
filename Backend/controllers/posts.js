@@ -1,5 +1,6 @@
 import PostMessage from "../models/postMessage.js";
 import User from "../models/users.js";
+import Notification from "../models/notification.js";
 import mongoose from "mongoose";
 import recommendationService from "../services/recommendationService.js";
 
@@ -167,6 +168,21 @@ export const likePost = async (req, res) => {
       post.likes.push(req.userId);
       // Update user preferences for recommendation system when user likes a post
       await recommendationService.updateUserPreferences(req.userId, id, "like");
+
+      // Create notification for post owner (if not liking own post)
+      const isOwner = String(post.creator) === String(req.userId);
+      if (!isOwner) {
+        try {
+          await Notification.create({
+            user: post.creator,
+            fromUser: req.userId,
+            post: post._id,
+            type: "like",
+          });
+        } catch (notifyError) {
+          console.error("Failed to create like notification:", notifyError);
+        }
+      }
     } else {
       post.likes = post.likes.filter((id) => id !== String(req.userId));
     }
@@ -199,6 +215,21 @@ export const commentPost = async (req, res) => {
         id,
         "comment"
       );
+
+      // Create notification for post owner (if not commenting on own post)
+      const isOwner = String(post.creator) === String(req.userId);
+      if (!isOwner) {
+        try {
+          await Notification.create({
+            user: post.creator,
+            fromUser: req.userId,
+            post: post._id,
+            type: "comment",
+          });
+        } catch (notifyError) {
+          console.error("Failed to create comment notification:", notifyError);
+        }
+      }
     }
 
     res.status(200).json(updatedPost);
@@ -207,13 +238,14 @@ export const commentPost = async (req, res) => {
   }
 };
 
-// Get content-based recommendations for the current user
+// Get content-based or location-based recommendations for the current user
 export const getRecommendations = async (req, res) => {
   try {
     if (!req.userId)
       return res.status(401).json({ message: "Unauthenticated" });
 
-    const { limit = 10, lng, lat, radius = 5000 } = req.query;
+    // radius is in meters; default is 50km for nearby recommendations
+    const { limit = 10, lng, lat, radius = 50000 } = req.query;
     let location = null;
     if (lng && lat) {
       location = { lng: parseFloat(lng), lat: parseFloat(lat) };

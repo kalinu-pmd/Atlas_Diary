@@ -34,6 +34,7 @@ const postSchema = mongoose.Schema({
 // Add indexes to speed up common queries (filtering, sorting, text search)
 postSchema.index({ tags: 1 });
 postSchema.index({ createdAt: -1 });
+postSchema.index({ creator: 1 });
 postSchema.index({ title: "text", message: "text", tags: "text" });
 postSchema.index({ location: "2dsphere" });
 

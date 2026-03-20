@@ -62,10 +62,23 @@ const SimilarPosts = ({ postId }) => {
 
 			<ul className="flex flex-col gap-0">
 				{similarPosts.map((simPost) => {
-					// Use distanceKm from API if available
+					// Calculate distance if both posts have location
 					let nearbyText = null;
-					if (typeof simPost.distanceKm === "number") {
-						nearbyText = `Nearby: ${simPost.distanceKm.toFixed(2)} km`;
+					if (
+						post &&
+						post.location &&
+						post.location.coordinates &&
+						simPost.location &&
+						simPost.location.coordinates &&
+						Array.isArray(post.location.coordinates) &&
+						Array.isArray(simPost.location.coordinates)
+					) {
+						const [lng1, lat1] = post.location.coordinates;
+						const [lng2, lat2] = simPost.location.coordinates;
+						const dist = getDistanceKm(lat1, lng1, lat2, lng2);
+						if (dist !== null && dist < 50) {
+							nearbyText = `Nearby: ${(dist).toFixed(2)} km`;
+						}
 					}
 					return (
 						<li
@@ -132,15 +145,16 @@ const SimilarPosts = ({ postId }) => {
 									))}
 								</div>
 
-								{/* Similarity score and Nearby tag */}
+								{/* Similarity score (content/tags only) */}
 								<p className="text-[#1976d2] font-bold text-xs mt-1.5">
 									Similarity: {(simPost.similarityScore * 100).toFixed(0)}%
-									{nearbyText && (
-										<span className="ml-3 bg-green-200 text-green-900 px-2 py-0.5 rounded-full text-xs font-semibold">
-											{nearbyText}
-										</span>
-									)}
 								</p>
+								{/* Separate nearby distance indicator based on location */}
+								{nearbyText && (
+									<p className="text-green-800 font-semibold text-xs mt-0.5">
+										{nearbyText}
+									</p>
+								)}
 							</div>
 						</li>
 					);

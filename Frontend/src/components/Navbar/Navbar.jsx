@@ -3,10 +3,16 @@ import { useSelector, useDispatch } from "react-redux";
 import { Link, useHistory, useLocation } from "react-router-dom";
 import decode from "jwt-decode";
 import { toast } from "react-toastify";
-import { MdMenu, MdClose, MdAdd, MdSettings, MdExitToApp } from "react-icons/md";
+import { MdMenu, MdClose, MdAdd, MdSettings, MdExitToApp, MdNotifications } from "react-icons/md";
 
 import { LOGOUT } from "../../constants/actionTypes";
 import logo from "../../Images/logo.svg";
+import {
+	getNotifications,
+	markNotificationAsRead,
+	markAllNotificationsAsRead,
+	clearAllNotifications,
+} from "../../actions/notifications";
 
 const navItems = [
 	{ label: "Public Diaries", to: "/posts" },
@@ -15,13 +21,16 @@ const navItems = [
 
 function Navbar() {
 	const user = useSelector((state) => state.auth.authData);
+	const notificationsState = useSelector((state) => state.notifications);
 	const dispatch = useDispatch();
 	const history = useHistory();
 	const location = useLocation();
 
 	const [mobileOpen, setMobileOpen] = useState(false);
 	const [userMenuOpen, setUserMenuOpen] = useState(false);
+	const [notificationsOpen, setNotificationsOpen] = useState(false);
 	const menuRef = useRef(null);
+	const notificationsRef = useRef(null);
 
 	const logout = useCallback(() => {
 		dispatch({ type: LOGOUT });
@@ -42,18 +51,51 @@ function Navbar() {
 		setUserMenuOpen(false);
 	}, [location, user?.token, logout]);
 
+	// Periodically refresh notifications for logged-in users so the bell updates in near real time
+	useEffect(() => {
+		if (!user?.token) return;
+
+		// Initial fetch
+		dispatch(getNotifications());
+
+		const intervalId = setInterval(() => {
+			// Optional: only poll when tab is visible
+			if (typeof document !== "undefined" && document.visibilityState === "hidden") return;
+			dispatch(getNotifications());
+		}, 10000); // every 10 seconds to reduce DB load
+
+		return () => clearInterval(intervalId);
+	}, [dispatch, user?.token]);
+
 	useEffect(() => {
 		function handleOutside(e) {
 			if (userMenuOpen && menuRef.current && !menuRef.current.contains(e.target)) {
 				setUserMenuOpen(false);
 			}
+			if (notificationsOpen && notificationsRef.current && !notificationsRef.current.contains(e.target)) {
+				setNotificationsOpen(false);
+			}
 		}
 
 		document.addEventListener("mousedown", handleOutside);
 		return () => document.removeEventListener("mousedown", handleOutside);
-	}, [userMenuOpen]);
+	}, [userMenuOpen, notificationsOpen]);
 
 	const toggleMobile = () => setMobileOpen((s) => !s);
+
+	const toggleNotifications = () => {
+		setNotificationsOpen((open) => {
+			const next = !open;
+			if (next && user && !notificationsState.loaded) {
+				dispatch(getNotifications());
+			}
+			// When opening the notifications panel, mark all as read so the badge goes away
+			if (next && user && notificationsState.unreadCount > 0) {
+				dispatch(markAllNotificationsAsRead());
+			}
+			return next;
+		});
+	};
 
 	// Simple auth controls variable (keeps JSX tidy)
 	const authControls = user ? (
@@ -68,6 +110,74 @@ function Navbar() {
 			</Link>
 
 			<Link to="/recommendations" className="hidden sm:inline-flex items-center border border-accent-green text-accent-green font-bold text-sm px-4 py-1.5 rounded-full hover:bg-[#eef7ef] hover:text-[#1f4f3f] transition-all no-underline whitespace-nowrap">For You</Link>
+
+			{/* Notifications bell */}
+			<div ref={notificationsRef} className="relative hidden sm:flex">
+				<button
+					type="button"
+					aria-label="Notifications"
+					onClick={toggleNotifications}
+					className="relative w-9 h-9 flex items-center justify-center rounded-full border border-accent-green/40 text-accent-green hover:bg-accent-green/10 transition-colors"
+				>
+					<MdNotifications size={18} />
+					{notificationsState.unreadCount > 0 && (
+						<span className="absolute -top-1 -right-1 bg-orange text-white text-[10px] leading-none px-1.5 py-0.5 rounded-full font-bold">
+							{notificationsState.unreadCount}
+						</span>
+					)}
+				</button>
+
+				{notificationsOpen && (
+					<div className="absolute right-0 top-full mt-2 w-80 bg-white/95 rounded-2xl shadow-lg border border-dark-green/5 backdrop-blur-sm z-50">
+						<div className="flex items-center justify-between px-3 py-2 border-b border-dark-green/10">
+							<p className="text-xs font-semibold text-text-dark">
+								Notifications
+							</p>
+							{notificationsState.items && notificationsState.items.length > 0 && (
+								<button
+									type="button"
+									className="text-[11px] text-accent-green font-semibold hover:underline"
+									onClick={() => {
+										dispatch(clearAllNotifications());
+									}}
+								>
+									Clear all
+								</button>
+							)}
+						</div>
+						<div className="max-h-80 overflow-y-auto">
+							{(!notificationsState.items || notificationsState.items.length === 0) && (
+								<p className="px-3 py-4 text-[11px] text-text-gray text-center">
+									No notifications yet.
+								</p>
+							)}
+							{notificationsState.items && notificationsState.items.map((n) => {
+								const actorName = n.fromUser?.name || "Someone";
+								const postTitle = n.post?.title || "your post";
+								const text = n.type === "like"
+									? `${actorName} liked ${postTitle}`
+									: `${actorName} commented on ${postTitle}`;
+								return (
+									<button
+										key={n._id}
+										type="button"
+										onClick={() => {
+											dispatch(markNotificationAsRead(n._id));
+											setNotificationsOpen(false);
+											if (n.post?._id) {
+												history.push(`/posts/${n.post._id}`);
+											}
+										}}
+										className={`w-full text-left px-3 py-2.5 text-[11px] border-b border-dark-green/5 last:border-b-0 hover:bg-light-green/10 ${n.read ? "text-text-gray" : "bg-accent-green/5 text-text-dark"}`}
+									>
+										<span className="block truncate">{text}</span>
+									</button>
+								);
+							})}
+						</div>
+					</div>
+				)}
+			</div>
 
 			{/* Avatar + menu */}
 				<div ref={menuRef} className="relative flex items-center">

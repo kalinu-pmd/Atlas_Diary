@@ -15,7 +15,8 @@ class RecommendationService {
   }
 
   // Get posts near a given location
-  async getNearbyPosts({ lng, lat }, radius = 5000, limit = 10) {
+  // radius is in meters; default is 50km
+  async getNearbyPosts({ lng, lat }, radius = 50000, limit = 10) {
     // radius in meters
     try {
       const posts = await PostMessage.find({
@@ -206,8 +207,9 @@ class RecommendationService {
     return score;
   }
 
-  // Get content-based recommendations for a user
-  async getRecommendations(userId, limit = 10, location = null, radius = 5000) {
+  // Get content-based or location-based recommendations for a user
+  // When location is provided, radius (in meters) controls the nearby search; default is 50km
+  async getRecommendations(userId, limit = 10, location = null, radius = 50000) {
     try {
       // If location is provided, return nearby posts
       if (location && location.lng && location.lat) {
@@ -223,10 +225,15 @@ class RecommendationService {
           .populate("creator", "name");
       }
 
-      // Get all posts excluding ones user has already interacted with
+      // Get a limited window of recent posts excluding ones user has already interacted with
+      // to avoid scanning the entire collection on every recommendations request.
+      const SCAN_LIMIT = 300;
       const allPosts = await PostMessage.find({
         _id: { $nin: userProfile.interactedPostIds },
-      }).populate("creator", "name");
+      })
+        .sort({ createdAt: -1 })
+        .limit(SCAN_LIMIT)
+        .populate("creator", "name");
 
       // Calculate recommendation scores
       const scoredPosts = allPosts.map((post) => ({

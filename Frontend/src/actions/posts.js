@@ -121,7 +121,6 @@ export const likePost = (postId) => async (dispatch) => {
 	try {
 		const { data } = await api.likePost(postId);
 		dispatch({ type: LIKE, payload: data });
-		toast.success("Post liked!");
 	} catch (error) {
 		console.log("Error message : " + error);
 		const errorMessage =
@@ -148,19 +147,20 @@ export const commentPost = (comment, postId) => async (dispatch) => {
 };
 
 // Recommendation actions
+// options can include { location: { lat, lng }, radius }
 export const getRecommendations =
-	(limit = 10) =>
+	(limit = 10, options = {}) =>
 	async (dispatch) => {
 		try {
 			dispatch({ type: START_LOADING });
-			const { data } = await api.fetchRecommendations(limit);
+			const { data } = await api.fetchRecommendations(limit, options);
 
 			dispatch({ type: FETCH_RECOMMENDATIONS, payload: data });
 			dispatch({ type: END_LOADING });
 
 			if (data && data.length > 0) {
 				toast.success(
-					`Found ${data.length} personalized recommendation${
+					`Found ${data.length} recommendation${
 						data.length > 1 ? "s" : ""
 					} for you!`,
 				);
