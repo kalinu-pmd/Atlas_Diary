@@ -205,32 +205,33 @@ function PostDetails() {
 				<div className="flex flex-col gap-6 max-w-4xl mx-auto border border-light-green rounded-[20px] p-4 shadow-form">
 					{/* Content section */}
 					<div className="bg-off-white rounded-[20px] p-2">
-						<h2 className="text-3xl sm:text-2xl font-bold text-text-dark mb-2">
+						<h2 className="text-3xl sm:text-2xl font-bold text-text-dark mb-1">
 							{post.title}
 						</h2>
 
-						{/* Tags */}
-						<div className="flex flex-wrap gap-1.5 mb-3">
-							{post.tags.map((tag) => (
-								<span
-									key={tag}
-									className="bg-light-green text-dark-green text-xs font-semibold px-2.5 py-0.5 rounded-full"
-								>
-									#{tag}
+						<p className="text-sm text-text-gray mb-3">
+							{post.name && (
+								<span>
+									{post.title
+											? `${post.name} is at ${post.title}`
+											: post.name}
 								</span>
-							))}
-						</div>
+							)}
+							{"	"}
+							<span className="text-xs text-text-gray">
+								{moment(post.createdAt).fromNow()}
+							</span>
+						</p>
 
-						{/* Message */}
+						{/* Message + hashtags */}
 						<p className="text-text-dark text-base whitespace-pre-line mb-3">
 							{post.message}
-						</p>
-
-						<p className="text-sm text-text-gray mb-1">
-							<strong>Created by:</strong> {post.name}
-						</p>
-						<p className="text-xs text-text-gray mb-4">
-							{moment(post.createdAt).fromNow()}
+							{post.tags?.length > 0 && (
+								<span className="text-light-green font-semibold">
+									{"\n\n"}
+									{post.tags.map((tag) => `#${tag}`).join(" ")}
+								</span>
+							)}
 						</p>
 					</div>
 

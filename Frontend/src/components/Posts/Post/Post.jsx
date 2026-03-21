@@ -25,6 +25,7 @@ const Post = ({ post }) => {
 	const currentPage = queryParams.get("page") || 1;
 
 	const [likes, setLikes] = useState(post?.likes);
+	const [menuOpen, setMenuOpen] = useState(false);
 	const userId = user?.result?.googleId || user?.result?._id;
 	const hasAlreadyLiked = post.likes.find((like) => like === userId);
 
@@ -68,6 +69,24 @@ const Post = ({ post }) => {
 		}
 	};
 
+	const handleEdit = () => {
+		dispatch({
+			type: "SELECTED_POST",
+			payload: post._id,
+		});
+		toast.info("Post selected for editing.");
+		setMenuOpen(false);
+		history.push("/create-post");
+	};
+
+	const handleDelete = () => {
+		setMenuOpen(false);
+		const confirmed = window.confirm("Are you sure you want to delete this post?");
+		if (!confirmed) return;
+		// Keep existing delete behavior so pagination stays in sync
+		dispatch(deletePost(post._id, parseInt(currentPage)));
+	};
+
 	const imageUrl =
 		Array.isArray(post.selectedFile) && post.selectedFile.length > 0
 			? post.selectedFile[0]
@@ -86,43 +105,61 @@ const Post = ({ post }) => {
 						<p className="font-semibold text-text-dark text-sm truncate">
 							{post.name}
 						</p>
-						<p className="text-xs text-text-gray">
+						<p className="text-xs text-text-gray truncate">
+							{post.title
+								? `${post.name || "Someone"} is at ${post.title}`
+								: moment(post.createdAt).fromNow()}
+						</p>
+						<p className="text-[11px] text-text-gray">
 							{moment(post.createdAt).fromNow()}
 						</p>
 					</div>
 				</div>
 				{isOwner && (
-					<button
-						className="text-text-gray hover:text-text-dark transition-colors p-1"
-						onClick={() => {
-							dispatch({
-								type: "SELECTED_POST",
-								payload: post._id,
-							});
-							toast.info("Post selected for editing!");
-						}}
-						title="Edit post"
-					>
-						<MdMoreHoriz size={18} />
-					</button>
+					<div className="relative">
+						<button
+							className="text-text-gray hover:text-text-dark transition-colors p-1"
+							onClick={() => setMenuOpen((open) => !open)}
+							title="Post options"
+							type="button"
+						>
+							<MdMoreHoriz size={18} />
+						</button>
+						{menuOpen && (
+							<div className="absolute right-0 mt-1 w-36 bg-white border border-gray-200 rounded-md shadow-lg z-10">
+								<button
+									type="button"
+									onClick={handleEdit}
+									className="w-full text-left px-3 py-2 text-sm text-text-dark hover:bg-gray-100"
+								>
+									Edit post
+								</button>
+								<button
+									type="button"
+									onClick={handleDelete}
+									className="w-full text-left px-3 py-2 text-sm text-orange hover:bg-red-50"
+								>
+									Delete post
+								</button>
+							</div>
+						)}
+					</div>
 				)}
 			</div>
 
 			{/* Tags (subtitle) */}
-			{post.tags?.length > 0 && (
-				<div className="px-4 pb-2">
-					<p className="text-xs text-light-green font-semibold">
-						{post.tags.slice(0, 3).map((tag) => `#${tag}`).join(" • ")}
-						{post.tags.length > 3 && ` +${post.tags.length - 3}`}
-					</p>
-				</div>
-			)}
 
-			{/* Title */}
-			<div className="px-4 pb-3">
-				<h2 className="text-base font-bold text-text-dark leading-snug line-clamp-2">
-					{post.title}
-				</h2>
+			{/* Description + hashtags (above image, like Facebook) */}
+			<div className="px-4 pt-3 pb-3">
+				<p className="text-sm text-text-gray leading-relaxed">
+					{post.message}
+					{post.tags?.length > 0 && (
+						<span className="text-light-green font-semibold">
+							{" "}
+							{post.tags.map((tag) => `#${tag}`).join(" ")}
+						</span>
+					)}
+				</p>
 			</div>
 
 			{/* Image */}
@@ -147,13 +184,6 @@ const Post = ({ post }) => {
 							+{post.selectedFile.length - 1}
 						</div>
 					)}
-			</div>
-
-			{/* Description excerpt */}
-			<div className="px-4 pt-3 pb-2">
-				<p className="text-sm text-text-gray line-clamp-2 leading-relaxed">
-					{post.message}
-				</p>
 			</div>
 
 			{/* Stats */}
@@ -202,7 +232,7 @@ const Post = ({ post }) => {
 				{isOwner && (
 					<button
 						className="flex-1 flex items-center justify-center gap-2 text-text-gray hover:bg-red-50 py-2 rounded font-semibold text-sm transition-colors hover:text-orange"
-						onClick={() => dispatch(deletePost(post._id, parseInt(currentPage)))}
+						onClick={handleDelete}
 						title="Delete this post"
 					>
 						<MdDelete size={18} />
