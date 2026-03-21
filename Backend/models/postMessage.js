@@ -5,6 +5,7 @@ const postSchema = mongoose.Schema({
   message: String,
   creator: String,
   name: String,
+  authorImage: String,
   tags: [String],
   selectedFile: {
     type: mongoose.Schema.Types.Mixed, // Can be String or Array

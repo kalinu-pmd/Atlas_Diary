@@ -10,6 +10,7 @@ import CreatePost from "./components/CreatePost/CreatePost";
 import Settings from "./components/Settings/Settings";
 import Dashboard from "./components/Dashboard/Dashboard";
 import Recommendations from "./components/Recommendations/Recommendations";
+import Profile from "./components/Profile/Profile";
 import HowItWorks from "./components/HowItWorks/HowItWorks";
 import About from "./components/About/About";
 import Contact from "./components/Contact/Contact";
@@ -46,6 +47,12 @@ const App = () => {
 
 						{/* Account settings */}
 						<Route path="/settings" exact component={() => (user ? <Settings /> : <Redirect to="/auth" />)} />
+
+						{/* User profile */}
+						<Route
+							path="/profile/:id"
+							component={() => (user ? <Profile /> : <Redirect to="/auth" />)}
+						/>
 
 						{/* Explore goes to the same feed */}
 						<Route

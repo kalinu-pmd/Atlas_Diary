@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { useSelector } from "react-redux";
+import FileBase from "react-file-base64";
 import { useHistory } from "react-router-dom";
 import { toast } from "react-toastify";
 import * as api from "../../api";
@@ -10,6 +11,11 @@ export default function Settings() {
   const [name, setName] = useState(user?.result?.name || "");
   const [email, setEmail] = useState(user?.result?.email || "");
   const [password, setPassword] = useState("");
+  const [bio, setBio] = useState(user?.result?.bio || "");
+  const [location, setLocation] = useState(user?.result?.location || "");
+  const [profileImage, setProfileImage] = useState(
+    user?.result?.profileImage || user?.result?.imageUrl || ""
+  );
   const [loading, setLoading] = useState(false);
 
   const handleSave = async (e) => {
@@ -22,6 +28,9 @@ export default function Settings() {
         name: name.trim(),
         email: email.trim(),
         ...(password.trim() ? { password } : {}),
+        bio: bio.trim(),
+        location: location.trim(),
+        profileImage,
       });
       toast.success("Profile updated");
       history.push("/posts");
@@ -44,6 +53,38 @@ export default function Settings() {
 
             <label className="text-xs font-semibold text-dark-green">Email</label>
             <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} className="w-full px-3 py-2 rounded border border-dark-green focus:outline-none" />
+
+            <label className="text-xs font-semibold text-dark-green">Short bio</label>
+            <textarea
+              rows={3}
+              value={bio}
+              onChange={(e) => setBio(e.target.value)}
+              className="w-full px-3 py-2 rounded border border-dark-green focus:outline-none text-sm resize-y"
+            />
+
+            <label className="text-xs font-semibold text-dark-green">Location</label>
+            <input
+              value={location}
+              onChange={(e) => setLocation(e.target.value)}
+              placeholder="e.g. Tilaurakot, Nepal"
+              className="w-full px-3 py-2 rounded border border-dark-green focus:outline-none text-sm"
+            />
+
+            <label className="text-xs font-semibold text-dark-green">Profile picture</label>
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 rounded-full bg-accent-green text-white flex items-center justify-center text-sm font-bold overflow-hidden">
+                {profileImage ? (
+                  <img src={profileImage} alt={name} className="w-full h-full object-cover" />
+                ) : (
+                  <span>{name?.charAt(0)?.toUpperCase() || "U"}</span>
+                )}
+              </div>
+              <FileBase
+                type="file"
+                multiple={false}
+                onDone={({ base64 }) => setProfileImage(base64)}
+              />
+            </div>
 
             <label className="text-xs font-semibold text-dark-green">New Password <span className="text-text-gray">(leave blank to keep)</span></label>
             <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} className="w-full px-3 py-2 rounded border border-dark-green focus:outline-none" />

@@ -60,6 +60,11 @@ const Post = ({ post }) => {
 
 	const openPost = () => history.push(`/posts/${post._id}`);
 
+	const openAuthorProfile = () => {
+		if (!post?.creator) return;
+		history.push(`/profile/${post.creator}`);
+	};
+
 	const handleLike = () => {
 		dispatch(likePost(post._id));
 		if (hasAlreadyLiked) {
@@ -93,14 +98,32 @@ const Post = ({ post }) => {
 			: post.selectedFile ||
 				"https://user-images.githubusercontent.com/194400/49531010-48dad180-f8b1-11e8-8d89-1e61320e1d82.png";
 
+	const avatarUrl = post.authorImage || null;
+
 	return (
 		<div className="bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow duration-200 overflow-hidden border border-gray-200">
 			{/* Header with author info */}
 			<div className="px-4 pt-4 pb-3 flex items-center justify-between">
-				<div className="flex items-center gap-3 flex-1 min-w-0">
-					<div className="w-10 h-10 rounded-full bg-gradient-to-br from-dark-green to-light-green flex items-center justify-center text-white font-bold text-sm shrink-0">
-						{post.name?.charAt(0)?.toUpperCase() || "U"}
-					</div>
+				<button
+					type="button"
+					onClick={openAuthorProfile}
+					className="flex items-center gap-3 flex-1 min-w-0 text-left"
+				>
+					{avatarUrl ? (
+						<img
+							src={avatarUrl}
+							alt={post.name || "User avatar"}
+							className="w-10 h-10 rounded-full object-cover shrink-0 border border-light-green"
+							onError={(e) => {
+								e.target.onerror = null;
+								e.target.src = "https://ui-avatars.com/api/?name=" + encodeURIComponent(post.name || "User");
+							}}
+						/>
+					) : (
+						<div className="w-10 h-10 rounded-full bg-gradient-to-br from-dark-green to-light-green flex items-center justify-center text-white font-bold text-sm shrink-0">
+							{post.name?.charAt(0)?.toUpperCase() || "U"}
+						</div>
+					)}
 					<div className="flex-1 min-w-0">
 						<p className="font-semibold text-text-dark text-sm truncate">
 							{post.name}
@@ -114,7 +137,7 @@ const Post = ({ post }) => {
 							{moment(post.createdAt).fromNow()}
 						</p>
 					</div>
-				</div>
+				</button>
 				{isOwner && (
 					<div className="relative">
 						<button
@@ -210,7 +233,7 @@ const Post = ({ post }) => {
 					{hasAlreadyLiked ? (
 						<>
 							<MdThumbUp size={18} className="text-dark-green" />
-							<span className="text-dark-green">Like</span>
+							<span className="text-dark-green">Liked</span>
 						</>
 					) : (
 						<>
@@ -259,6 +282,7 @@ Post.propTypes = {
 		likes: PropTypes.arrayOf(PropTypes.string),
 		comments: PropTypes.arrayOf(PropTypes.string),
 		createdAt: PropTypes.string,
+		authorImage: PropTypes.string,
 	}).isRequired,
 };
 

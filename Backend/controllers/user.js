@@ -94,31 +94,70 @@ export const editUser = async (req, res, next) => {
 	const id = req.params.id;
 	const user = await User.findById(id);
 
-	if (user) {
-		const { email, password, name } = req.body;
-
-		// Prepare update object
-		const updateData = { email, name };
-
-		// Only hash and include password if provided
-		if (password) {
-			const hashedPassword = await bcrypt.hash(password, 12);
-			updateData.password = hashedPassword;
-		}
-
-		if (!email) {
-			updateData.email = user.email; // Keep existing email, if not available
-		}
-
-		const updatedUser = await User.findByIdAndUpdate(id, updateData, {
-			new: true,
-		});
-
-		if (updatedUser) {
-			return res.status(200).json({ msg: "User updated" });
-		}
-	} else {
+	if (!user) {
 		return res.status(404).json({ msg: "No user found" });
+	}
+
+	const { email, password, name, bio, profileImage, location } = req.body;
+
+	// Prepare update object
+	const updateData = { email, name };
+
+	// Optional profile fields
+	if (bio !== undefined) updateData.bio = bio;
+	if (profileImage !== undefined) updateData.profileImage = profileImage;
+	if (location !== undefined) updateData.location = location;
+
+	// Only hash and include password if provided
+	if (password) {
+		const hashedPassword = await bcrypt.hash(password, 12);
+		updateData.password = hashedPassword;
+	}
+
+	if (!email) {
+		updateData.email = user.email; // Keep existing email, if not available
+	}
+
+	const updatedUser = await User.findByIdAndUpdate(id, updateData, {
+		new: true,
+	});
+
+	if (!updatedUser) {
+		return res.status(500).json({ msg: "Failed to update user" });
+	}
+
+	return res.status(200).json({ msg: "User updated", user: updatedUser });
+};
+
+// Get profile information and posts for a user
+export const getUserProfile = async (req, res, next) => {
+	try {
+		const { id } = req.params;
+
+		// First, try to find by Mongo _id
+		let user = await User.findById(id).select(
+			"name email bio profileImage location isAdmin id",
+		);
+
+		// If not found, fall back to the "id" field (used for some OAuth users)
+		if (!user) {
+			user = await User.findOne({ id }).select(
+				"name email bio profileImage location isAdmin id",
+			);
+		}
+
+		if (!user) return res.status(404).json({ message: "User not found" });
+
+		// Posts created by this user (creator stores user id or external id as string)
+		const creatorKey = String(user._id || id);
+		const posts = await PostMessage.find({ creator: creatorKey })
+			.sort({ createdAt: -1 })
+			.lean();
+
+		return res.status(200).json({ user, posts });
+	} catch (error) {
+		console.error("getUserProfile error:", error);
+		return res.status(500).json({ message: "Failed to get user profile" });
 	}
 };
 

@@ -47,6 +47,7 @@ import {
 	editUser,
 	deleteUser,
 	getUserStats,
+	getUserProfile,
 } from "../controllers/user.js";
 import auth from "../middleware/auth.js";
 
@@ -56,6 +57,7 @@ router.post("/signIn", signIn);
 router.post("/signUp", signUp);
 router.get("/", auth, getAllUsers);
 router.get("/:id/stats", auth, getUserStats);
+router.get("/:id/profile", auth, getUserProfile);
 router.delete("/:id", auth, deleteUser);
 router.patch("/:id", auth, editUser);
 

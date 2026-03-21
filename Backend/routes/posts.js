@@ -11,6 +11,7 @@ import {
   getRecommendations,
   getSimilarPosts,
   trackPostView,
+  verifyPostLocation,
 } 
 from "../controllers/posts.js";
 import auth from "../middleware/auth.js";
@@ -25,6 +26,7 @@ router.get("/:id", getPostById);
 router.get("/:id/similar", getSimilarPosts);
 
 router.post("/", auth, createPost);
+router.post("/verify-location", auth, verifyPostLocation);
 router.post("/:id/view", auth, trackPostView);
 router.patch("/:id", auth, updatePost);
 router.delete("/:id", auth, deletePost);

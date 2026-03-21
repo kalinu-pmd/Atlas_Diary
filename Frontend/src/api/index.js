@@ -21,6 +21,10 @@ export const createPost = (newPost) => {
 	return API.post("/posts", newPost);
 };
 
+export const verifyPostLocation = (payload) => {
+	return API.post("/posts/verify-location", payload);
+};
+
 export const updatePost = (postId, post) => {
 	return API.patch(`/posts/${postId}`, post);
 };
@@ -72,6 +76,10 @@ export const editUser = (userId, userData) => {
 
 export const getUserStats = (userId) => {
   return API.get(`/users/${userId}/stats`);
+};
+
+export const fetchUserProfile = (userId) => {
+	return API.get(`/users/${userId}/profile`);
 };
 
 // Recommendation system APIs

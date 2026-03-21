@@ -23,7 +23,7 @@
 	padding: 6px 4px;
 	word-break: break-word;
   }
-  .edit, .delete {
+	.edit, .delete, .details {
 	font-size: 13px;
 	padding: 4px 8px;
   }
@@ -114,6 +114,20 @@ table td button.delete {
 table td button.delete:hover {
 	background-color: #e6350e;
 	/* Darker orange */
+}
+
+table td button.details {
+	background-color: #ffffff;
+	/* White */
+	color: #0c342c;
+	/* Dark green text */
+	border: 1px solid #0c342c;
+}
+
+table td button.details:hover {
+	background-color: #0c342c;
+	color: #fef9f5;
+	/* Off white */
 }
 
 .dashboard-panel {

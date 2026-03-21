@@ -3,6 +3,7 @@ import User from "../models/users.js";
 import Notification from "../models/notification.js";
 import mongoose from "mongoose";
 import recommendationService from "../services/recommendationService.js";
+import fetch from "node-fetch";
 
 export const getPosts = async (req, res) => {
   const { page, summary } = req.query;
@@ -289,5 +290,125 @@ export const trackPostView = async (req, res) => {
     res.status(200).json({ message: "View tracked" });
   } catch (error) {
     res.status(500).json({ message: error.message });
+  }
+};
+
+// Utility: compute distance between two coordinates in meters
+function haversineDistanceMeters(lat1, lng1, lat2, lng2) {
+  const R = 6371e3; // metres
+  const toRad = (deg) => (deg * Math.PI) / 180;
+
+  const phi1 = toRad(lat1);
+  const phi2 = toRad(lat2);
+  const dPhi = toRad(lat2 - lat1);
+  const dLambda = toRad(lng2 - lng1);
+
+  const a =
+    Math.sin(dPhi / 2) * Math.sin(dPhi / 2) +
+    Math.cos(phi1) * Math.cos(phi2) *
+      Math.sin(dLambda / 2) * Math.sin(dLambda / 2);
+
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+}
+
+// Verify that the place mentioned in title/message exists near the selected map point
+// and, if found within a 20km radius, snap the coordinates to that exact place.
+export const verifyPostLocation = async (req, res) => {
+  const { title, message, location } = req.body || {};
+
+  if (!location || typeof location.lat !== "number" || typeof location.lng !== "number") {
+    return res.status(400).json({ message: "Invalid or missing location for verification." });
+  }
+
+  // For now, only use the title text for place verification
+  const query = `${title || ""}`.trim();
+  if (!query) {
+    // Nothing to search for; allow client to decide how to handle
+    return res.status(200).json({ status: "no-text", verified: false });
+  }
+
+  const radiusKm = 20;
+  const { lat, lng } = location;
+
+  // Approximate bounding box for 20km radius
+  const earthRadiusKm = 6371;
+  const latDelta = (radiusKm / earthRadiusKm) * (180 / Math.PI);
+  const lonDelta =
+    (radiusKm / (earthRadiusKm * Math.cos((lat * Math.PI) / 180))) *
+    (180 / Math.PI);
+
+  const minLat = lat - latDelta;
+  const maxLat = lat + latDelta;
+  const minLng = lng - lonDelta;
+  const maxLng = lng + lonDelta;
+
+  const nominatimUrl = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(
+    query
+  )}&bounded=1&viewbox=${minLng},${maxLat},${maxLng},${minLat}`;
+
+  try {
+    const response = await fetch(nominatimUrl, {
+      headers: {
+        // Please replace with your own project/app identifier if you fork this project
+        "User-Agent": "atlas-diary/1.0 (+https://example.com)",
+      },
+    });
+
+    if (response.status === 403) {
+      // Upstream geocoding service blocked the request (e.g. rate limit or bad User-Agent).
+      // Treat this as "service unavailable" so the frontend can still show a hint
+      // and allow posting with the user's selected pin.
+      return res.status(200).json({
+        status: "service-unavailable",
+        verified: false,
+        message: "Geocoding service returned 403 (forbidden).",
+      });
+    }
+
+    if (!response.ok) {
+      throw new Error(`Geocoding request failed with status ${response.status}`);
+    }
+
+    const results = await response.json();
+
+    if (!Array.isArray(results) || results.length === 0) {
+      // No place found near the selected point matching the text
+      return res.status(200).json({ status: "no-match", verified: false });
+    }
+
+    const best = results[0];
+    const placeLat = parseFloat(best.lat);
+    const placeLng = parseFloat(best.lon);
+
+    const distanceMeters = haversineDistanceMeters(lat, lng, placeLat, placeLng);
+
+    if (distanceMeters <= radiusKm * 1000) {
+      // Place exists within 20km radius — snap coordinates to this place
+      return res.status(200).json({
+        status: "within-radius",
+        verified: true,
+        newLocation: { lat: placeLat, lng: placeLng },
+        placeName: best.display_name,
+        distanceMeters,
+      });
+    }
+
+    // Place found but it's outside the allowed radius
+    return res.status(200).json({
+      status: "outside-radius",
+      verified: false,
+      bestMatch: {
+        lat: placeLat,
+        lng: placeLng,
+        placeName: best.display_name,
+      },
+      distanceMeters,
+    });
+  } catch (error) {
+    console.error("Error verifying post location:", error);
+    return res.status(500).json({
+      message: "Location verification failed. Please try again later.",
+    });
   }
 };

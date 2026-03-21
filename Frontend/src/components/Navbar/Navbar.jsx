@@ -97,6 +97,13 @@ function Navbar() {
 		});
 	};
 
+	const goToOwnProfile = () => {
+		const userId = user?.result?._id || user?.result?.googleId;
+		if (!userId) return;
+		setUserMenuOpen(false);
+		history.push(`/profile/${userId}`);
+	};
+
 	// Simple auth controls variable (keeps JSX tidy)
 	const authControls = user ? (
 		<div className="flex items-center gap-3">
@@ -194,13 +201,23 @@ function Navbar() {
 					)}
 				</button>
 
-				<button type="button" className="hidden lg:inline-flex ml-2 items-center h-9 px-2 text-text-dark font-medium rounded hover:bg-light-green/5 transition-colors" onClick={() => setUserMenuOpen((s) => !s)}>{user.result?.name}</button>
+				<button
+					type="button"
+					className="hidden lg:inline-flex ml-2 items-center h-9 px-2 text-text-dark font-medium rounded hover:bg-light-green/5 transition-colors"
+					onClick={goToOwnProfile}
+				>
+					{user.result?.name}
+				</button>
 
 				{userMenuOpen && (
-					<div className="absolute right-0 top-full mt-2 flex justify-end w-max z-50">
-						<div className="w-3 h-3 bg-white/95 border border-dark-green/5 rotate-45 -mt-2 mr-4" style={{ boxShadow: 'rgba(6,24,15,0.05) 0px 6px 12px' }} />
-						<div className="bg-white/95 rounded-2xl shadow-lg w-56 p-3 border border-dark-green/5 backdrop-blur-sm">
-							<div className="flex items-center gap-3 px-2 py-2 border-b border-dark-green/5 mb-2">
+						<div className="absolute right-0 top-full mt-2 flex justify-end w-max z-50">
+							<div className="w-3 h-3 bg-white/95 border border-dark-green/5 rotate-45 -mt-2 mr-4" style={{ boxShadow: 'rgba(6,24,15,0.05) 0px 6px 12px' }} />
+							<div className="bg-white/95 rounded-2xl shadow-lg w-56 p-3 border border-dark-green/5 backdrop-blur-sm">
+								<button
+									type="button"
+									onClick={goToOwnProfile}
+									className="flex items-center gap-3 px-2 py-2 border-b border-dark-green/5 mb-2 w-full text-left rounded-lg hover:bg-light-green/5"
+								>
 								<div className="w-10 h-10 rounded-full bg-accent-green text-white flex items-center justify-center font-semibold overflow-hidden">
 									{user.result?.imageUrl ? <img src={user.result.imageUrl} alt={user.result.name} className="w-full h-full object-cover" /> : user.result?.name?.charAt(0).toUpperCase()}
 								</div>
@@ -208,8 +225,25 @@ function Navbar() {
 									<p className="text-text-dark font-semibold text-sm truncate">{user.result?.name}</p>
 									<p className="text-text-gray text-xs">{user.result?.email}</p>
 								</div>
-							</div>
-							<Link to="/settings" className="flex items-center gap-3 px-2 py-2 text-sm text-text-dark hover:bg-light-green/5 rounded mb-2" onClick={() => setUserMenuOpen(false)}><MdSettings size={18} className="text-dark-green" /><span>Account settings</span></Link>
+								</button>
+									<Link
+										to={`/profile/${user.result?._id || user.result?.googleId}`}
+										className="flex items-center gap-3 px-2 py-2 text-sm text-text-dark hover:bg-light-green/5 rounded mb-1"
+										onClick={() => setUserMenuOpen(false)}
+									>
+										<span className="w-5 h-5 rounded-full bg-accent-green/10 flex items-center justify-center text-[11px] font-bold text-dark-green">
+											P
+										</span>
+										<span>View profile</span>
+									</Link>
+									<Link
+										to="/settings"
+										className="flex items-center gap-3 px-2 py-2 text-sm text-text-dark hover:bg-light-green/5 rounded mb-2"
+										onClick={() => setUserMenuOpen(false)}
+									>
+										<MdSettings size={18} className="text-dark-green" />
+										<span>Account settings</span>
+									</Link>
 							<button onClick={logout} className="flex items-center gap-3 w-full text-left px-3 py-2 text-sm text-white bg-orange rounded-lg hover:bg-orange-hover transition-colors"><MdExitToApp size={18} /><span className="font-semibold">Logout</span></button>
 						</div>
 					</div>

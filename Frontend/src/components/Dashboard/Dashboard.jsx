@@ -283,7 +283,7 @@ const Dashboard = () => {
 	const [editPostModal, setEditPostModal] = useState(null); // post object
 	const [editUserModal, setEditUserModal] = useState(null); // user object
 	const [userStatsModal, setUserStatsModal] = useState(null);
-	const [userStatsData, setUserStatsData] = useState(null);
+	const [userStatsData, setUserStatsData] = useState(null); // { stats, profile, posts }
 	const [userStatsLoading, setUserStatsLoading] = useState(false);
 
 	const token = localStorage.getItem("traveller-profile")
@@ -393,6 +393,41 @@ const Dashboard = () => {
 		}
 	};
 
+	// ── User details (posts + stats) ──────────────────────────────────────
+	const openUserStats = async (userId) => {
+		setUserStatsLoading(true);
+		setUserStatsModal(true);
+		try {
+			const [statsRes, profileRes] = await Promise.all([
+				api.getUserStats(userId),
+				api.fetchUserProfile(userId),
+			]);
+
+			setUserStatsData({
+				stats: statsRes.data || null,
+				profile: profileRes.data?.user || null,
+				posts: profileRes.data?.posts || [],
+			});
+		} catch (error) {
+			console.error("Failed to load user details:", error);
+			toast.error("Failed to load user details.");
+			setUserStatsData(null);
+		} finally {
+			setUserStatsLoading(false);
+		}
+	};
+
+	const closeUserStats = () => {
+		setUserStatsModal(false);
+		setUserStatsData(null);
+	};
+
+	const openPostDetails = (postId) => {
+		if (!postId) return;
+		setUserStatsModal(false);
+		history.push(`/posts/${postId}`);
+	};
+
 	// ── Stats ───────────────────────────────────────────────────────────────
 	const totalLikes = posts.reduce(
 		(sum, p) => sum + (p.likes?.length || 0),
@@ -431,69 +466,6 @@ const Dashboard = () => {
 			)}
 
 			{userStatsModal && (
-				<div className="fixed inset-0 z-[2100] flex items-center justify-center bg-dark-green/60 px-4">
-					<div className="bg-off-white rounded-2xl w-full max-w-2xl shadow-lg border border-light-green p-6">
-						<div className="flex items-start justify-between gap-4 mb-4">
-							<div>
-								<h3 className="text-text-dark font-extrabold text-lg">User details</h3>
-								<p className="text-text-gray text-sm">Detailed activity for the selected user.</p>
-							</div>
-							<button onClick={closeUserStats} className="text-text-gray hover:text-dark-green"><MdClose size={20} /></button>
-						</div>
-						{userStatsLoading ? (
-							<p className="text-text-gray">Loading...</p>
-						) : userStatsData ? (
-							<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-								<div>
-									<p className="text-sm text-text-gray">Posts created</p>
-									<p className="text-dark-green font-extrabold text-xl">{userStatsData.postsCount}</p>
-									<div className="mt-4">
-										<p className="text-sm text-text-gray mb-2">Posts liked</p>
-										{userStatsData.likedPosts && userStatsData.likedPosts.length > 0 ? (
-											<ul className="list-disc list-inside text-sm">
-												{userStatsData.likedPosts.map((p) => (
-													<li key={p.postId}>{p.title}</li>
-												))}
-											</ul>
-										) : (
-											<p className="text-text-gray text-sm italic">No liked posts recorded</p>
-										)}
-									</div>
-								</div>
-								<div>
-									<p className="text-sm text-text-gray">Comments (total)</p>
-									<p className="text-dark-green font-extrabold text-xl">{userStatsData.totalComments}</p>
-									<div className="mt-4">
-										<p className="text-sm text-text-gray mb-2">Comment breakdown by post</p>
-										{userStatsData.commentDetails && userStatsData.commentDetails.length > 0 ? (
-											<ul className="list-disc list-inside text-sm">
-												{userStatsData.commentDetails.map((c) => (
-													<li key={c.postId}>{c.title} — {c.count} comment{c.count>1?"s":""}</li>
-												))}
-											</ul>
-										) : (
-											<p className="text-text-gray text-sm italic">No comments found</p>
-										)}
-									</div>
-									{userStatsData.commentedPosts && userStatsData.commentedPosts.length > 0 && (
-										<div className="mt-4">
-											<p className="text-sm text-text-gray mb-2">Posts user commented on</p>
-											<ul className="list-disc list-inside text-sm">
-												{userStatsData.commentedPosts.map((p) => (
-													<li key={p.postId}>{p.title}</li>
-												))}
-											</ul>
-										</div>
-									)}
-								</div>
-							</div>
-						) : (
-							<p className="text-text-gray">No data available</p>
-						)}
-					</div>
-				</div>
-			)}
-			{userStatsModal && (
 				<div className="fixed inset-0 z-[2000] flex items-center justify-center bg-dark-green/70 backdrop-blur-sm px-4">
 					<div className="bg-off-white rounded-2xl shadow-[0_16px_48px_rgba(12,52,44,0.3)] border border-light-green p-6 w-full max-w-lg">
 						<div className="flex items-center justify-between mb-4">
@@ -505,33 +477,79 @@ const Dashboard = () => {
 						{userStatsLoading ? (
 							<p className="text-text-gray">Loading…</p>
 						) : userStatsData ? (
-							<div className="space-y-3 text-sm text-text-dark">
-								<p><strong>Posts created:</strong> {userStatsData.postsCount}</p>
-								<p><strong>Total comments made:</strong> {userStatsData.totalComments}</p>
-								{userStatsData.commentDetails && userStatsData.commentDetails.length > 0 && (
+							<div className="space-y-4 text-sm text-text-dark">
+								{userStatsData.profile && (
 									<div>
-										<p className="font-semibold mb-1">Comments by post</p>
-										<ul className="list-disc pl-5 text-xs">
-											{userStatsData.commentDetails.map((c) => (
-											<li key={c.postId}>{c.title} — {c.count} comment{c.count>1?"s":""}</li>
-											))}
-										</ul>
+										<p className="font-semibold">{userStatsData.profile.name}</p>
+										<p className="text-xs text-text-gray">{userStatsData.profile.email}</p>
+										{userStatsData.profile.location && (
+											<p className="text-xs text-text-gray mt-1">
+												Located at {userStatsData.profile.location}
+											</p>
+										)}
 									</div>
 								)}
-								{userStatsData.likedPosts && userStatsData.likedPosts.length > 0 && (
-									<div>
-										<p className="font-semibold mt-2 mb-1">Liked posts</p>
-										<ul className="list-disc pl-5 text-xs">
-											{userStatsData.likedPosts.map((p) => (
-											<li key={p.postId}>{p.title}</li>
-											))}
-										</ul>
+
+								{userStatsData.stats && (
+									<div className="grid grid-cols-2 gap-3">
+										<div>
+											<p className="text-xs text-text-gray">Posts created</p>
+											<p className="text-lg font-extrabold text-dark-green">
+												{userStatsData.stats.postsCount}
+											</p>
+										</div>
+										<div>
+											<p className="text-xs text-text-gray">Total comments</p>
+											<p className="text-lg font-extrabold text-dark-green">
+												{userStatsData.stats.totalComments}
+											</p>
+										</div>
 									</div>
 								)}
+
+								<div>
+									<p className="font-semibold mb-2">Posts by this user</p>
+									{userStatsData.posts && userStatsData.posts.length > 0 ? (
+										<ul className="space-y-1 max-h-64 overflow-y-auto pr-1">
+											{userStatsData.posts.map((p) => (
+												<li
+													key={p._id}
+													className="flex items-center justify-between gap-2 text-xs border-b border-dark-green/10 pb-1 last:border-b-0"
+												>
+													<button
+														type="button"
+														onClick={() => openPostDetails(p._id)}
+														className="truncate text-left font-semibold text-text-dark hover:underline"
+													>
+														{p.title || "(No title)"}
+													</button>
+													<div className="flex items-center gap-2 shrink-0">
+														<button
+															type="button"
+															className="text-[11px] text-dark-green font-semibold hover:underline"
+															onClick={() => openPostDetails(p._id)}
+														>
+															Details
+														</button>
+														<button
+															type="button"
+															className="text-[11px] text-orange font-semibold hover:underline"
+															onClick={() => handleDeletePost(p._id)}
+														>
+															Delete
+														</button>
+													</div>
+												</li>
+											))}
+										</ul>
+									) : (
+										<p className="text-xs text-text-gray">No posts for this user.</p>
+									)}
+								</div>
 							</div>
-					) : (
-						<p className="text-text-gray">No details available.</p>
-					)}
+						) : (
+							<p className="text-text-gray">No details available.</p>
+						)}
 					<div className="flex justify-end mt-4">
 						<button onClick={closeUserStats} className="px-4 py-2 rounded-lg border border-dark-green/20 text-dark-green font-semibold text-sm hover:bg-dark-green/5 transition-colors">Close</button>
 					</div>

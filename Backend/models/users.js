@@ -2,12 +2,17 @@ import mongoose from "mongoose";
 
 const userSchema = mongoose.Schema({
   name: { type: String, required: true },
- email: { type: String, required: true, unique: true },
+  email: { type: String, required: true, unique: true },
   password: { type: String, required: true },
   id: { type: String },
   isAdmin: { type: Boolean, default: false },
-  
-  // Add recommendation-related field
+
+  // Profile fields
+  bio: { type: String, default: "" },
+  profileImage: { type: String }, // URL or base64 image
+  location: { type: String, default: "" },
+	
+  // Recommendation-related fields
   likedPosts: [{ type: mongoose.Schema.Types.ObjectId, ref: "Post" }],
   viewedPosts: [{ type: mongoose.Schema.Types.ObjectId, ref: "Post" }],
   commentedPosts: [{ type: mongoose.Schema.Types.ObjectId, ref: "Post" }],
