@@ -328,14 +328,17 @@ export const verifyPostLocation = async (req, res) => {
     return res.status(200).json({ status: "no-text", verified: false });
   }
 
-  const radiusKm = 20;
+  // We search within 50km, but only accept posts when the mentioned
+  // place is within 20km of the selected pin.
+  const searchRadiusKm = 50;
+  const acceptRadiusKm = 20;
   const { lat, lng } = location;
 
-  // Approximate bounding box for 20km radius
+  // Approximate bounding box for 50km search radius
   const earthRadiusKm = 6371;
-  const latDelta = (radiusKm / earthRadiusKm) * (180 / Math.PI);
+  const latDelta = (searchRadiusKm / earthRadiusKm) * (180 / Math.PI);
   const lonDelta =
-    (radiusKm / (earthRadiusKm * Math.cos((lat * Math.PI) / 180))) *
+    (searchRadiusKm / (earthRadiusKm * Math.cos((lat * Math.PI) / 180))) *
     (180 / Math.PI);
 
   const minLat = lat - latDelta;
@@ -377,31 +380,63 @@ export const verifyPostLocation = async (req, res) => {
       return res.status(200).json({ status: "no-match", verified: false });
     }
 
-    const best = results[0];
-    const placeLat = parseFloat(best.lat);
-    const placeLng = parseFloat(best.lon);
+    // Filter valid results: meaningful geographic places only
+    const validPlace = results.find((p) =>
+      (
+        p.class === "place" &&
+        [
+          "city",
+          "town",
+          "village",
+          "hamlet",
+          "suburb",
+          "county",
+          "state",
+          "region",
+        ].includes(p.type)
+      ) ||
+      ["boundary", "leisure", "natural"].includes(p.class)
+    );
+
+    if (!validPlace) {
+      // We only got amenities/shops/buildings/etc., treat as no valid match
+      return res.status(200).json({ status: "no-match", verified: false });
+    }
+
+    const placeLat = parseFloat(validPlace.lat);
+    const placeLng = parseFloat(validPlace.lon);
 
     const distanceMeters = haversineDistanceMeters(lat, lng, placeLat, placeLng);
 
-    if (distanceMeters <= radiusKm * 1000) {
-      // Place exists within 20km radius — snap coordinates to this place
+    if (distanceMeters <= acceptRadiusKm * 1000) {
+      // Place exists within 20km radius — snap the coordinates to this place
       return res.status(200).json({
         status: "within-radius",
         verified: true,
         newLocation: { lat: placeLat, lng: placeLng },
-        placeName: best.display_name,
+        placeName: validPlace.display_name,
         distanceMeters,
       });
     }
 
-    // Place found but it's outside the allowed radius
+    if (distanceMeters <= searchRadiusKm * 1000) {
+      // Within 50km search radius but further than 20km — close but not valid
+      return res.status(200).json({
+        status: "within-search-radius",
+        verified: false,
+        placeName: validPlace.display_name,
+        distanceMeters,
+      });
+    }
+
+    // Place found but it's outside the 50km search radius
     return res.status(200).json({
       status: "outside-radius",
       verified: false,
       bestMatch: {
         lat: placeLat,
         lng: placeLng,
-        placeName: best.display_name,
+        placeName: validPlace.display_name,
       },
       distanceMeters,
     });

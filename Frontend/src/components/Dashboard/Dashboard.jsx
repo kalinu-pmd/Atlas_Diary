@@ -19,7 +19,7 @@ import * as api from "../../api";
 // ── Confirmation modal ────────────────────────────────────────────────────────
 function ConfirmModal({ message, onConfirm, onCancel }) {
 	return (
-		<div className="fixed inset-0 z-[2000] flex items-center justify-center bg-dark-green/70 backdrop-blur-sm px-4">
+		<div className="fixed inset-0 z-[2100] flex items-center justify-center bg-dark-green/70 backdrop-blur-sm px-4">
 			<div className="bg-off-white rounded-2xl shadow-[0_16px_48px_rgba(12,52,44,0.3)] border border-light-green p-6 w-full max-w-sm">
 				<h3 className="text-text-dark font-extrabold text-lg mb-2">
 					Are you sure?

@@ -31,6 +31,7 @@ function Navbar() {
 	const [notificationsOpen, setNotificationsOpen] = useState(false);
 	const menuRef = useRef(null);
 	const notificationsRef = useRef(null);
+	const profileImage = user?.result?.profileImage || user?.result?.imageUrl || null;
 
 	const logout = useCallback(() => {
 		dispatch({ type: LOGOUT });
@@ -194,8 +195,8 @@ function Navbar() {
 					onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") setUserMenuOpen((s) => !s); }}
 					className="w-9 h-9 rounded-full bg-accent-green text-white flex items-center justify-center font-semibold text-base cursor-pointer select-none overflow-hidden transition-transform hover:scale-105"
 				>
-					{user.result?.imageUrl ? (
-						<img src={user.result.imageUrl} alt={user.result.name} className="w-full h-full object-cover" />
+					{profileImage ? (
+						<img src={profileImage} alt={user.result?.name} className="w-full h-full object-cover" />
 					) : (
 						<span className="pointer-events-none">{user.result?.name?.charAt(0).toUpperCase()}</span>
 					)}
@@ -218,8 +219,8 @@ function Navbar() {
 									onClick={goToOwnProfile}
 									className="flex items-center gap-3 px-2 py-2 border-b border-dark-green/5 mb-2 w-full text-left rounded-lg hover:bg-light-green/5"
 								>
-								<div className="w-10 h-10 rounded-full bg-accent-green text-white flex items-center justify-center font-semibold overflow-hidden">
-									{user.result?.imageUrl ? <img src={user.result.imageUrl} alt={user.result.name} className="w-full h-full object-cover" /> : user.result?.name?.charAt(0).toUpperCase()}
+									<div className="w-10 h-10 rounded-full bg-accent-green text-white flex items-center justify-center font-semibold overflow-hidden">
+										{profileImage ? <img src={profileImage} alt={user.result?.name} className="w-full h-full object-cover" /> : user.result?.name?.charAt(0).toUpperCase()}
 								</div>
 								<div className="flex-1">
 									<p className="text-text-dark font-semibold text-sm truncate">{user.result?.name}</p>

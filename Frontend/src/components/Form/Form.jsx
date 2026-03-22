@@ -7,8 +7,22 @@ import { toast } from "react-toastify";
 import { createPost, updatePost } from "../../actions/posts";
 import { verifyPostLocation } from "../../api";
 
-const Posts = () => {
-	const initial = { title: "", message: "", tags: "", selectedFile: [], location: null };
+
+	const formatLocationName = (name) => {
+		if (!name) return "";
+		const parts = name
+			.split(",")
+			.map((p) => p.trim())
+			.filter(Boolean);
+		if (!parts.length) return "";
+		const primary = parts[0];
+		const secondary = parts[1] && parts[1] !== primary ? parts[1] : null;
+		const label = secondary ? `${primary}, ${secondary}` : primary;
+		return label.length > 40 ? primary : label;
+	};
+
+	const Posts = () => {
+	const initial = { title: "", message: "", tags: "", selectedFile: [], location: null, locationName: "" };
 	const [postData, setPostData] = useState(initial);
 	const [error, setError] = useState("");
 	const [locationVerification, setLocationVerification] = useState(null);
@@ -65,15 +79,27 @@ const Posts = () => {
 			setLocationVerification(data);
 
 			if (data?.status === "within-radius" && data?.newLocation) {
-				setPostData({ ...postData, location: data.newLocation });
+				setPostData({
+					...postData,
+					location: data.newLocation,
+					locationName:
+						formatLocationName(data.placeName) ||
+						postData.locationName ||
+						"",
+				});
 				toast.info(
 					data.placeName
 						? `Location verified within 20km: ${data.placeName}.`
 						: "Location verified within 20km of your pin.",
 				);
+			} else if (data?.status === "within-search-radius") {
+				// Place is within 50km but further than 20km — close, but not accepted
+				toast.warn(
+					"Location is within 50km of your pin. Please move the pin closer to the place (within 20km) to verify.",
+				);
 			} else if (data?.status === "outside-radius") {
 				toast.warn(
-					"The place mentioned in your title/description is more than 20km away from the selected pin. Please adjust the pin or your text.",
+					"The place mentioned in your title/description is more than 50km away from the selected pin. Please adjust the pin or your text.",
 				);
 			} else if (data?.status === "no-match") {
 				toast.warn(
@@ -122,8 +148,8 @@ const Posts = () => {
 
 			// Require a successful location verification for new posts
 			if (!locationVerification || locationVerification.status !== "within-radius") {
-				setError("Location must be verified within 20km before posting.");
-				toast.error("Please verify your location before posting. It must be within 20km of the mentioned place.");
+				setError("Location must be verified within 50km before posting.");
+				toast.error("Please verify your location before posting. It must be within 50km of the mentioned place.");
 				return;
 			}
 		}
@@ -142,7 +168,7 @@ const Posts = () => {
 				createPost({
 					...finalPostData,
 					name: user?.result?.name,
-					authorImage: user?.result?.profileImage,
+					authorImage: user?.result?.profileImage || user?.result?.imageUrl,
 				}, history),
 			);
 		}
@@ -282,7 +308,8 @@ const Posts = () => {
 							className={`text-[11px] mt-1 ${
 								locationVerification.status === "within-radius"
 									? "text-dark-green"
-								: locationVerification.status === "outside-radius"
+								: locationVerification.status === "within-search-radius" ||
+								  locationVerification.status === "outside-radius"
 									? "text-orange"
 								: locationVerification.status === "service-unavailable" ||
 								  locationVerification.status === "error" ||
@@ -299,9 +326,14 @@ const Posts = () => {
 										: "."}
 								</span>
 							)}
+							{locationVerification.status === "within-search-radius" && (
+								<span>
+									Location is within 50km, move pin closer to the location.
+								</span>
+							)}
 							{locationVerification.status === "outside-radius" && (
 								<span>
-									Mentioned place is more than 20km away from the pin.
+									Mentioned place is more than 50km away from the pin.
 								</span>
 							)}
 							{locationVerification.status === "no-match" && (

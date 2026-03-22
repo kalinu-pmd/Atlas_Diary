@@ -14,6 +14,19 @@ import {
 
 import { deletePost, likePost } from "../../../actions/posts";
 
+const formatLocationName = (name) => {
+	if (!name) return "";
+	const parts = name
+		.split(",")
+		.map((p) => p.trim())
+		.filter(Boolean);
+	if (!parts.length) return "";
+	const primary = parts[0];
+	const secondary = parts[1] && parts[1] !== primary ? parts[1] : null;
+	const label = secondary ? `${primary}, ${secondary}` : primary;
+	return label.length > 40 ? primary : label;
+};
+
 const Post = ({ post }) => {
 	const dispatch = useDispatch();
 	const history = useHistory();
@@ -26,8 +39,14 @@ const Post = ({ post }) => {
 
 	const [likes, setLikes] = useState(post?.likes);
 	const [menuOpen, setMenuOpen] = useState(false);
+	const [isExpanded, setIsExpanded] = useState(false);
 	const userId = user?.result?.googleId || user?.result?._id;
 	const hasAlreadyLiked = post.likes.find((like) => like === userId);
+	const isOwner =
+		user?.result?.googleId === post?.creator ||
+		user?.result?._id === post?.creator;
+	const currentUserProfileImage =
+		user?.result?.profileImage || user?.result?.imageUrl || null;
 
 	const Likes = () => {
 		const len = likes.length;
@@ -53,10 +72,6 @@ const Post = ({ post }) => {
 			</span>
 		);
 	};
-
-	const isOwner =
-		user?.result?.googleId === post?.creator ||
-		user?.result?._id === post?.creator;
 
 	const openPost = () => history.push(`/posts/${post._id}`);
 
@@ -98,7 +113,23 @@ const Post = ({ post }) => {
 			: post.selectedFile ||
 				"https://user-images.githubusercontent.com/194400/49531010-48dad180-f8b1-11e8-8d89-1e61320e1d82.png";
 
-	const avatarUrl = post.authorImage || null;
+	const avatarUrl = post.authorImage || (isOwner ? currentUserProfileImage : null);
+	const placeLabel = formatLocationName(post.locationName || post.title);
+	// Keep cards visually similar in height by truncating
+	// descriptions a bit earlier and using a See more toggle.
+	const maxDescriptionChars = 160;
+	const messageText = post.message || "";
+	const hashtagsText =
+		Array.isArray(post.tags) && post.tags.length > 0
+			? post.tags.map((tag) => `#${tag}`).join(" ")
+			: "";
+	const totalDescriptionLength =
+		messageText.length + (hashtagsText ? 1 + hashtagsText.length : 0);
+	const isLongDescription = totalDescriptionLength > maxDescriptionChars;
+	const visibleMessage =
+		!isLongDescription || isExpanded
+			? messageText
+			: `${messageText.slice(0, maxDescriptionChars).trim()}...`;
 
 	return (
 		<div className="bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow duration-200 overflow-hidden border border-gray-200">
@@ -129,8 +160,8 @@ const Post = ({ post }) => {
 							{post.name}
 						</p>
 						<p className="text-xs text-text-gray truncate">
-							{post.title
-								? `${post.name || "Someone"} is at ${post.title}`
+							{placeLabel
+								? `${post.name || "Someone"} is at ${placeLabel}`
 								: moment(post.createdAt).fromNow()}
 						</p>
 						<p className="text-[11px] text-text-gray">
@@ -175,11 +206,20 @@ const Post = ({ post }) => {
 			{/* Description + hashtags (above image, like Facebook) */}
 			<div className="px-4 pt-3 pb-3">
 				<p className="text-sm text-text-gray leading-relaxed">
-					{post.message}
-					{post.tags?.length > 0 && (
+					{visibleMessage}
+					{isLongDescription && (
+						<button
+							type="button"
+							onClick={() => setIsExpanded((prev) => !prev)}
+							className="ml-1 text-dark-green font-semibold text-xs hover:underline"
+						>
+							{isExpanded ? "See less" : "See more"}
+						</button>
+					)}
+					{post.tags?.length > 0 && (!isLongDescription || isExpanded) && (
 						<span className="text-light-green font-semibold">
 							{" "}
-							{post.tags.map((tag) => `#${tag}`).join(" ")}
+							{hashtagsText}
 						</span>
 					)}
 				</p>
@@ -283,6 +323,7 @@ Post.propTypes = {
 		comments: PropTypes.arrayOf(PropTypes.string),
 		createdAt: PropTypes.string,
 		authorImage: PropTypes.string,
+		locationName: PropTypes.string,
 	}).isRequired,
 };
 

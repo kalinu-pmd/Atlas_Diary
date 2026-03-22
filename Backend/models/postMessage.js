@@ -5,6 +5,8 @@ const postSchema = mongoose.Schema({
   message: String,
   creator: String,
   name: String,
+  // Human-readable place label from OpenStreetMap (display_name)
+  locationName: String,
   authorImage: String,
   tags: [String],
   selectedFile: {

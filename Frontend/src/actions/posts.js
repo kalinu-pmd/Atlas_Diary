@@ -32,25 +32,17 @@ export const getPosts = (page) => async (dispatch) => {
 };
 
 export const getPostsBySearch = (searchQuery, options = { setLoading: true }) => async (dispatch) => {
-    try {
-        if (options.setLoading) dispatch({ type: START_LOADING });
-        const { data } = await api.fetchPostsBySearch(searchQuery);
+	try {
+		if (options.setLoading) dispatch({ type: START_LOADING });
+		const { data } = await api.fetchPostsBySearch(searchQuery);
 
-        dispatch({ type: FETCH_BY_SEARCH, payload: data });
-        if (options.setLoading) dispatch({ type: END_LOADING });
-
-        if (data && data.length > 0) {
-            toast.success(
-                `Found ${data.length} post${
-                    data.length > 1 ? "s" : ""
-                } matching your search!`,
-            );
-        }
-    } catch (error) {
-        console.log(error);
-        if (options.setLoading) dispatch({ type: END_LOADING });
-        toast.error("Search failed. Please try again.");
-    }
+		dispatch({ type: FETCH_BY_SEARCH, payload: data });
+		if (options.setLoading) dispatch({ type: END_LOADING });
+	} catch (error) {
+		console.log(error);
+		if (options.setLoading) dispatch({ type: END_LOADING });
+		toast.error("Search failed. Please try again.");
+	}
 };
 
 export const getPostById = (id) => async (dispatch) => {
