@@ -12,6 +12,7 @@ const CommentSection = ({ post }) => {
 	const dispatch = useDispatch();
 	const history = useHistory();
 	const user = useSelector((state) => state.auth.authData);
+	const hasComments = Array.isArray(comments) && comments.length > 0;
 
 	const handleClick = async () => {
 		const commentFinal = `${user.result.name}: ${comment}`;
@@ -24,19 +25,19 @@ const CommentSection = ({ post }) => {
 	return (
 		<div className="bg-light-green/5 p-3 rounded-lg border border-light-green shadow-sm">
 			{/* Comments list */}
-			<div
-				className="max-h-[240px] overflow-y-auto bg-off-white p-3 rounded-lg border border-dark-green/20 shadow-sm mb-3"
-				style={{
-					scrollbarWidth: "thin",
-					scrollbarColor: "#affa01 #f1f1f1",
-				}}
-			>
-				<h3 className="text-dark-green font-bold text-sm mb-2">
-					Comments ({comments.length})
-				</h3>
+			{hasComments ? (
+				<div
+					className="max-h-[240px] overflow-y-auto bg-off-white p-3 rounded-lg border border-dark-green/20 shadow-sm mb-3"
+					style={{
+						scrollbarWidth: "thin",
+						scrollbarColor: "#affa01 #f1f1f1",
+					}}
+				>
+					<h3 className="text-dark-green font-bold text-sm mb-2">
+						Comments ({comments.length})
+					</h3>
 
-				{comments.length > 0 ? (
-					comments.map((c, i) => (
+					{comments.map((c, i) => (
 						<div
 							key={i}
 							className="bg-light-green/10 px-2 py-2 my-1 rounded text-xs border border-dark-green/10"
@@ -46,19 +47,22 @@ const CommentSection = ({ post }) => {
 									{c?.split(": ")[0]}
 								</strong>
 								<span className="ml-1">
-									{c?.split(": ").slice(1).join(": ")}
+									{c?.split(": ")?.slice(1).join(": ")}
 								</span>
 							</p>
 						</div>
-					))
-				) : (
-					<p className="text-text-gray italic text-xs text-center">
-						No comments yet. Be first!
-					</p>
-				)}
+					))}
 
-				<div ref={commentRef} />
-			</div>
+					<div ref={commentRef} />
+				</div>
+			) : (
+				<div className="flex items-center justify-between mb-2 text-xs text-text-gray px-1">
+					<span className="font-semibold text-dark-green">
+						Comments (0)
+					</span>
+					<span className="italic">No comments yet. Be first!</span>
+				</div>
+			)}
 
 			{/* Comment form - integrated inside */}
 			{user?.result?.name ? (

@@ -149,14 +149,6 @@ export const getRecommendations =
 
 			dispatch({ type: FETCH_RECOMMENDATIONS, payload: data });
 			dispatch({ type: END_LOADING });
-
-			if (data && data.length > 0) {
-				toast.success(
-					`Found ${data.length} recommendation${
-						data.length > 1 ? "s" : ""
-					} for you!`,
-				);
-			}
 		} catch (error) {
 			console.log("Error fetching recommendations:", error);
 			dispatch({ type: END_LOADING });

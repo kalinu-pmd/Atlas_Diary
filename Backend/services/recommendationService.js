@@ -211,10 +211,6 @@ class RecommendationService {
   // When location is provided, radius (in meters) controls the nearby search; default is 50km
   async getRecommendations(userId, limit = 10, location = null, radius = 50000) {
     try {
-      // If location is provided, return nearby posts
-      if (location && location.lng && location.lat) {
-        return await this.getNearbyPosts(location, radius, limit);
-      }
       const userProfile = await this.buildUserProfile(userId);
 
       if (!userProfile || userProfile.contentProfile.length === 0) {
@@ -223,6 +219,16 @@ class RecommendationService {
           .sort({ likes: -1, createdAt: -1 })
           .limit(limit)
           .populate("creator", "name");
+      }
+
+      // If we have a location from the caller, attach it to the
+      // user profile so the scoring function can include a
+      // location-proximity component (20% weight).
+      if (location && location.lng && location.lat) {
+        userProfile.location = {
+          lng: Number(location.lng),
+          lat: Number(location.lat),
+        };
       }
 
       // Get a limited window of recent posts excluding ones user has already interacted with

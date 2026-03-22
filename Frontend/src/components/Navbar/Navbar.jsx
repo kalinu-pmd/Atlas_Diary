@@ -3,7 +3,7 @@ import { useSelector, useDispatch } from "react-redux";
 import { Link, useHistory, useLocation } from "react-router-dom";
 import decode from "jwt-decode";
 import { toast } from "react-toastify";
-import { MdMenu, MdClose, MdAdd, MdSettings, MdExitToApp, MdNotifications } from "react-icons/md";
+import { MdMenu, MdClose, MdAdd, MdSettings, MdExitToApp, MdNotifications, MdDashboard } from "react-icons/md";
 
 import { LOGOUT } from "../../constants/actionTypes";
 import logo from "../../Images/logo.svg";
@@ -108,10 +108,6 @@ function Navbar() {
 	// Simple auth controls variable (keeps JSX tidy)
 	const authControls = user ? (
 		<div className="flex items-center gap-3">
-			{user.result?.isAdmin && (
-				<Link to="/dashboard" className="hidden md:inline-flex text-accent-green font-extrabold text-sm px-3 py-1.5 rounded hover:bg-accent-green/10 transition-colors no-underline whitespace-nowrap">Dashboard</Link>
-			)}
-
 			<Link to="/create-post" className="hidden sm:inline-flex items-center gap-2 bg-gradient-to-b from-accent-green to-accent-green-2 text-white font-extrabold text-sm px-4 py-2 rounded-full shadow-[0_8px_30px_rgba(47,107,79,0.12)] hover:-translate-y-0.5 transition-transform no-underline whitespace-nowrap">
 				<MdAdd size={16} />
 				<span>Post</span>
@@ -227,6 +223,16 @@ function Navbar() {
 									<p className="text-text-gray text-xs">{user.result?.email}</p>
 								</div>
 								</button>
+							{user.result?.isAdmin && (
+								<Link
+									to="/dashboard"
+									className="flex items-center gap-3 px-2 py-2 text-sm text-text-dark hover:bg-light-green/5 rounded mb-1 no-underline"
+									onClick={() => setUserMenuOpen(false)}
+								>
+									<MdDashboard size={18} className="text-dark-green" />
+									<span>Admin dashboard</span>
+								</Link>
+							)}
 									<Link
 										to={`/profile/${user.result?._id || user.result?.googleId}`}
 										className="flex items-center gap-3 px-2 py-2 text-sm text-text-dark hover:bg-light-green/5 rounded mb-1"
@@ -272,7 +278,29 @@ function Navbar() {
 					<nav aria-label="Primary navigation" className="hidden md:flex gap-6 items-center">
 						{navItems.map((item) => {
 							if (item.label === "How it Works" && user) return null;
-							return <Link key={item.to} to={item.to} className="no-underline text-muted font-semibold px-2.5 py-2 rounded-lg transition-colors hover:bg-accent-green/10 hover:text-accent-green whitespace-nowrap">{item.label}</Link>;
+
+							const isActive =
+								location.pathname === item.to ||
+								(location.pathname.startsWith(item.to) && item.to !== "/");
+
+							const baseClasses =
+									"no-underline text-sm font-semibold px-3 py-1.5 rounded-full whitespace-nowrap transition-colors";
+							const inactiveClasses =
+									" text-muted hover:bg-accent-green/10 hover:text-accent-green";
+							const activeClasses =
+									" text-accent-green bg-accent-green/10 shadow-[0_4px_10px_rgba(47,107,79,0.15)]";
+
+							return (
+								<Link
+									key={item.to}
+									to={item.to}
+									className={
+										baseClasses + (isActive ? activeClasses : inactiveClasses)
+									}
+								>
+									{item.label}
+								</Link>
+							);
 						})}
 					</nav>
 

@@ -129,7 +129,7 @@ const Recommendations = () => {
 			</h1>
 			{userLocation && (
 				<p className="text-center text-xs text-text-gray mb-4">
-					Showing posts within 50km of your current location.
+					Personalized using your activity, interests and how close posts are to your current location.
 				</p>
 			)}
 
@@ -200,15 +200,15 @@ const Recommendations = () => {
 								))}
 							</div>
 
-							{/* Match or nearby score */}
+							{/* Match score explanation */}
 							{typeof post.recommendationScore === "number" ? (
 								<p className="text-[#1976d2] font-bold text-xs">
-									Match Score: {" "}
+									Match score (activity + location): {" "}
 									{(post.recommendationScore * 100).toFixed(0)}%
 								</p>
 							) : (
 								<p className="text-[#1976d2] font-bold text-xs">
-									Nearby recommendation based on your location
+									Recommended based on your activity and other signals
 								</p>
 							)}
 						</div>
