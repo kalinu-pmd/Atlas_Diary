@@ -6,6 +6,7 @@ const Input = ({
 	name,
 	label,
 	handleChange,
+	value,
 	type,
 	error,
 	autoFocus,
@@ -19,6 +20,7 @@ const Input = ({
 					name={name}
 					id={name}
 					type={type || "text"}
+					value={value}
 					onChange={handleChange}
 					autoFocus={autoFocus}
 					required
@@ -72,6 +74,7 @@ Input.propTypes = {
 	name: PropTypes.string.isRequired,
 	label: PropTypes.string.isRequired,
 	handleChange: PropTypes.func.isRequired,
+	value: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
 	type: PropTypes.string,
 	error: PropTypes.bool,
 	autoFocus: PropTypes.bool,

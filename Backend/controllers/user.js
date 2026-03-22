@@ -5,6 +5,7 @@ const JWT_SECRET = process.env.JWT_SECRET || "secret";
 
 import User from "../models/users.js";
 import PostMessage from "../models/postMessage.js";
+import { sendOtpEmail } from "../services/emailService.js";
 
 export const signIn = async (req, res) => {
 	const { email, password, rememberMe } = req.body;
@@ -16,6 +17,13 @@ export const signIn = async (req, res) => {
 			return res
 				.status(404)
 				.json({ message: "Invalid username or password" });
+		}
+
+		// Require verified email for login (but keep legacy users without flag working)
+		if (existingUser.isEmailVerified === false) {
+			return res
+				.status(403)
+				.json({ message: "Please verify your email before signing in." });
 		}
 
 		const isPasswordCorrect = await bcrypt.compare(
@@ -50,30 +58,52 @@ export const signUp = async (req, res) => {
 	try {
 		const existingUser = await User.findOne({ email });
 
-		if (existingUser) {
-			return res.status(404).json({ message: "User already exists" });
+		if (existingUser && existingUser.isEmailVerified !== false) {
+			return res.status(409).json({ message: "User already exists" });
 		}
 		if (password !== confirmPassword) {
 			return res.status(400).json({ message: "Passwords do not match" });
 		}
 
 		const hashedPassword = await bcrypt.hash(password, 12);
-		const result = await User.create({
-			email,
-			password: hashedPassword,
-			name: `${firstName} ${lastName}`,
+
+		// Generate 6-digit OTP and hash it
+		const otp = Math.floor(100000 + Math.random() * 900000).toString();
+		const otpHash = await bcrypt.hash(otp, 10);
+		const otpExpiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+
+		let userDoc;
+		if (existingUser && existingUser.isEmailVerified === false) {
+			// Reuse unverified account, update credentials + OTP
+			existingUser.password = hashedPassword;
+			existingUser.name = `${firstName} ${lastName}`;
+			existingUser.emailVerification = { otpHash, otpExpiresAt };
+			userDoc = await existingUser.save();
+		} else {
+			userDoc = await User.create({
+				email,
+				password: hashedPassword,
+				name: `${firstName} ${lastName}`,
+				isEmailVerified: false,
+				emailVerification: { otpHash, otpExpiresAt },
+			});
+		}
+
+		// Send OTP email (best-effort)
+		await sendOtpEmail(email, otp);
+		console.log("[signUp] Generated OTP for", email, "is", otp);
+		const isProd = process.env.NODE_ENV === "production";
+
+		return res.status(200).json({
+			message: "OTP sent. Please check your email to verify your account.",
+			userId: userDoc._id,
+			email: userDoc.email,
+			// For development/testing only we return the OTP in the response
+			// so you can verify things are wired correctly. This is omitted in production.
+			...(isProd ? {} : { debugOtp: otp }),
 		});
-
-		const token = jwt.sign(
-			{ email: result.email, id: result._id },
-			JWT_SECRET,
-			{
-				expiresIn: "1h",
-			},
-		);
-
-		res.status(200).json({ result, token });
 	} catch (error) {
+		console.error("signUp error:", error);
 		res.status(500).json({ message: "Something went wrong" });
 	}
 };
@@ -218,5 +248,125 @@ export const getUserStats = async (req, res, next) => {
 	} catch (error) {
 		console.error("getUserStats error:", error);
 		return res.status(500).json({ message: "Failed to get user stats" });
+	}
+};
+
+// Admin-only: create a user without OTP verification
+export const createUserByAdmin = async (req, res) => {
+	const { name, email, password, confirmPassword, isAdmin } = req.body || {};
+
+	try {
+		// Ensure the requester is an authenticated admin
+		if (!req.userId) {
+			return res.status(401).json({ message: "Unauthorized" });
+		}
+
+		const adminUser = await User.findById(req.userId);
+		if (!adminUser || !adminUser.isAdmin) {
+			return res.status(403).json({ message: "Admin access required" });
+		}
+
+		// Basic validation (other details mandatory)
+		if (!name || !name.trim() || !email || !email.trim()) {
+			return res
+				.status(400)
+				.json({ message: "Name and email are required." });
+		}
+
+		if (!password || !confirmPassword) {
+			return res
+				.status(400)
+				.json({ message: "Password and confirm password are required." });
+		}
+
+		if (password !== confirmPassword) {
+			return res
+				.status(400)
+				.json({ message: "Passwords do not match." });
+		}
+
+		const existingUser = await User.findOne({ email: email.trim() });
+		if (existingUser) {
+			return res.status(409).json({ message: "User already exists" });
+		}
+
+		const hashedPassword = await bcrypt.hash(password, 12);
+
+		const newUser = await User.create({
+			name: name.trim(),
+			email: email.trim(),
+			password: hashedPassword,
+			isAdmin: !!isAdmin,
+			// Created by admin: treat email as already verified
+			isEmailVerified: true,
+			emailVerification: undefined,
+		});
+
+		return res
+			.status(201)
+			.json({ message: "User created successfully", user: newUser });
+	} catch (error) {
+		console.error("createUserByAdmin error:", error);
+		return res.status(500).json({ message: "Failed to create user." });
+	}
+};
+
+// Verify email OTP and activate account
+export const verifyEmailOtp = async (req, res) => {
+	const { email, otp } = req.body || {};
+
+	if (!email || !otp) {
+		return res
+			.status(400)
+			.json({ message: "Email and OTP are required." });
+	}
+
+	try {
+		const user = await User.findOne({ email });
+		if (!user) {
+			return res.status(404).json({ message: "User not found" });
+		}
+
+		if (user.isEmailVerified === true) {
+			return res
+				.status(400)
+				.json({ message: "Email is already verified." });
+		}
+
+		const { emailVerification } = user;
+		if (!emailVerification || !emailVerification.otpHash) {
+			return res
+				.status(400)
+				.json({ message: "No verification code found. Please sign up again." });
+		}
+
+		if (
+			!emailVerification.otpExpiresAt ||
+			new Date(emailVerification.otpExpiresAt) < new Date()
+		) {
+			return res
+				.status(400)
+				.json({ message: "Verification code has expired. Please sign up again." });
+		}
+
+		const isMatch = await bcrypt.compare(otp, emailVerification.otpHash);
+		if (!isMatch) {
+			return res.status(400).json({ message: "Invalid verification code." });
+		}
+
+		user.isEmailVerified = true;
+		user.emailVerification = undefined;
+		const savedUser = await user.save();
+
+		const token = jwt.sign(
+			{ email: savedUser.email, id: savedUser._id },
+			JWT_SECRET,
+			{ expiresIn: "1h" },
+		);
+
+		return res.status(200).json({ result: savedUser, token });
+	} catch (error) {
+		console.error("verifyEmailOtp error:", error);
+		return res.status(500).json({ message: "Failed to verify email." });
 	}
 };

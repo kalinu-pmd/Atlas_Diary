@@ -45,6 +45,10 @@ export const signUp = (formData) => {
 	return API.post("/users/signUp", formData);
 };
 
+export const verifyOtp = (payload) => {
+	return API.post("/users/verify-otp", payload);
+};
+
 export const fetchPostsBySearch = (searchQuery) => {
 	return API.get(
 		`/posts/search?search=${searchQuery.search || "none"}&tags=${
@@ -72,6 +76,10 @@ export const deleteUser = (userId) => {
 
 export const editUser = (userId, userData) => {
 	return API.patch(`/users/${userId}`, userData);
+};
+
+export const createUserByAdmin = (userData) => {
+	return API.post("/users/admin/create", userData);
 };
 
 export const getUserStats = (userId) => {

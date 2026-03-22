@@ -233,7 +233,7 @@ function Navbar() {
 										onClick={() => setUserMenuOpen(false)}
 									>
 										<span className="w-5 h-5 rounded-full bg-accent-green/10 flex items-center justify-center text-[11px] font-bold text-dark-green">
-											P
+											{user.result?.name?.charAt(0).toUpperCase()}
 										</span>
 										<span>View profile</span>
 									</Link>

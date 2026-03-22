@@ -5,6 +5,7 @@ import Home from "./components/Home/Home";
 import Landing from "./components/Landing/Landing";
 import Auth from "./components/Auth/Auth";
 import Signup from "./components/Auth/Signup";
+import OtpVerification from "./components/Auth/OtpVerification";
 import PostDetails from "./components/PostDetails/PostDetails";
 import CreatePost from "./components/CreatePost/CreatePost";
 import Settings from "./components/Settings/Settings";
@@ -104,6 +105,13 @@ const App = () => {
 							exact
 							component={() =>
 								!user ? <Signup /> : <Redirect to="/posts" />
+							}
+						/>
+						<Route
+							path="/verify-email"
+							exact
+							component={() =>
+								!user ? <OtpVerification /> : <Redirect to="/posts" />
 							}
 						/>
 

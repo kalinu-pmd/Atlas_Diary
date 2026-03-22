@@ -93,6 +93,7 @@ const Auth = () => {
 					<Input
 						name="email"
 						label="Email Address"
+						value={formData.email}
 						handleChange={handleChange}
 						type="email"
 						error={!!errors.email}
@@ -103,6 +104,7 @@ const Auth = () => {
 					<Input
 						name="password"
 						label="Password"
+						value={formData.password}
 						handleChange={handleChange}
 						type={showPassword ? "text" : "password"}
 						handleShowPassword={handleShowPassword}

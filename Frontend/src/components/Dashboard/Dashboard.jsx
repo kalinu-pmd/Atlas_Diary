@@ -269,6 +269,148 @@ EditUserModal.propTypes = {
 	loading: PropTypes.bool,
 };
 
+// ── Create User modal (admin creates user without OTP) ─────────────────────
+function CreateUserModal({ onSave, onClose, loading }) {
+	const [name, setName] = useState("");
+	const [email, setEmail] = useState("");
+	const [password, setPassword] = useState("");
+	const [confirmPassword, setConfirmPassword] = useState("");
+	const [isAdmin, setIsAdmin] = useState(false);
+
+	const handleSave = (e) => {
+		e.preventDefault();
+
+		if (!name.trim()) {
+			toast.error("Name is required.");
+			return;
+		}
+		if (!email.trim()) {
+			toast.error("Email is required.");
+			return;
+		}
+		if (!password || !confirmPassword) {
+			toast.error("Password and confirm password are required.");
+			return;
+		}
+		if (password !== confirmPassword) {
+			toast.error("Passwords do not match.");
+			return;
+		}
+		if (password.length < 8) {
+			toast.error("Password must be at least 8 characters long.");
+			return;
+		}
+
+		onSave({
+			name: name.trim(),
+			email: email.trim(),
+			password,
+			confirmPassword,
+			isAdmin,
+		});
+	};
+
+	return (
+		<div className="fixed inset-0 z-[2000] flex items-center justify-center bg-dark-green/70 backdrop-blur-sm px-4">
+			<div className="bg-off-white rounded-2xl shadow-[0_16px_48px_rgba(12,52,44,0.3)] border border-light-green p-6 w-full max-w-sm">
+				<div className="flex items-center justify-between mb-5">
+					<h3 className="text-text-dark font-extrabold text-lg">
+						Add New User
+					</h3>
+					<button
+						onClick={onClose}
+						className="text-text-gray hover:text-dark-green transition-colors"
+					>
+						<MdClose size={22} />
+					</button>
+				</div>
+
+				<form onSubmit={handleSave} className="flex flex-col gap-4">
+					<div className="flex flex-col gap-1">
+						<label className="text-xs font-semibold text-dark-green">
+							Name <span className="text-orange">*</span>
+						</label>
+						<input
+							value={name}
+							onChange={(e) => setName(e.target.value)}
+							className="w-full bg-off-white border border-dark-green hover:border-light-green focus:border-dark-green focus:outline-none rounded-lg px-3 py-2.5 text-sm text-text-dark transition-colors"
+						/>
+					</div>
+					<div className="flex flex-col gap-1">
+						<label className="text-xs font-semibold text-dark-green">
+							Email <span className="text-orange">*</span>
+						</label>
+						<input
+							type="email"
+							value={email}
+							onChange={(e) => setEmail(e.target.value)}
+							className="w-full bg-off-white border border-dark-green hover:border-light-green focus:border-dark-green focus:outline-none rounded-lg px-3 py-2.5 text-sm text-text-dark transition-colors"
+						/>
+					</div>
+					<div className="flex flex-col gap-1">
+						<label className="text-xs font-semibold text-dark-green">
+							Password <span className="text-orange">*</span>
+						</label>
+						<input
+							type="password"
+							value={password}
+							onChange={(e) => setPassword(e.target.value)}
+							placeholder="••••••••"
+							className="w-full bg-off-white border border-dark-green hover:border-light-green focus:border-dark-green focus:outline-none rounded-lg px-3 py-2.5 text-sm text-text-dark transition-colors"
+						/>
+					</div>
+					<div className="flex flex-col gap-1">
+						<label className="text-xs font-semibold text-dark-green">
+							Confirm Password <span className="text-orange">*</span>
+						</label>
+						<input
+							type="password"
+							value={confirmPassword}
+							onChange={(e) => setConfirmPassword(e.target.value)}
+							placeholder="••••••••"
+							className="w-full bg-off-white border border-dark-green hover:border-light-green focus:border-dark-green focus:outline-none rounded-lg px-3 py-2.5 text-sm text-text-dark transition-colors"
+						/>
+					</div>
+					<label className="inline-flex items-center gap-2 text-xs text-text-dark">
+						<input
+							type="checkbox"
+							checked={isAdmin}
+							onChange={(e) => setIsAdmin(e.target.checked)}
+							className="rounded border-dark-green text-dark-green focus:ring-dark-green"
+						/>
+						<span>Make this user an admin</span>
+					</label>
+					<div className="flex gap-3 justify-end mt-1">
+						<button
+							type="button"
+							onClick={onClose}
+							className="px-4 py-2 rounded-lg border border-dark-green/20 text-dark-green font-semibold text-sm hover:bg-dark-green/5 transition-colors"
+						>
+							Cancel
+						</button>
+						<button
+							type="submit"
+							disabled={loading}
+							className="flex items-center gap-1.5 px-5 py-2 rounded-lg bg-light-green hover:bg-light-green-hover disabled:opacity-60 disabled:cursor-not-allowed text-text-dark font-bold text-sm transition-colors"
+						>
+							{loading && (
+								<div className="w-3.5 h-3.5 rounded-full border-2 border-text-dark/30 border-t-text-dark animate-spin" />
+							)}
+							Create User
+						</button>
+					</div>
+				</form>
+			</div>
+		</div>
+	);
+}
+
+CreateUserModal.propTypes = {
+	onSave: PropTypes.func.isRequired,
+	onClose: PropTypes.func.isRequired,
+	loading: PropTypes.bool,
+};
+
 // ── Main Dashboard ────────────────────────────────────────────────────────────
 const Dashboard = () => {
 	const [posts, setPosts] = useState([]);
@@ -282,6 +424,7 @@ const Dashboard = () => {
 	const [confirmModal, setConfirmModal] = useState(null); // { type, id, message }
 	const [editPostModal, setEditPostModal] = useState(null); // post object
 	const [editUserModal, setEditUserModal] = useState(null); // user object
+	const [createUserModal, setCreateUserModal] = useState(false);
 	const [userStatsModal, setUserStatsModal] = useState(null);
 	const [userStatsData, setUserStatsData] = useState(null); // { stats, profile, posts }
 	const [userStatsLoading, setUserStatsLoading] = useState(false);
@@ -393,6 +536,23 @@ const Dashboard = () => {
 		}
 	};
 
+	const handleCreateUser = async (payload) => {
+		setActionLoading(true);
+		try {
+			await api.createUserByAdmin(payload);
+			toast.success("User created successfully.");
+			await fetchData();
+			setCreateUserModal(false);
+		} catch (error) {
+			console.error(error);
+			const message =
+				error?.response?.data?.message || "Failed to create user.";
+			toast.error(message);
+		} finally {
+			setActionLoading(false);
+		}
+	};
+
 	// ── User details (posts + stats) ──────────────────────────────────────
 	const openUserStats = async (userId) => {
 		setUserStatsLoading(true);
@@ -461,6 +621,14 @@ const Dashboard = () => {
 					user={editUserModal}
 					onSave={handleSaveUser}
 					onClose={() => setEditUserModal(null)}
+					loading={actionLoading}
+				/>
+			)}
+
+			{createUserModal && (
+				<CreateUserModal
+					onSave={handleCreateUser}
+					onClose={() => setCreateUserModal(false)}
 					loading={actionLoading}
 				/>
 			)}
@@ -814,9 +982,19 @@ const Dashboard = () => {
 							{/* ── Users table ─────────────────── */}
 							{activeTab === "users" && (
 								<div className="dashboard-panel overflow-x-auto">
-									<h2 className="text-dark-green font-extrabold text-lg mb-4">
-										All Users
-									</h2>
+									<div className="flex items-center justify-between mb-4">
+										<h2 className="text-dark-green font-extrabold text-lg">
+											All Users
+										</h2>
+										<button
+											type="button"
+											onClick={() => setCreateUserModal(true)}
+											className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-light-green hover:bg-light-green-hover text-text-dark text-xs font-bold border border-light-green/60 transition-colors"
+										>
+											<span className="text-base leading-none">+</span>
+											<span>Add User</span>
+										</button>
+									</div>
 									{users.length === 0 ? (
 										<p className="text-text-gray text-sm py-6 text-center">
 											No users found.

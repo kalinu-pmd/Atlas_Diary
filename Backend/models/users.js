@@ -7,6 +7,13 @@ const userSchema = mongoose.Schema({
   id: { type: String },
   isAdmin: { type: Boolean, default: false },
 
+  // Email verification / security
+  isEmailVerified: { type: Boolean, default: true }, // legacy users treated as verified
+  emailVerification: {
+    otpHash: { type: String },
+    otpExpiresAt: { type: Date },
+  },
+
   // Profile fields
   bio: { type: String, default: "" },
   profileImage: { type: String }, // URL or base64 image

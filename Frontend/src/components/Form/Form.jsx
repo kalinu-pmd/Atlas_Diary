@@ -146,10 +146,16 @@ import { verifyPostLocation } from "../../api";
 				return;
 			}
 
-			// Require a successful location verification for new posts
-			if (!locationVerification || locationVerification.status !== "within-radius") {
-				setError("Location must be verified within 50km before posting.");
-				toast.error("Please verify your location before posting. It must be within 50km of the mentioned place.");
+			// Require location verification that is not clearly invalid
+			// Block only when verification says the place is far away or failed with an error
+			if (
+				!locationVerification ||
+				["outside-radius", "error"].includes(locationVerification.status)
+			) {
+				setError("Location could not be verified. Please adjust the pin or try again.");
+				toast.error(
+					"Please verify your location or adjust the pin before posting.",
+				);
 				return;
 			}
 		}

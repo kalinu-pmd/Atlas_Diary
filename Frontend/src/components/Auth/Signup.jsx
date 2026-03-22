@@ -20,16 +20,25 @@ const Signup = ({ onSwitchToSignIn }) => {
 		confirmPassword: "",
 	};
 
-	const [formData, setFormData] = useState(initialFormData);
+	const [formData, setFormData] = useState(() => {
+		try {
+			const stored = localStorage.getItem("pending-signup-data");
+			return stored ? JSON.parse(stored) : initialFormData;
+		} catch {
+			return initialFormData;
+		}
+	});
 	const [showPassword, setShowPassword] = useState(false);
 	const [errors, setErrors] = useState({});
+	const [passwordsMatch, setPasswordsMatch] = useState(false);
+
+	const namePattern = /^[a-zA-Z]+$/;
+	const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+	const passwordPattern =
+		/^(?=.*[A-Z])(?=.*[a-z])(?=.*\d)(?=.*[@$!%*?&]).{8,}$/;
 
 	const validate = () => {
 		const newErrors = {};
-		const namePattern = /^[a-zA-Z]+$/;
-		const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-		const passwordPattern =
-			/^(?=.*[A-Z])(?=.*[a-z])(?=.*\d)(?=.*[@$!%*?&]).{8,}$/;
 
 		if (!namePattern.test(formData.firstName)) {
 			newErrors.firstName = "First name must contain only letters.";
@@ -62,8 +71,19 @@ const Signup = ({ onSwitchToSignIn }) => {
 	};
 
 	const handleChange = (event) => {
-		setFormData({ ...formData, [event.target.name]: event.target.value });
-		setErrors({ ...errors, [event.target.name]: "" });
+		const { name, value } = event.target;
+		const updated = { ...formData, [name]: value };
+		setFormData(updated);
+		setErrors({ ...errors, [name]: "" });
+
+		// Live password match indicator
+		if (name === "password" || name === "confirmPassword") {
+			if (updated.password && updated.confirmPassword) {
+				setPasswordsMatch(updated.password === updated.confirmPassword);
+			} else {
+				setPasswordsMatch(false);
+			}
+		}
 	};
 
 	const handleShowPassword = () => {
@@ -77,6 +97,13 @@ const Signup = ({ onSwitchToSignIn }) => {
 			history.push("/auth");
 		}
 	};
+
+	const canSubmit =
+		namePattern.test(formData.firstName) &&
+		namePattern.test(formData.lastName) &&
+		emailPattern.test(formData.email) &&
+		passwordPattern.test(formData.password) &&
+		formData.password === formData.confirmPassword;
 
 	return (
 		<div className="min-h-screen flex items-center justify-center bg-off-white px-4 py-12">
@@ -101,6 +128,7 @@ const Signup = ({ onSwitchToSignIn }) => {
 							half
 							name="firstName"
 							label="First Name"
+							value={formData.firstName}
 							handleChange={handleChange}
 							error={!!errors.firstName}
 							helperText={errors.firstName}
@@ -110,6 +138,7 @@ const Signup = ({ onSwitchToSignIn }) => {
 							half
 							name="lastName"
 							label="Last Name"
+							value={formData.lastName}
 							handleChange={handleChange}
 							error={!!errors.lastName}
 							helperText={errors.lastName}
@@ -119,6 +148,7 @@ const Signup = ({ onSwitchToSignIn }) => {
 					<Input
 						name="email"
 						label="Email Address"
+						value={formData.email}
 						handleChange={handleChange}
 						type="email"
 						error={!!errors.email}
@@ -128,6 +158,7 @@ const Signup = ({ onSwitchToSignIn }) => {
 					<Input
 						name="password"
 						label="Password"
+						value={formData.password}
 						handleChange={handleChange}
 						type={showPassword ? "text" : "password"}
 						handleShowPassword={handleShowPassword}
@@ -138,17 +169,36 @@ const Signup = ({ onSwitchToSignIn }) => {
 					<Input
 						name="confirmPassword"
 						label="Repeat Password"
+						value={formData.confirmPassword}
 						handleChange={handleChange}
 						type={showPassword ? "text" : "password"}
 						error={!!errors.confirmPassword}
 						helperText={errors.confirmPassword}
 					/>
+					{formData.password && formData.confirmPassword && (
+						<p
+							className={`text-xs mt-[-4px] ${
+								passwordsMatch
+									? "text-green-600"
+									: "text-red-600"
+							}`}
+						>
+							{passwordsMatch
+								? "Passwords match"
+								: "Passwords do not match"}
+						</p>
+					)}
 
 					<button
 						type="submit"
-						className="w-full mt-2 bg-light-green hover:bg-light-green-hover text-text-dark font-bold py-2.5 rounded-md transition-colors"
+						disabled={!canSubmit}
+						className={`w-full mt-2 font-bold py-2.5 rounded-md transition-colors ${
+							canSubmit
+								? "bg-light-green hover:bg-light-green-hover text-text-dark"
+								: "bg-gray-300 text-gray-500 cursor-not-allowed"
+						}`}
 					>
-						Sign Up
+						Send OTP
 					</button>
 
 					<button

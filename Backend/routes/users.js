@@ -48,6 +48,8 @@ import {
 	deleteUser,
 	getUserStats,
 	getUserProfile,
+	verifyEmailOtp,
+	createUserByAdmin,
 } from "../controllers/user.js";
 import auth from "../middleware/auth.js";
 
@@ -55,6 +57,8 @@ const router = express.Router();
 
 router.post("/signIn", signIn);
 router.post("/signUp", signUp);
+router.post("/verify-otp", verifyEmailOtp);
+router.post("/admin/create", auth, createUserByAdmin);
 router.get("/", auth, getAllUsers);
 router.get("/:id/stats", auth, getUserStats);
 router.get("/:id/profile", auth, getUserProfile);

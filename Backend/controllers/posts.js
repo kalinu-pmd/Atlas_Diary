@@ -346,19 +346,20 @@ export const verifyPostLocation = async (req, res) => {
   const minLng = lng - lonDelta;
   const maxLng = lng + lonDelta;
 
-  const nominatimUrl = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(
-    query
-  )}&bounded=1&viewbox=${minLng},${maxLat},${maxLng},${minLat}`;
-
   try {
-    const response = await fetch(nominatimUrl, {
-      headers: {
-        // Please replace with your own project/app identifier if you fork this project
-        "User-Agent": "atlas-diary/1.0 (+https://example.com)",
-      },
-    });
+    // First, try a bounded search around the selected pin
+    const boundedUrl = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(
+      query
+    )}&bounded=1&viewbox=${minLng},${maxLat},${maxLng},${minLat}`;
 
-    if (response.status === 403) {
+    const commonHeaders = {
+      // Please replace with your own project/app identifier if you fork this project
+      "User-Agent": "atlas-diary/1.0 (+https://example.com)",
+    };
+
+    const boundedResponse = await fetch(boundedUrl, { headers: commonHeaders });
+
+    if (boundedResponse.status === 403) {
       // Upstream geocoding service blocked the request (e.g. rate limit or bad User-Agent).
       // Treat this as "service unavailable" so the frontend can still show a hint
       // and allow posting with the user's selected pin.
@@ -369,44 +370,56 @@ export const verifyPostLocation = async (req, res) => {
       });
     }
 
-    if (!response.ok) {
-      throw new Error(`Geocoding request failed with status ${response.status}`);
+    if (!boundedResponse.ok) {
+      throw new Error(`Geocoding request failed with status ${boundedResponse.status}`);
     }
 
-    const results = await response.json();
+    let results = await boundedResponse.json();
+
+    // If the bounded search didn't find anything, fall back to a global search
+    if (!Array.isArray(results) || results.length === 0) {
+      const globalUrl = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(
+        query
+      )}`;
+
+      const globalResponse = await fetch(globalUrl, { headers: commonHeaders });
+
+      if (globalResponse.ok) {
+        results = await globalResponse.json();
+      } else {
+        // If even the global search fails, treat as no match
+        return res.status(200).json({ status: "no-match", verified: false });
+      }
+    }
 
     if (!Array.isArray(results) || results.length === 0) {
-      // No place found near the selected point matching the text
+      // Still no place found matching the text
       return res.status(200).json({ status: "no-match", verified: false });
     }
 
-    // Filter valid results: meaningful geographic places only
-    const validPlace = results.find((p) =>
-      (
-        p.class === "place" &&
-        [
-          "city",
-          "town",
-          "village",
-          "hamlet",
-          "suburb",
-          "county",
-          "state",
-          "region",
-        ].includes(p.type)
-      ) ||
-      ["boundary", "leisure", "natural"].includes(p.class)
+    // Instead of aggressively filtering by class/type, pick the
+    // nearest geocoding result to the selected pin and use that
+    // to decide if the place is close enough.
+    const candidates = results
+      .map((p) => {
+        const placeLat = parseFloat(p.lat);
+        const placeLng = parseFloat(p.lon);
+        if (Number.isNaN(placeLat) || Number.isNaN(placeLng)) return null;
+
+        const distanceMeters = haversineDistanceMeters(lat, lng, placeLat, placeLng);
+        return { place: p, placeLat, placeLng, distanceMeters };
+      })
+      .filter(Boolean);
+
+    if (!candidates.length) {
+      return res.status(200).json({ status: "no-match", verified: false });
+    }
+
+    const nearest = candidates.reduce((best, current) =>
+      current.distanceMeters < best.distanceMeters ? current : best
     );
 
-    if (!validPlace) {
-      // We only got amenities/shops/buildings/etc., treat as no valid match
-      return res.status(200).json({ status: "no-match", verified: false });
-    }
-
-    const placeLat = parseFloat(validPlace.lat);
-    const placeLng = parseFloat(validPlace.lon);
-
-    const distanceMeters = haversineDistanceMeters(lat, lng, placeLat, placeLng);
+    const { place: validPlace, placeLat, placeLng, distanceMeters } = nearest;
 
     if (distanceMeters <= acceptRadiusKm * 1000) {
       // Place exists within 20km radius — snap the coordinates to this place
