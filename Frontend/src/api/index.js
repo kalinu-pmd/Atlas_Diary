@@ -37,6 +37,15 @@ export const likePost = (postId) => {
 	return API.patch(`/posts/${postId}/likePost`);
 };
 
+// Post reporting & review
+export const reportPost = (postId, payload) => {
+	return API.post(`/posts/${postId}/report`, payload);
+};
+
+export const sendPostForReview = (postId, payload = {}) => {
+	return API.post(`/posts/${postId}/send-for-review`, payload);
+};
+
 export const signIn = (formData) => {
 	return API.post("/users/signIn", formData);
 };
@@ -110,6 +119,19 @@ export const fetchSimilarPosts = (postId, limit = 5) => {
 
 export const trackPostView = (postId) => {
 	return API.post(`/posts/${postId}/view`);
+};
+
+// Admin: post reports
+export const fetchPostReports = (status) => {
+	let url = "/posts/reports";
+	if (status) {
+		url += `?status=${encodeURIComponent(status)}`;
+	}
+	return API.get(url);
+};
+
+export const adminActOnReport = (reportId, payload) => {
+	return API.patch(`/posts/reports/${reportId}/admin-action`, payload);
 };
 
 // Notifications APIs

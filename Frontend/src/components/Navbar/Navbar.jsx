@@ -158,9 +158,32 @@ function Navbar() {
 							{notificationsState.items && notificationsState.items.map((n) => {
 								const actorName = n.fromUser?.name || "Someone";
 								const postTitle = n.post?.title || "your post";
-								const text = n.type === "like"
-									? `${actorName} liked ${postTitle}`
-									: `${actorName} commented on ${postTitle}`;
+								let text;
+								switch (n.type) {
+									case "like":
+										text = `${actorName} liked ${postTitle}`;
+										break;
+									case "comment":
+										text = `${actorName} commented on ${postTitle}`;
+										break;
+									case "report_alert":
+										text = `Your post "${postTitle}" was reported. Please review and update it.`;
+										break;
+									case "report_resolved":
+										text = `An admin accepted your updates for "${postTitle}".`;
+										break;
+									case "report_rejected":
+										text = `An admin rejected the changes for "${postTitle}". You can edit it again.`;
+										break;
+									case "report_deleted":
+										text = `Your post "${postTitle}" was deleted due to a report.`;
+										break;
+									case "report_genuine":
+										text = `An admin confirmed that "${postTitle}" is a genuine place.`;
+										break;
+									default:
+										text = `${actorName} interacted with ${postTitle}`;
+								}
 								return (
 									<button
 										key={n._id}

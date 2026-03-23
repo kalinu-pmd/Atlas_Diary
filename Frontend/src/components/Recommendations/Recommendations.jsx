@@ -29,9 +29,7 @@ const Recommendations = () => {
 	const [imageDialogOpen, setImageDialogOpen] = useState(false);
 	const [currentImageIndex, setCurrentImageIndex] = useState(0);
 
-	useEffect(() => {
-		if (!user?.token) return;
-
+	const requestLocation = () => {
 		if (typeof navigator === "undefined" || !navigator.geolocation) {
 			// Fallback: fetch recommendations without location
 			dispatch(getRecommendations(10));
@@ -57,6 +55,11 @@ const Recommendations = () => {
 			},
 			{ enableHighAccuracy: true, timeout: 10000 },
 		);
+	};
+
+	useEffect(() => {
+		if (!user?.token) return;
+		requestLocation();
 	}, [dispatch, user]);
 
 	const handleViewPost = (postId) => {
@@ -127,9 +130,14 @@ const Recommendations = () => {
 			<h1 className="text-3xl font-bold text-center text-text-dark mb-2">
 				Recommended for You
 			</h1>
-			{userLocation && (
+			{userLocation ? (
 				<p className="text-center text-xs text-text-gray mb-4">
-					Personalized using your activity, interests and how close posts are to your current location.
+					Personalized using your activity, interests and how close posts
+					are to your current location.
+				</p>
+			) : (
+				<p className="text-center text-xs text-text-gray mb-4">
+					Personalized using your activity and interests. Allow location in your browser settings to get the best nearby recommendations.
 				</p>
 			)}
 

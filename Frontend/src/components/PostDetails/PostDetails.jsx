@@ -4,12 +4,14 @@ import moment from "moment";
 import { useParams, useHistory } from "react-router-dom";
 import { MdClose, MdChevronLeft, MdChevronRight } from "react-icons/md";
 import LinesEllipsis from "react-lines-ellipsis";
+import { toast } from "react-toastify";
 
 import {
 	getPostById,
 	getPostsBySearch,
 	trackPostView,
-} from "../../actions/posts";
+}	from "../../actions/posts";
+import * as api from "../../api";
 import CommentSection from "./CommentSection";
 import SimilarPosts from "../SimilarPosts/SimilarPosts";
 
@@ -18,9 +20,13 @@ function PostDetails() {
 	const dispatch = useDispatch();
 	const history = useHistory();
 	const { id } = useParams();
+	const user = useSelector((state) => state.auth.authData);
 
 	const [lightboxOpen, setLightboxOpen] = useState(false);
 	const [currentImageIndex, setCurrentImageIndex] = useState(0);
+	const [reviewSent, setReviewSent] = useState(false);
+	const [reviewSending, setReviewSending] = useState(false);
+	const [latestReportStatus, setLatestReportStatus] = useState(null);
 
 	useEffect(() => {
 		dispatch(getPostById(id));
@@ -29,6 +35,10 @@ function PostDetails() {
 
 	useEffect(() => {
 		if (post) {
+			// If backend returned latestReport, keep its status for banners
+			if (post.latestReport && post.latestReport.status) {
+				setLatestReportStatus(post.latestReport.status);
+			}
 			dispatch(
 				getPostsBySearch({
 					search: "none",
@@ -41,6 +51,13 @@ function PostDetails() {
 	const recommendedPosts = posts.filter(
 		(recommendedPost) => recommendedPost?._id !== post?._id,
 	);
+
+	const currentUserId =
+		user?.result?.googleId || user?.result?._id || null;
+	const isOwner =
+		currentUserId && post?.creator
+			? String(currentUserId) === String(post.creator)
+			: false;
 
 	const openPost = (_id) => {
 		history.push(`/posts/${_id}`);
@@ -113,6 +130,29 @@ function PostDetails() {
 				}}
 			/>
 		);
+	};
+
+	const handleSendForReview = async () => {
+		if (!isOwner || reviewSending) return;
+		setReviewSending(true);
+		try {
+			await api.sendPostForReview(post._id, {});
+			toast.success(
+				"Your updated post has been sent to the admins for review.",
+			);
+			setReviewSent(true);
+			setLatestReportStatus("under_review");
+		} catch (error) {
+			// eslint-disable-next-line no-console
+			console.log("Error sending post for review:", error);
+			const message =
+				error?.response?.data?.message ||
+				"Failed to send post for review. Please try again.";
+			toast.error(message);
+		}
+		finally {
+			setReviewSending(false);
+		}
 	};
 
 	return (
@@ -205,9 +245,33 @@ function PostDetails() {
 				<div className="flex flex-col gap-6 max-w-4xl mx-auto border border-light-green rounded-[20px] p-4 shadow-form">
 					{/* Content section */}
 					<div className="bg-off-white rounded-[20px] p-2">
+						<div className="flex items-start justify-between gap-3 mb-1">
 						<h2 className="text-3xl sm:text-2xl font-bold text-text-dark mb-1">
 							{post.title}
 						</h2>
+							{isOwner && (
+								<button
+									type="button"
+									onClick={handleSendForReview}
+										disabled={reviewSending || reviewSent}
+										className="ml-2 px-3 py-1.5 rounded-full border border-orange/40 text-orange text-xs font-semibold hover:bg-orange/5 disabled:opacity-50 disabled:cursor-default self-start"
+								>
+										{reviewSent ? "Review received" : reviewSending ? "Sending..." : "Send for review"}
+								</button>
+							)}
+						</div>
+							{isOwner && latestReportStatus === "under_review" && (
+								<div className="mb-3 inline-flex items-center gap-2 rounded-full bg-light-green/10 border border-light-green px-3 py-1 text-[0.7rem] font-semibold text-dark-green">
+									<span className="w-2 h-2 rounded-full bg-light-green" />
+									<span>Review received by admin. They will check your updates soon.</span>
+								</div>
+							)}
+							{isOwner && latestReportStatus === "rejected" && (
+								<div className="mb-3 inline-flex items-center gap-2 rounded-full bg-orange/10 border border-orange px-3 py-1 text-[0.7rem] font-semibold text-orange">
+									<span className="w-2 h-2 rounded-full bg-orange" />
+									<span>Your last changes were rejected. Please edit the post and send for review again.</span>
+								</div>
+							)}
 
 						<p className="text-sm text-text-gray mb-3">
 							{post.name && (

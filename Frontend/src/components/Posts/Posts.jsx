@@ -25,7 +25,7 @@ const Posts = () => {
 	}
 
 	return (
-		<div className="space-y-4 max-w-2xl">
+		<div className="space-y-6 max-w-3xl mx-auto pb-10">
 			{posts.map((post) => (
 				<Post key={post._id} post={post} />
 			))}

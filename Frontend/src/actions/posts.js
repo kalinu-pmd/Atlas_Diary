@@ -122,6 +122,20 @@ export const likePost = (postId) => async (dispatch) => {
 	}
 };
 
+// Report a post as fake/misleading
+export const reportPost = (postId, payload) => async () => {
+	try {
+		await api.reportPost(postId, payload);
+		toast.success("Thanks, your report is under review.");
+	} catch (error) {
+		console.log("Error message : " + error);
+		const errorMessage =
+			error.response?.data?.message ||
+			"Failed to submit report. Please try again.";
+		toast.error(errorMessage);
+	}
+};
+
 export const commentPost = (comment, postId) => async (dispatch) => {
 	try {
 		const { data } = await api.commentPost(comment, postId);

@@ -1,6 +1,7 @@
 import PostMessage from "../models/postMessage.js";
 import User from "../models/users.js";
 import Notification from "../models/notification.js";
+import PostReport from "../models/postReport.js";
 import mongoose from "mongoose";
 import recommendationService from "../services/recommendationService.js";
 import fetch from "node-fetch";
@@ -68,8 +69,25 @@ export const getPostsBySearch = async (req, res) => {
 export const getPostById = async (req, res) => {
   const { id } = req.params;
   try {
-    const posts = await PostMessage.findById(id);
-    res.status(200).json(posts);
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    return res.status(404).json({ message: "No post with that id" });
+  }
+
+  const post = await PostMessage.findById(id);
+  if (!post) {
+    return res.status(404).json({ message: "Post not found" });
+  }
+
+  // Also load the latest report for this post (if any) so the
+  // frontend can show context like a rejected review banner.
+  const latestReport = await PostReport.findOne({ post: id })
+    .sort({ createdAt: -1 })
+    .select("status adminNote createdAt");
+
+  res.status(200).json({
+    ...post.toObject(),
+    latestReport,
+  });
   } catch (error) {
     res.status(404).json({ message: error });
   }
@@ -290,6 +308,362 @@ export const trackPostView = async (req, res) => {
     res.status(200).json({ message: "View tracked" });
   } catch (error) {
     res.status(500).json({ message: error.message });
+  }
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Post reporting & review workflow
+// ─────────────────────────────────────────────────────────────────────────────
+
+// Helper to pick the important, comparable fields from a post document
+function buildPostSnapshot(postDoc) {
+  if (!postDoc) return null;
+  return {
+    title: postDoc.title,
+    message: postDoc.message,
+    tags: Array.isArray(postDoc.tags) ? [...postDoc.tags] : postDoc.tags,
+    selectedFile: postDoc.selectedFile,
+    locationName: postDoc.locationName,
+    location: postDoc.location,
+    createdAt: postDoc.createdAt,
+    creator: postDoc.creator,
+  };
+}
+
+// User reports a post as potentially fake / misleading
+export const reportPost = async (req, res) => {
+  const { id } = req.params;
+  const { reason, details } = req.body || {};
+
+  try {
+    if (!req.userId) {
+      return res.status(401).json({ message: "Unauthenticated" });
+    }
+
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(404).json({ message: "Invalid post id" });
+    }
+
+    if (!reason) {
+      return res.status(400).json({ message: "Report reason is required" });
+    }
+
+    const post = await PostMessage.findById(id);
+    if (!post) {
+      return res.status(404).json({ message: "Post not found" });
+    }
+
+    // Prevent the post owner from reporting their own content
+    if (String(post.creator) === String(req.userId)) {
+      return res
+        .status(400)
+        .json({ message: "You cannot report your own post" });
+    }
+
+    // Avoid duplicate open reports by the same user on the same post
+    const existingOpen = await PostReport.findOne({
+      post: id,
+      reporter: req.userId,
+      status: { $in: ["open", "alerted", "under_review"] },
+    });
+
+    if (existingOpen) {
+      return res.status(409).json({
+        message: "You have already reported this post. It is under review.",
+      });
+    }
+
+    const snapshot = buildPostSnapshot(post);
+
+    const report = await PostReport.create({
+      post: post._id,
+      reporter: req.userId,
+      reason,
+      details,
+      originalPostSnapshot: snapshot,
+    });
+
+    return res.status(201).json({
+      message: "Thank you. Your report has been submitted for review.",
+      report,
+    });
+  } catch (error) {
+    console.error("reportPost error:", error);
+    return res
+      .status(500)
+      .json({ message: error.message || "Failed to submit report" });
+  }
+};
+
+// Admin: list reports. Optionally filter by status.
+export const getPostReports = async (req, res) => {
+  try {
+    if (!req.userId) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    const adminUser = await User.findById(req.userId);
+    if (!adminUser || !adminUser.isAdmin) {
+      return res.status(403).json({ message: "Admin access required" });
+    }
+
+    const { status } = req.query || {};
+    const filter = {};
+    if (status) {
+      filter.status = status;
+    }
+
+    const reports = await PostReport.find(filter)
+      .sort({ createdAt: -1 })
+      .populate("post", "title creator locationName selectedFile")
+      .populate("reporter", "name email");
+
+    return res.status(200).json({ reports });
+  } catch (error) {
+    console.error("getPostReports error:", error);
+    return res
+      .status(500)
+      .json({ message: error.message || "Failed to load reports" });
+  }
+};
+
+// Admin: perform an action on a report (mark genuine, alert user, delete post, accept/reject review)
+export const adminActOnReport = async (req, res) => {
+  const { id } = req.params; // report id
+  const { action, note } = req.body || {};
+
+  try {
+    if (!req.userId) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    const adminUser = await User.findById(req.userId);
+    if (!adminUser || !adminUser.isAdmin) {
+      return res.status(403).json({ message: "Admin access required" });
+    }
+
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ message: "Invalid report id" });
+    }
+
+    const report = await PostReport.findById(id).populate("post");
+    if (!report) {
+      return res.status(404).json({ message: "Report not found" });
+    }
+
+    const post = report.post;
+
+    switch (action) {
+      case "mark_genuine": {
+        report.status = "genuine";
+        report.adminNote = note;
+        report.handledBy = adminUser._id;
+        await report.save();
+
+    // Notify post owner that the place was confirmed as genuine
+    if (post) {
+      try {
+        await Notification.create({
+          user: post.creator,
+          fromUser: adminUser._id,
+          post: post._id,
+          type: "report_genuine",
+        });
+      } catch (notifyError) {
+        console.error("Failed to create report genuine notification:", notifyError);
+      }
+    }
+        break;
+      }
+      case "alert_user": {
+        if (!post) {
+          return res
+            .status(404)
+            .json({ message: "Cannot alert user. Post not found" });
+        }
+
+        report.status = "alerted";
+        report.adminNote = note;
+        report.handledBy = adminUser._id;
+        await report.save();
+
+        // Notify the post owner that their post was reported
+        try {
+          await Notification.create({
+            user: post.creator,
+            fromUser: adminUser._id,
+            post: post._id,
+            type: "report_alert",
+          });
+        } catch (notifyError) {
+          console.error(
+            "Failed to create report alert notification:",
+            notifyError
+          );
+        }
+
+        break;
+      }
+      case "delete_post": {
+        if (!post) {
+          return res
+            .status(404)
+            .json({ message: "Post already deleted" });
+        }
+
+        await PostMessage.findByIdAndDelete(post._id);
+        report.status = "deleted";
+        report.adminNote = note;
+        report.handledBy = adminUser._id;
+        await report.save();
+
+    // Notify the post owner that their post was deleted due to a report
+    try {
+      await Notification.create({
+        user: post.creator,
+        fromUser: adminUser._id,
+        post: post._id,
+        type: "report_deleted",
+      });
+    } catch (notifyError) {
+      console.error("Failed to create report deleted notification:", notifyError);
+    }
+        break;
+      }
+      case "accept_review": {
+        // Post already contains the user edits. Just mark resolved.
+        report.status = "resolved";
+        report.adminNote = note;
+        report.handledBy = adminUser._id;
+        await report.save();
+
+        // Optional: notify the post owner that the review was accepted
+        if (post) {
+          try {
+            await Notification.create({
+              user: post.creator,
+              fromUser: adminUser._id,
+              post: post._id,
+              type: "report_resolved",
+            });
+          } catch (notifyError) {
+            console.error(
+              "Failed to create report resolved notification:",
+              notifyError
+            );
+          }
+        }
+
+        break;
+      }
+      case "reject_review": {
+        // Optionally revert the post back to the original snapshot
+        if (post && report.originalPostSnapshot) {
+          const snap = report.originalPostSnapshot;
+          await PostMessage.findByIdAndUpdate(
+            post._id,
+            {
+              title: snap.title,
+              message: snap.message,
+              tags: snap.tags,
+              selectedFile: snap.selectedFile,
+              locationName: snap.locationName,
+              location: snap.location,
+            },
+            { new: true }
+          );
+        }
+
+        report.status = "rejected";
+        report.adminNote = note;
+        report.handledBy = adminUser._id;
+        await report.save();
+
+    // Notify the post owner that their proposed changes were rejected
+    if (post) {
+      try {
+        await Notification.create({
+          user: post.creator,
+          fromUser: adminUser._id,
+          post: post._id,
+          type: "report_rejected",
+        });
+      } catch (notifyError) {
+        console.error("Failed to create report rejected notification:", notifyError);
+      }
+    }
+        break;
+      }
+      default: {
+        return res.status(400).json({ message: "Unknown admin action" });
+      }
+    }
+
+    return res.status(200).json({ report });
+  } catch (error) {
+    console.error("adminActOnReport error:", error);
+    return res
+      .status(500)
+      .json({ message: error.message || "Failed to update report" });
+  }
+};
+
+// Post owner: after editing the post following an alert, submit it for admin review
+export const sendPostForReview = async (req, res) => {
+  const { id } = req.params; // post id
+  const { reportId } = req.body || {};
+
+  try {
+    if (!req.userId) {
+      return res.status(401).json({ message: "Unauthenticated" });
+    }
+
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(404).json({ message: "Invalid post id" });
+    }
+
+    const post = await PostMessage.findById(id);
+    if (!post) {
+      return res.status(404).json({ message: "Post not found" });
+    }
+
+    if (String(post.creator) !== String(req.userId)) {
+      return res
+        .status(403)
+        .json({ message: "Only the post owner can send for review" });
+    }
+
+    let report;
+    if (reportId && mongoose.Types.ObjectId.isValid(reportId)) {
+      report = await PostReport.findOne({ _id: reportId, post: id });
+    } else {
+      // Use the most recent relevant report for this post
+      report = await PostReport.findOne({
+        post: id,
+        status: { $in: ["open", "alerted"] },
+      }).sort({ createdAt: -1 });
+    }
+
+    if (!report) {
+      return res.status(404).json({
+        message:
+          "No active report found for this post. Nothing to send for review.",
+      });
+    }
+
+    report.reviewSnapshot = buildPostSnapshot(post);
+    report.status = "under_review";
+    await report.save();
+
+    return res.status(200).json({
+      message: "Your changes have been sent to the admins for review.",
+      report,
+    });
+  } catch (error) {
+    console.error("sendPostForReview error:", error);
+    return res
+      .status(500)
+      .json({ message: error.message || "Failed to send for review" });
   }
 };
 

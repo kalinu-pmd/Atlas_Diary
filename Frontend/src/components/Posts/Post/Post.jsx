@@ -12,7 +12,7 @@ import {
 	MdComment,
 } from "react-icons/md";
 
-import { deletePost, likePost } from "../../../actions/posts";
+import { deletePost, likePost, reportPost } from "../../../actions/posts";
 
 const formatLocationName = (name) => {
 	if (!name) return "";
@@ -40,6 +40,9 @@ const Post = ({ post }) => {
 	const [likes, setLikes] = useState(post?.likes);
 	const [menuOpen, setMenuOpen] = useState(false);
 	const [isExpanded, setIsExpanded] = useState(false);
+	const [reportModalOpen, setReportModalOpen] = useState(false);
+	const [reportReason, setReportReason] = useState("not_real_place");
+	const [reportDetails, setReportDetails] = useState("");
 	const userId = user?.result?.googleId || user?.result?._id;
 	const hasAlreadyLiked = post.likes.find((like) => like === userId);
 	const isOwner =
@@ -71,6 +74,29 @@ const Post = ({ post }) => {
 				Like
 			</span>
 		);
+	};
+
+	const handleOpenReport = () => {
+		if (!user?.result) {
+			toast.info("Please sign in to report posts.");
+			return;
+		}
+		setMenuOpen(false);
+		setReportReason("not_real_place");
+		setReportDetails("");
+		setReportModalOpen(true);
+	};
+
+	const handleSubmitReport = (e) => {
+		e.preventDefault();
+		if (!reportReason) return;
+		dispatch(
+			reportPost(post._id, {
+				reason: reportReason,
+				details: reportDetails?.trim() || undefined,
+			}),
+		);
+		setReportModalOpen(false);
 	};
 
 	const openPost = () => history.push(`/posts/${post._id}`);
@@ -132,9 +158,9 @@ const Post = ({ post }) => {
 			: `${messageText.slice(0, maxDescriptionChars).trim()}...`;
 
 	return (
-		<div className="bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow duration-200 overflow-hidden border border-gray-200">
+		<div className="bg-off-white rounded-2xl shadow-card hover:shadow-card-hover transition-all duration-200 overflow-hidden border border-light-green/60 hover:-translate-y-1">
 			{/* Header with author info */}
-			<div className="px-4 pt-4 pb-3 flex items-center justify-between">
+			<div className="px-4 pt-4 pb-3 flex items-center justify-between bg-white/70 backdrop-blur-sm border-b border-light-green/20">
 				<button
 					type="button"
 					onClick={openAuthorProfile}
@@ -162,14 +188,14 @@ const Post = ({ post }) => {
 						<p className="text-xs text-text-gray truncate">
 							{placeLabel
 								? `${post.name || "Someone"} is at ${placeLabel}`
-								: moment(post.createdAt).fromNow()}
+								: ""}
 						</p>
-						<p className="text-[11px] text-text-gray">
+						<p className="text-[11px] text-text-gray mt-0.5">
 							{moment(post.createdAt).fromNow()}
 						</p>
 					</div>
 				</button>
-				{isOwner && (
+				{user?.result && (
 					<div className="relative">
 						<button
 							className="text-text-gray hover:text-text-dark transition-colors p-1"
@@ -180,21 +206,33 @@ const Post = ({ post }) => {
 							<MdMoreHoriz size={18} />
 						</button>
 						{menuOpen && (
-							<div className="absolute right-0 mt-1 w-36 bg-white border border-gray-200 rounded-md shadow-lg z-10">
-								<button
-									type="button"
-									onClick={handleEdit}
-									className="w-full text-left px-3 py-2 text-sm text-text-dark hover:bg-gray-100"
-								>
-									Edit post
-								</button>
-								<button
-									type="button"
-									onClick={handleDelete}
-									className="w-full text-left px-3 py-2 text-sm text-orange hover:bg-red-50"
-								>
-									Delete post
-								</button>
+							<div className="absolute right-0 mt-1 w-40 bg-white border border-gray-200 rounded-md shadow-lg z-10">
+								{isOwner ? (
+									<>
+										<button
+											type="button"
+											onClick={handleEdit}
+											className="w-full text-left px-3 py-2 text-sm text-text-dark hover:bg-gray-100"
+										>
+											Edit post
+										</button>
+										<button
+											type="button"
+											onClick={handleDelete}
+											className="w-full text-left px-3 py-2 text-sm text-orange hover:bg-red-50"
+										>
+											Delete post
+										</button>
+									</>
+								) : (
+									<button
+										type="button"
+										onClick={handleOpenReport}
+										className="w-full text-left px-3 py-2 text-sm text-text-dark hover:bg-gray-100"
+									>
+										Report post
+									</button>
+								)}
 							</div>
 						)}
 					</div>
@@ -204,8 +242,8 @@ const Post = ({ post }) => {
 			{/* Tags (subtitle) */}
 
 			{/* Description + hashtags (above image, like Facebook) */}
-			<div className="px-4 pt-3 pb-3">
-				<p className="text-sm text-text-gray leading-relaxed">
+			<div className="px-4 pt-3 pb-3 bg-off-white">
+				<p className="text-sm text-text-dark leading-relaxed">
 					{visibleMessage}
 					{isLongDescription && (
 						<button
@@ -242,15 +280,18 @@ const Post = ({ post }) => {
 
 				{/* Image counter badge */}
 				{Array.isArray(post.selectedFile) &&
-					post.selectedFile.length > 1 && (
-						<div className="absolute top-3 right-3 bg-black/75 text-white text-xs font-bold px-2.5 py-1 rounded-lg backdrop-blur-sm">
+						post.selectedFile.length > 1 && (
+							<div className="absolute top-3 right-3 bg-black/75 text-white text-xs font-bold px-2.5 py-1 rounded-lg backdrop-blur-sm">
 							+{post.selectedFile.length - 1}
 						</div>
 					)}
+
+				{/* Gradient overlay at bottom for readability */}
+				<div className="pointer-events-none absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-black/35 to-transparent" />
 			</div>
 
 			{/* Stats */}
-			<div className="px-4 py-2 border-t border-gray-100 flex items-center justify-between text-xs text-text-gray">
+			<div className="px-4 py-2 border-t border-light-green/30 flex items-center justify-between text-xs text-text-gray bg-white/60">
 				<span className="flex items-center gap-1">
 					<span className="w-5 h-5 rounded-full bg-dark-green text-white text-xs flex items-center justify-center">
 						👍
@@ -258,12 +299,15 @@ const Post = ({ post }) => {
 					{likes.length} {likes.length === 1 ? "like" : "likes"}
 				</span>
 				{post.comments?.length > 0 && (
-					<span>{post.comments.length} {post.comments.length === 1 ? "comment" : "comments"}</span>
+					<span className="flex items-center gap-1">
+						<MdComment size={14} />
+						{post.comments.length} {post.comments.length === 1 ? "comment" : "comments"}
+					</span>
 				)}
 			</div>
 
 			{/* Action buttons */}
-			<div className="flex items-center justify-between px-2 py-2 border-t border-gray-100">
+			<div className="flex items-center justify-between px-2 py-2 border-t border-light-green/30 bg-off-white">
 				<button
 					className="flex-1 flex items-center justify-center gap-2 text-text-gray hover:bg-gray-100 py-2 rounded font-semibold text-sm transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
 					disabled={!user?.result}
@@ -303,6 +347,65 @@ const Post = ({ post }) => {
 					</button>
 				)}
 			</div>
+
+			{/* Report post modal */}
+			{reportModalOpen && (
+				<div className="fixed inset-0 z-[2100] flex items-center justify-center bg-black/50 backdrop-blur-sm px-4">
+					<div className="bg-off-white rounded-2xl shadow-[0_16px_48px_rgba(12,52,44,0.3)] border border-light-green p-5 w-full max-w-sm">
+						<h3 className="text-text-dark font-extrabold text-lg mb-1">
+							Report this place
+						</h3>
+						<p className="text-xs text-text-gray mb-4">
+							Help us keep Atlas Diary safe by telling us what&apos;s wrong with this post.
+						</p>
+						<form onSubmit={handleSubmitReport} className="flex flex-col gap-3 text-sm">
+							<div className="flex flex-col gap-1">
+								<span className="text-xs font-semibold text-dark-green">
+									Reason
+								</span>
+								<select
+									value={reportReason}
+									onChange={(e) => setReportReason(e.target.value)}
+									className="w-full bg-off-white border border-dark-green hover:border-light-green focus:border-dark-green focus:outline-none rounded-lg px-3 py-2.5 text-sm text-text-dark transition-colors"
+								>
+									<option value="not_real_place">Not a real place</option>
+									<option value="description_mismatch">Description does not match the location</option>
+									<option value="photo_mismatch">Photos do not match the location</option>
+									<option value="spam_or_advertisement">Spam / advertisement</option>
+									<option value="other">Something else</option>
+								</select>
+							</div>
+							<div className="flex flex-col gap-1">
+								<label className="text-xs font-semibold text-dark-green">
+									Additional details <span className="text-text-gray font-normal">(optional)</span>
+								</label>
+								<textarea
+									rows={3}
+									value={reportDetails}
+									onChange={(e) => setReportDetails(e.target.value)}
+									placeholder="Tell us briefly why this place looks fake or misleading."
+									className="w-full bg-off-white border border-dark-green hover:border-light-green focus:border-dark-green focus:outline-none rounded-lg px-3 py-2.5 text-sm text-text-dark resize-y transition-colors"
+								/>
+							</div>
+							<div className="flex justify-end gap-2 mt-2">
+								<button
+									type="button"
+									onClick={() => setReportModalOpen(false)}
+									className="px-4 py-2 rounded-lg border border-dark-green/20 text-dark-green font-semibold text-xs hover:bg-dark-green/5 transition-colors"
+								>
+									Cancel
+								</button>
+								<button
+									type="submit"
+									className="px-4 py-2 rounded-lg bg-orange hover:bg-orange-hover text-white font-bold text-xs transition-colors"
+								>
+									Submit report
+								</button>
+							</div>
+						</form>
+					</div>
+				</div>
+			)}
 		</div>
 	);
 };

@@ -7,7 +7,20 @@ const notificationSchema = mongoose.Schema(
     post: { type: mongoose.Schema.Types.ObjectId, ref: "Post", required: true },
     type: {
       type: String,
-      enum: ["like", "comment"],
+      enum: [
+        "like",
+        "comment",
+        // Admin alerted the post owner that their post was reported
+        "report_alert",
+        // Admin resolved a report (accepted changes)
+        "report_resolved",
+        // Admin rejected the proposed changes for a report
+        "report_rejected",
+        // Admin deleted the post because of a report
+        "report_deleted",
+        // Admin marked the place as genuine
+        "report_genuine",
+      ],
       required: true,
     },
     read: { type: Boolean, default: false },
