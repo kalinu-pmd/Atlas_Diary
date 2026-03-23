@@ -79,7 +79,6 @@ export default function Profile() {
           </div>
           <div className="flex-1 min-w-0">
             <h1 className="text-2xl font-extrabold text-text-dark mb-1 truncate">{profile.name}</h1>
-            <p className="text-xs text-text-gray mb-1 truncate">{profile.email}</p>
             {profile.location && (
               <p className="text-sm text-text-gray mb-2">
                 <strong>{profile.name}</strong> is located at {profile.location}

@@ -128,7 +128,8 @@ export const editUser = async (req, res, next) => {
 		return res.status(404).json({ msg: "No user found" });
 	}
 
-	const { email, password, name, bio, profileImage, location } = req.body;
+	const { email, password, name, bio, profileImage, location, isAdmin } =
+		req.body;
 
 	// Prepare update object
 	const updateData = { email, name };
@@ -146,6 +147,22 @@ export const editUser = async (req, res, next) => {
 
 	if (!email) {
 		updateData.email = user.email; // Keep existing email, if not available
+	}
+
+	// Role changes (isAdmin) are only allowed by admins
+	if (typeof isAdmin === "boolean") {
+		if (!req.userId) {
+			return res.status(401).json({ message: "Unauthorized" });
+		}
+
+		const requestingUser = await User.findById(req.userId);
+		if (!requestingUser || !requestingUser.isAdmin) {
+			return res
+				.status(403)
+				.json({ message: "Admin privileges required to change roles" });
+		}
+
+		updateData.isAdmin = !!isAdmin;
 	}
 
 	const updatedUser = await User.findByIdAndUpdate(id, updateData, {

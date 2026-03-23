@@ -59,6 +59,27 @@ function PostDetails() {
 			? String(currentUserId) === String(post.creator)
 			: false;
 
+	const handleEditPost = () => {
+		if (!isOwner) return;
+		const latestReport = post?.latestReport;
+		const requiresLocationFix =
+			latestReport &&
+			["description_mismatch", "photo_mismatch"].includes(
+				latestReport.reason,
+			);
+		const sendForReviewAfterUpdate =
+			latestReport && latestReport.status === "alerted";
+		const reportId = sendForReviewAfterUpdate ? latestReport._id : null;
+		dispatch({
+			type: "SELECTED_POST",
+			payload: post._id,
+		});
+		history.push({
+			pathname: "/create-post",
+			state: { requiresLocationFix, sendForReviewAfterUpdate, reportId },
+		});
+	};
+
 	const openPost = (_id) => {
 		history.push(`/posts/${_id}`);
 		window.scrollTo({ top: 0, behavior: "smooth" });
@@ -249,15 +270,24 @@ function PostDetails() {
 						<h2 className="text-3xl sm:text-2xl font-bold text-text-dark mb-1">
 							{post.title}
 						</h2>
-							{isOwner && (
-								<button
-									type="button"
-									onClick={handleSendForReview}
-										disabled={reviewSending || reviewSent}
-										className="ml-2 px-3 py-1.5 rounded-full border border-orange/40 text-orange text-xs font-semibold hover:bg-orange/5 disabled:opacity-50 disabled:cursor-default self-start"
-								>
+							{isOwner && ["alerted", "rejected"].includes(latestReportStatus) && (
+								<div className="flex items-center gap-2 self-start">
+									<button
+										type="button"
+										onClick={handleEditPost}
+										className="px-3 py-1.5 rounded-full border border-dark-green/30 text-dark-green text-xs font-semibold hover:bg-dark-green/5"
+									>
+										Edit post
+									</button>
+									<button
+										type="button"
+										onClick={handleSendForReview}
+											disabled={reviewSending || reviewSent}
+											className="px-3 py-1.5 rounded-full border border-orange/40 text-orange text-xs font-semibold hover:bg-orange/5 disabled:opacity-50 disabled:cursor-default"
+									>
 										{reviewSent ? "Review received" : reviewSending ? "Sending..." : "Send for review"}
-								</button>
+									</button>
+								</div>
 							)}
 						</div>
 							{isOwner && latestReportStatus === "under_review" && (

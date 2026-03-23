@@ -82,7 +82,7 @@ export const getPostById = async (req, res) => {
   // frontend can show context like a rejected review banner.
   const latestReport = await PostReport.findOne({ post: id })
     .sort({ createdAt: -1 })
-    .select("status adminNote createdAt");
+    .select("status adminNote createdAt reason");
 
   res.status(200).json({
     ...post.toObject(),

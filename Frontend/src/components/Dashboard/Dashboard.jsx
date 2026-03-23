@@ -10,10 +10,8 @@ import {
 	MdAutoStories,
 	MdDashboard,
 	MdThumbUp,
-	MdComment,
 	MdRefresh,
 	MdReport,
-	MdHistory,
 } from "react-icons/md";
 import * as api from "../../api";
 import "./styles.css";
@@ -453,6 +451,7 @@ function Dashboard() {
 	const [createUserModal, setCreateUserModal] = useState(false);
 	const [reportActionModal, setReportActionModal] = useState(null);
 	const [reviewDiffModal, setReviewDiffModal] = useState(null);
+	const [reportsView, setReportsView] = useState("active");
 
 	const fetchData = useCallback(async () => {
 		setLoading(true);
@@ -594,7 +593,7 @@ function Dashboard() {
 	};
 
 	const totalLikes = posts.reduce((sum, p) => sum + (p.likes?.length || 0), 0);
-	const totalComments = posts.reduce((sum, p) => sum + (p.comments?.length || 0), 0);
+	const totalReports = reports.length;
 	const activeReports = reports.filter((r) => ["open", "alerted", "under_review"].includes(r.status));
 	const openReportsCount = activeReports.filter((r) => r.status === "open" || r.status === "alerted").length;
 	const receivedReviewsCount = reviewReports.length;
@@ -706,9 +705,9 @@ function Dashboard() {
 									icon: <MdThumbUp size={20} className="text-light-green" />,
 								},
 								{
-									label: "Total Comments",
-									value: totalComments,
-									icon: <MdComment size={20} className="text-light-green" />,
+									label: "Total Reports",
+									value: totalReports,
+									icon: <MdReport size={20} className="text-light-green" />,
 								},
 							].map((stat) => (
 								<div key={stat.label} className="bg-white/5 border border-white/10 rounded-xl px-4 py-3 flex items-center gap-3">
@@ -751,15 +750,6 @@ function Dashboard() {
 						>
 							<MdReport size={16} />
 							Reports ({openReportsCount} / {receivedReviewsCount})
-						</button>
-						<button
-							onClick={() => setActiveTab("history")}
-							className={`flex items-center gap-2 px-4 py-2 rounded-t-lg font-semibold text-sm transition-colors border-b-2 -mb-[1px] ${
-								activeTab === "history" ? "border-dark-green text-dark-green bg-off-white" : "border-transparent text-text-gray hover:text-dark-green"
-							}`}
-						>
-							<MdHistory size={16} />
-							History ({historyReports.length})
 						</button>
 					</div>
 
@@ -873,9 +863,41 @@ function Dashboard() {
 
 					{!loading && activeTab === "reports" && (
 						<div className="dashboard-panel overflow-x-auto">
-							<h2 className="text-dark-green font-extrabold text-lg mb-2">Post reports</h2>
-							<p className="text-xs text-text-gray mb-4">These are posts travellers have reported as incorrect or problematic.</p>
-							{activeReports.length === 0 ? (
+							<div className="flex items-center justify-between mb-4 flex-wrap gap-3">
+								<div className="flex items-center gap-2">
+									<button
+										type="button"
+										onClick={() => setReportsView("active")}
+										className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors ${
+											reportsView === "active"
+												? "bg-dark-green text-off-white border-dark-green"
+												: "bg-off-white text-text-gray border-dark-green/10 hover:bg-light-green/20 hover:text-dark-green"
+										}`}
+									>
+										Reports
+									</button>
+									<button
+										type="button"
+										onClick={() => setReportsView("history")}
+										className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors ${
+											reportsView === "history"
+												? "bg-dark-green text-off-white border-dark-green"
+												: "bg-off-white text-text-gray border-dark-green/10 hover:bg-light-green/20 hover:text-dark-green"
+										}`}
+									>
+										History
+									</button>
+								</div>
+								<p className="text-[11px] text-text-gray">
+									{reportsView === "active"
+										? "These are posts travellers have reported as incorrect or problematic."
+										: "Posts that were edited after being reported and processed by admins."}
+								</p>
+							</div>
+
+							{reportsView === "active" && (
+								<>
+									{activeReports.length === 0 ? (
 								<p className="text-text-gray text-sm py-4 text-center">No reports yet.</p>
 							) : (
 								<table>
@@ -966,67 +988,67 @@ function Dashboard() {
 										})}
 									</tbody>
 								</table>
+								)}
+							</>
+							)}
+
+							{reportsView === "history" && (
+								<div className="mt-1">
+									{historyReports.length === 0 ? (
+										<p className="text-text-gray text-xs py-3 text-center border border-dashed border-light-green/40 rounded-lg bg-off-white/40">No completed report history yet.</p>
+									) : (
+										<table className="mt-2">
+											<thead>
+												<tr>
+													<th>Post</th>
+													<th>Status</th>
+													<th>Reporter</th>
+													<th>Original summary</th>
+													<th>Updated summary</th>
+													<th>Last updated</th>
+												</tr>
+											</thead>
+											<tbody>
+												{historyReports.map((report) => {
+													const statusLabels = {
+														open: "Open",
+														genuine: "Marked genuine",
+														alerted: "Alerted owner",
+														under_review: "Under review",
+														resolved: "Resolved",
+														rejected: "Rejected",
+														deleted: "Post deleted",
+													};
+													const origMessage = report.originalPostSnapshot?.message;
+													const updatedMessage = report.reviewSnapshot?.message;
+
+													const trim = (text) => {
+														if (!text) return "";
+														return text.length > 80 ? `${text.slice(0, 80)}…` : text;
+													};
+
+													return (
+														<tr key={report._id}>
+															<td className="max-w-[220px] truncate font-medium cursor-pointer text-dark-green hover:underline" onClick={() => openPostDetails(report.post?._id)}>
+																{report.post?.title || "(Deleted post)"}
+															</td>
+															<td className="text-xs capitalize">{statusLabels[report.status] || report.status}</td>
+															<td className="max-w-[160px] truncate text-xs">{report.reporter?.name || "Unknown"}</td>
+															<td className="max-w-[260px] text-xs" title={origMessage || ""}>{trim(origMessage)}</td>
+															<td className="max-w-[260px] text-xs" title={updatedMessage || ""}>{trim(updatedMessage)}</td>
+															<td className="text-xs text-text-gray">
+																{report.updatedAt ? new Date(report.updatedAt).toLocaleString() : ""}
+															</td>
+														</tr>
+													);
+												})}
+											</tbody>
+										</table>
+									)}
+								</div>
 							)}
 						</div>
 					)}
-
-						{!loading && activeTab === "history" && (
-							<div className="dashboard-panel overflow-x-auto">
-								<h2 className="text-dark-green font-extrabold text-lg mb-2">History of updated posts</h2>
-								<p className="text-xs text-text-gray mb-4">Posts that were edited after being reported and sent for admin review.</p>
-								{historyReports.length === 0 ? (
-									<p className="text-text-gray text-sm py-4 text-center">No updated posts in history yet.</p>
-								) : (
-									<table>
-										<thead>
-											<tr>
-												<th>Post</th>
-												<th>Status</th>
-												<th>Reporter</th>
-												<th>Original summary</th>
-												<th>Updated summary</th>
-												<th>Last updated</th>
-											</tr>
-										</thead>
-										<tbody>
-											{historyReports.map((report) => {
-												const statusLabels = {
-													open: "Open",
-													genuine: "Marked genuine",
-													alerted: "Alerted owner",
-													under_review: "Under review",
-													resolved: "Resolved",
-													rejected: "Rejected",
-													deleted: "Post deleted",
-												};
-												const origMessage = report.originalPostSnapshot?.message;
-												const updatedMessage = report.reviewSnapshot?.message;
-
-												const trim = (text) => {
-													if (!text) return "";
-													return text.length > 80 ? `${text.slice(0, 80)}…` : text;
-												};
-
-												return (
-													<tr key={report._id}>
-														<td className="max-w-[220px] truncate font-medium cursor-pointer text-dark-green hover:underline" onClick={() => openPostDetails(report.post?._id)}>
-															{report.post?.title || "(Deleted post)"}
-														</td>
-														<td className="text-xs capitalize">{statusLabels[report.status] || report.status}</td>
-														<td className="max-w-[160px] truncate text-xs">{report.reporter?.name || "Unknown"}</td>
-														<td className="max-w-[260px] text-xs" title={origMessage || ""}>{trim(origMessage)}</td>
-														<td className="max-w-[260px] text-xs" title={updatedMessage || ""}>{trim(updatedMessage)}</td>
-														<td className="text-xs text-text-gray">
-															{report.updatedAt ? new Date(report.updatedAt).toLocaleString() : ""}
-														</td>
-													</tr>
-												);
-											})}
-										</tbody>
-									</table>
-								)}
-							</div>
-						)}
 				</div>
 			</div>
 		);

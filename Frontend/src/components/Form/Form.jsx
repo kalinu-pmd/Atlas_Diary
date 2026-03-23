@@ -5,7 +5,7 @@ import { useHistory } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import { toast } from "react-toastify";
 import { createPost, updatePost } from "../../actions/posts";
-import { verifyPostLocation } from "../../api";
+import { verifyPostLocation, sendPostForReview } from "../../api";
 
 
 	const formatLocationName = (name) => {
@@ -21,7 +21,11 @@ import { verifyPostLocation } from "../../api";
 		return label.length > 40 ? primary : label;
 	};
 
-	const Posts = () => {
+	const Posts = ({
+		requiresLocationFix = false,
+		sendForReviewAfterUpdate = false,
+		reportId = null,
+	}) => {
 	const initial = { title: "", message: "", tags: "", selectedFile: [], location: null, locationName: "" };
 	const [postData, setPostData] = useState(initial);
 	const [error, setError] = useState("");
@@ -32,15 +36,60 @@ import { verifyPostLocation } from "../../api";
 	const history = useHistory();
 
 	const selectedPost = useSelector((state) => state.selectedPost);
-	const { posts } = useSelector((state) => state.posts);
+	const { posts, post: detailedPost } = useSelector((state) => state.posts);
 	const user = useSelector((state) => state.auth.authData);
 
 	useEffect(() => {
-		const post = posts?.find((p) => p._id === selectedPost);
-		if (post && selectedPost) {
-			setPostData(post);
+		if (!selectedPost) return;
+
+		// Prefer the detailed post (from PostDetails view) when available,
+		// otherwise fall back to the list entry.
+		let sourcePost = null;
+		if (detailedPost && detailedPost._id === selectedPost) {
+			sourcePost = detailedPost;
+		} else if (Array.isArray(posts)) {
+			sourcePost = posts.find((p) => p._id === selectedPost) || null;
 		}
-	}, [selectedPost, posts]);
+
+		if (!sourcePost) return;
+
+		// Normalize tags to comma-separated string
+		const normalizedTags = Array.isArray(sourcePost.tags)
+			? sourcePost.tags.join(",")
+			: sourcePost.tags || "";
+
+		// Normalize location to { lat, lng } for the map picker
+		let normalizedLocation = null;
+		const loc = sourcePost.location;
+		if (loc) {
+			if (typeof loc.lat === "number" && typeof loc.lng === "number") {
+				normalizedLocation = { lat: loc.lat, lng: loc.lng };
+			} else if (
+				Array.isArray(loc.coordinates) &&
+				loc.coordinates.length >= 2
+			) {
+				normalizedLocation = {
+					lng: loc.coordinates[0],
+					lat: loc.coordinates[1],
+				};
+			}
+		}
+
+		// Ensure selectedFile is always an array (or string) so existing
+		// photos remain attached when the user updates without re-uploading.
+		let normalizedSelectedFile = sourcePost.selectedFile;
+		if (!normalizedSelectedFile) {
+			normalizedSelectedFile = [];
+		}
+
+		setPostData({
+			...initial,
+			...sourcePost,
+			tags: normalizedTags,
+			location: normalizedLocation,
+			selectedFile: normalizedSelectedFile,
+		});
+	}, [selectedPost, posts, detailedPost]);
 
 	const validateForm = () => {
 		if (!postData.title || !postData.message || !postData.tags) {
@@ -135,8 +184,10 @@ import { verifyPostLocation } from "../../api";
 			return;
 		}
 
+		const isNewPost = !selectedPost;
+
 		// For new posts, require at least one photo
-		if (!selectedPost) {
+		if (isNewPost) {
 			const hasPhoto = Array.isArray(postData.selectedFile)
 				? postData.selectedFile.length > 0
 				: !!postData.selectedFile;
@@ -158,17 +209,46 @@ import { verifyPostLocation } from "../../api";
 				);
 				return;
 			}
+		} else if (requiresLocationFix) {
+			// When editing due to a location-related report, also require
+			// a fresh location verification before allowing updates.
+			if (
+				!locationVerification ||
+				["outside-radius", "error"].includes(locationVerification.status)
+			) {
+				setError("Location could not be verified. Please adjust the pin or try again.");
+				toast.error(
+					"Please verify your location or adjust the pin before updating this post.",
+				);
+				return;
+			}
 		}
 
 		let finalPostData = { ...postData };
 
 		if (selectedPost) {
-			dispatch(
+			await dispatch(
 				updatePost(selectedPost, {
 					...finalPostData,
 					name: user?.result?.name,
 				}),
 			);
+
+			if (sendForReviewAfterUpdate) {
+				try {
+					await sendPostForReview(selectedPost, reportId ? { reportId } : {});
+					toast.success(
+						"Your updated post has been sent to the admins for review.",
+					);
+				} catch (err) {
+					// eslint-disable-next-line no-console
+					console.error("Auto send for review failed:", err);
+					const message =
+						err?.response?.data?.message ||
+						"Failed to send your updates for review. Please try again.";
+					toast.error(message);
+				}
+			}
 		} else {
 			dispatch(
 				createPost({
@@ -371,6 +451,28 @@ import { verifyPostLocation } from "../../api";
 					<p className="text-dark-green font-semibold text-sm mb-2">
 						Upload Images (Optional)
 					</p>
+					{(Array.isArray(postData.selectedFile)
+						? postData.selectedFile.length > 0
+						: !!postData.selectedFile) && (
+						<div className="mb-3 grid grid-cols-2 sm:grid-cols-3 gap-2">
+							{(Array.isArray(postData.selectedFile)
+								? postData.selectedFile
+								: [postData.selectedFile]
+							).map((image, idx) => (
+								<img
+									key={idx}
+									src={image}
+									alt={`Existing upload ${idx + 1}`}
+									className="w-full h-24 object-cover rounded-md border border-dark-green/20"
+									onError={(e) => {
+										e.target.onerror = null;
+										e.target.src =
+											"https://user-images.githubusercontent.com/194400/49531010-48dad180-f8b1-11e8-8d89-1e61320e1d82.png";
+									}}
+								/>
+							))}
+						</div>
+					)}
 					<FileBase
 						type="file"
 						multiple={true}
