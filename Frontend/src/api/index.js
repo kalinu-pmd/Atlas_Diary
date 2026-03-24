@@ -1,19 +1,8 @@
 import Axios from "axios";
 
-// Decide API base URL:
-// 1) Prefer Vite env (Vercel/locally: VITE_BASE_URL)
-// 2) If no env: use localhost in dev, Render URL in production
-let baseURL = import.meta.env.VITE_BASE_URL;
+// API base URL comes only from Vite env 
 
-if (!baseURL) {
-	const host = window.location.hostname;
-	const isLocal = host === "localhost" || host === "127.0.0.1";
-	baseURL = isLocal
-		? "http://localhost:5000"
-		: "https://atlas-diary.onrender.com";
-}
-
-const API = Axios.create({ baseURL });
+const API = Axios.create({ baseURL: import.meta.env.VITE_BASE_URL });
 
 API.interceptors.request.use((req) => {
 	if (localStorage.getItem("traveller-profile")) {
