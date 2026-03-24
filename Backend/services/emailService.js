@@ -69,3 +69,95 @@ export async function sendOtpEmail(to, otp) {
     // Swallow error so signup flow can still respond; client can retry.
   }
 }
+
+export async function sendPasswordResetOtpEmail(to, otp) {
+  const mailer = getTransporter();
+
+  if (!mailer) {
+    console.warn("[emailService] Attempted to send password reset email without SMTP configuration.");
+    return;
+  }
+
+  const from =
+    process.env.EMAIL_FROM || "Atlas Diary <no-reply@atlas-diary.local>";
+
+  try {
+    await mailer.sendMail({
+      from,
+      to,
+      subject: "Atlas Diary password reset code",
+      html: `
+        <div style="font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-size: 15px; color: #0c342c;">
+          <p>Hi there,</p>
+          <p>You requested to reset your <strong>Atlas Diary</strong> password. Your reset code is:</p>
+          <p style="font-size: 24px; font-weight: 700; letter-spacing: 4px; margin: 16px 0;">${otp}</p>
+          <p>This code will expire in <strong>10 minutes</strong>. If you did not request this, you can ignore this email and your password will stay the same.</p>
+          <p style="margin-top: 24px; font-size: 13px; color: #647067;">Thank you,<br/>Atlas Diary Team</p>
+        </div>
+      `,
+    });
+  } catch (error) {
+    console.error("[emailService] Failed to send password reset email:", error?.message || error);
+  }
+}
+
+export async function sendPasswordResetAlertToAdmin(userIdentifier) {
+  const mailer = getTransporter();
+
+  if (!mailer) {
+    console.warn("[emailService] Attempted to send admin reset alert without SMTP configuration.");
+    return;
+  }
+
+  const from =
+    process.env.EMAIL_FROM || "Atlas Diary <no-reply@atlas-diary.local>";
+  const adminEmail = process.env.ADMIN_EMAIL;
+
+  if (!adminEmail) {
+    console.warn("[emailService] ADMIN_EMAIL is not set. Cannot send admin reset alert.");
+    return;
+  }
+
+  try {
+    await mailer.sendMail({
+      from,
+      to: adminEmail,
+      subject: "Password reset requested for user without email",
+      text: `A password reset was requested for user: ${userIdentifier}. This account does not have an email address configured. Please contact the user and reset their password manually from the admin panel.`,
+    });
+  } catch (error) {
+    console.error("[emailService] Failed to send admin password reset alert:", error?.message || error);
+  }
+}
+
+export async function sendAdminPasswordToUserEmail(to, temporaryPassword) {
+  const mailer = getTransporter();
+
+  if (!mailer) {
+    console.warn("[emailService] Attempted to send admin-set password email without SMTP configuration.");
+    return;
+  }
+
+  const from =
+    process.env.EMAIL_FROM || "Atlas Diary <no-reply@atlas-diary.local>";
+
+  try {
+    await mailer.sendMail({
+      from,
+      to,
+      subject: "Your updated Atlas Diary password",
+      html: `
+        <div style="font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-size: 15px; color: #0c342c;">
+          <p>Hi there,</p>
+          <p>An administrator has reset your <strong>Atlas Diary</strong> account password.</p>
+          <p>Your new temporary password is:</p>
+          <p style="font-size: 20px; font-weight: 600; margin: 16px 0;">${temporaryPassword}</p>
+          <p>For your security, please sign in and change this password immediately from your account settings.</p>
+          <p style="margin-top: 24px; font-size: 13px; color: #647067;">Thank you,<br/>Atlas Diary Team</p>
+        </div>
+      `,
+    });
+  } catch (error) {
+    console.error("[emailService] Failed to send admin password email:", error?.message || error);
+  }
+}

@@ -14,6 +14,12 @@ const userSchema = mongoose.Schema({
     otpExpiresAt: { type: Date },
   },
 
+  // Password reset via OTP
+  passwordReset: {
+    otpHash: { type: String },
+    otpExpiresAt: { type: Date },
+  },
+
   // Profile fields
   bio: { type: String, default: "" },
   profileImage: { type: String }, // URL or base64 image

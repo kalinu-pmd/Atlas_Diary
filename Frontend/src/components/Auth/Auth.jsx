@@ -127,6 +127,14 @@ const Auth = () => {
 						Remember me
 					</label>
 				</div>
+
+				<button
+					type="button"
+					onClick={() => history.push("/forgot-password")}
+					className="self-end text-xs text-dark-green font-semibold mt-1 hover:underline transition-colors"
+				>
+					Forgot password?
+				</button>
 					<button
 						type="submit"
 						className="w-full mt-2 bg-light-green hover:bg-light-green-hover text-text-dark font-bold py-2.5 rounded-md transition-colors"

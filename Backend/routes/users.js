@@ -50,6 +50,10 @@ import {
 	getUserProfile,
 	verifyEmailOtp,
 	createUserByAdmin,
+	requestPasswordReset,
+	resetPasswordWithOtp,
+	adminResetUserPassword,
+	verifyPasswordResetOtp,
 } from "../controllers/user.js";
 import auth from "../middleware/auth.js";
 
@@ -59,6 +63,10 @@ router.post("/signIn", signIn);
 router.post("/signUp", signUp);
 router.post("/verify-otp", verifyEmailOtp);
 router.post("/admin/create", auth, createUserByAdmin);
+router.post("/request-password-reset", requestPasswordReset);
+router.post("/reset-password", resetPasswordWithOtp);
+router.post("/verify-reset-otp", verifyPasswordResetOtp);
+router.post("/admin/:id/reset-password", auth, adminResetUserPassword);
 router.get("/", auth, getAllUsers);
 router.get("/:id/stats", auth, getUserStats);
 router.get("/:id/profile", auth, getUserProfile);

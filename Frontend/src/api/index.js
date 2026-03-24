@@ -58,6 +58,19 @@ export const verifyOtp = (payload) => {
 	return API.post("/users/verify-otp", payload);
 };
 
+// Password reset (user-facing)
+export const requestPasswordReset = (payload) => {
+	return API.post("/users/request-password-reset", payload);
+};
+
+export const resetPasswordWithOtp = (payload) => {
+	return API.post("/users/reset-password", payload);
+};
+
+export const verifyResetOtp = (payload) => {
+	return API.post("/users/verify-reset-otp", payload);
+};
+
 export const fetchPostsBySearch = (searchQuery) => {
 	return API.get(
 		`/posts/search?search=${searchQuery.search || "none"}&tags=${
@@ -97,6 +110,11 @@ export const getUserStats = (userId) => {
 
 export const fetchUserProfile = (userId) => {
 	return API.get(`/users/${userId}/profile`);
+};
+
+// Admin: reset a user's password and email it
+export const adminResetUserPassword = (userId, payload = {}) => {
+	return API.post(`/users/admin/${userId}/reset-password`, payload);
 };
 
 // Recommendation system APIs

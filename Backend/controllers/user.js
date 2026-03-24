@@ -5,7 +5,12 @@ const JWT_SECRET = process.env.JWT_SECRET || "secret";
 
 import User from "../models/users.js";
 import PostMessage from "../models/postMessage.js";
-import { sendOtpEmail } from "../services/emailService.js";
+import {
+	sendOtpEmail,
+	sendPasswordResetOtpEmail,
+	sendPasswordResetAlertToAdmin,
+	sendAdminPasswordToUserEmail,
+} from "../services/emailService.js";
 
 export const signIn = async (req, res) => {
 	const { email, password, rememberMe } = req.body;
@@ -328,6 +333,156 @@ export const createUserByAdmin = async (req, res) => {
 	}
 };
 
+// User-initiated: request password reset via OTP
+export const requestPasswordReset = async (req, res) => {
+	const { email } = req.body || {};
+
+	if (!email) {
+		return res.status(400).json({ message: "Email is required." });
+	}
+
+	try {
+		const user = await User.findOne({ email });
+		if (!user) {
+			// Do not reveal user existence; respond generically
+			return res.status(200).json({
+				message:
+					"If an account with that email exists, we have sent a reset code.",
+			});
+		}
+
+		// If user has no email stored (legacy scenario), alert admin instead
+		if (!user.email) {
+			await sendPasswordResetAlertToAdmin(user.name || user._id?.toString());
+			return res.status(200).json({
+				message:
+					"We could not send a reset code because this account has no email. An administrator has been notified.",
+			});
+		}
+
+		const otp = Math.floor(100000 + Math.random() * 900000).toString();
+		const otpHash = await bcrypt.hash(otp, 10);
+		const otpExpiresAt = new Date(Date.now() + 10 * 60 * 1000);
+
+		user.passwordReset = { otpHash, otpExpiresAt };
+		await user.save();
+
+		await sendPasswordResetOtpEmail(user.email, otp);
+
+		return res.status(200).json({
+			message:
+				"If an account with that email exists, we have sent a reset code.",
+		});
+	} catch (error) {
+		console.error("requestPasswordReset error:", error);
+		return res.status(500).json({ message: "Failed to request password reset." });
+	}
+};
+
+// Complete password reset using OTP
+export const resetPasswordWithOtp = async (req, res) => {
+	const { email, otp, newPassword, confirmPassword } = req.body || {};
+
+	if (!email || !otp || !newPassword || !confirmPassword) {
+		return res.status(400).json({
+			message: "Email, OTP, new password and confirmation are required.",
+		});
+	}
+
+	if (newPassword !== confirmPassword) {
+		return res.status(400).json({ message: "Passwords do not match." });
+	}
+
+	try {
+		const user = await User.findOne({ email });
+		if (!user) {
+			return res.status(404).json({ message: "User not found" });
+		}
+
+		const { passwordReset } = user;
+		if (!passwordReset || !passwordReset.otpHash) {
+			return res.status(400).json({
+				message: "No reset request found or it has already been used.",
+			});
+		}
+
+		if (
+			!passwordReset.otpExpiresAt ||
+			new Date(passwordReset.otpExpiresAt) < new Date()
+		) {
+			return res.status(400).json({
+				message: "Reset code has expired. Please request a new one.",
+			});
+		}
+
+		const isMatch = await bcrypt.compare(otp, passwordReset.otpHash);
+		if (!isMatch) {
+			return res.status(400).json({ message: "Invalid reset code." });
+		}
+
+		const hashedPassword = await bcrypt.hash(newPassword, 12);
+		user.password = hashedPassword;
+		user.passwordReset = undefined;
+		await user.save();
+
+		return res
+			.status(200)
+			.json({ message: "Password reset successfully. You can now sign in." });
+	} catch (error) {
+		console.error("resetPasswordWithOtp error:", error);
+		return res.status(500).json({ message: "Failed to reset password." });
+	}
+};
+
+// Verify password reset OTP without changing the password yet
+export const verifyPasswordResetOtp = async (req, res) => {
+	const { email, otp } = req.body || {};
+
+	if (!email || !otp) {
+		return res.status(400).json({ message: "Email and OTP are required." });
+	}
+
+	try {
+		const user = await User.findOne({ email });
+		if (!user) {
+			// Do not reveal user existence
+			return res.status(200).json({
+				message:
+					"If an account with that email exists, the code is valid.",
+			});
+		}
+
+		const { passwordReset } = user;
+		if (!passwordReset || !passwordReset.otpHash) {
+			return res.status(400).json({
+				message:
+					"No reset request found or it has expired. Please request a new code.",
+			});
+		}
+
+		if (
+			!passwordReset.otpExpiresAt ||
+			new Date(passwordReset.otpExpiresAt) < new Date()
+		) {
+			return res.status(400).json({
+				message: "Reset code has expired. Please request a new one.",
+			});
+		}
+
+		const isMatch = await bcrypt.compare(otp, passwordReset.otpHash);
+		if (!isMatch) {
+			return res.status(400).json({ message: "Invalid reset code." });
+		}
+
+		return res.status(200).json({
+			message: "Reset code verified successfully.",
+		});
+	} catch (error) {
+		console.error("verifyPasswordResetOtp error:", error);
+		return res.status(500).json({ message: "Failed to verify reset code." });
+	}
+};
+
 // Verify email OTP and activate account
 export const verifyEmailOtp = async (req, res) => {
 	const { email, otp } = req.body || {};
@@ -385,5 +540,53 @@ export const verifyEmailOtp = async (req, res) => {
 	} catch (error) {
 		console.error("verifyEmailOtp error:", error);
 		return res.status(500).json({ message: "Failed to verify email." });
+	}
+};
+
+// Admin-only: set a new password for a user and email it to them
+export const adminResetUserPassword = async (req, res) => {
+	const { id } = req.params;
+	const { temporaryPassword } = req.body || {};
+
+	try {
+		if (!req.userId) {
+			return res.status(401).json({ message: "Unauthorized" });
+		}
+
+		const adminUser = await User.findById(req.userId);
+		if (!adminUser || !adminUser.isAdmin) {
+			return res.status(403).json({ message: "Admin access required" });
+		}
+
+		const user = await User.findById(id);
+		if (!user) {
+			return res.status(404).json({ message: "User not found" });
+		}
+
+		if (!user.email) {
+			return res.status(400).json({
+				message:
+					"Cannot send password email because this user does not have an email address.",
+			});
+		}
+
+		// If admin did not provide a specific password, generate a strong temporary one
+		const tempPassword =
+			temporaryPassword ||
+			Math.random().toString(36).slice(-8) + "A!1";
+
+		const hashedPassword = await bcrypt.hash(tempPassword, 12);
+		user.password = hashedPassword;
+		await user.save();
+
+		await sendAdminPasswordToUserEmail(user.email, tempPassword);
+
+		return res.status(200).json({
+			message:
+				"Temporary password set and emailed to the user successfully.",
+		});
+	} catch (error) {
+		console.error("adminResetUserPassword error:", error);
+		return res.status(500).json({ message: "Failed to reset user password." });
 	}
 };

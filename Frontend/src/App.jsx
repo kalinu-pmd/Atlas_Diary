@@ -6,6 +6,8 @@ import Landing from "./components/Landing/Landing";
 import Auth from "./components/Auth/Auth";
 import Signup from "./components/Auth/Signup";
 import OtpVerification from "./components/Auth/OtpVerification";
+import ForgotPassword from "./components/Auth/ForgotPassword";
+import ResetPassword from "./components/Auth/ResetPassword";
 import PostDetails from "./components/PostDetails/PostDetails";
 import CreatePost from "./components/CreatePost/CreatePost";
 import Settings from "./components/Settings/Settings";
@@ -112,6 +114,20 @@ const App = () => {
 							exact
 							component={() =>
 								!user ? <OtpVerification /> : <Redirect to="/posts" />
+							}
+						/>
+						<Route
+							path="/forgot-password"
+							exact
+							component={() =>
+								!user ? <ForgotPassword /> : <Redirect to="/posts" />
+							}
+						/>
+						<Route
+							path="/reset-password"
+							exact
+							component={() =>
+								!user ? <ResetPassword /> : <Redirect to="/posts" />
 							}
 						/>
 
