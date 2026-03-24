@@ -1,6 +1,19 @@
 import { MapContainer, TileLayer, Marker, useMapEvents } from "react-leaflet";
 import { useState } from "react";
+import L from "leaflet";
 import "leaflet/dist/leaflet.css";
+import markerIcon2x from "leaflet/dist/images/marker-icon-2x.png";
+import markerIcon from "leaflet/dist/images/marker-icon.png";
+import markerShadow from "leaflet/dist/images/marker-shadow.png";
+
+// Ensure Leaflet marker icon works in bundled builds (Vite + Render/Vercel)
+// Reset internal default URL resolver so our imported asset URLs are used
+delete L.Icon.Default.prototype._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: markerIcon2x,
+  iconUrl: markerIcon,
+  shadowUrl: markerShadow,
+});
 
 export default function LocationPicker({ value, onChange }) {
   const [position, setPosition] = useState(value || { lat: 20.5937, lng: 78.9629 }); // Default: India

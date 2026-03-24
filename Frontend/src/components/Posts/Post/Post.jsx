@@ -14,6 +14,36 @@ import {
 
 import { deletePost, likePost, reportPost } from "../../../actions/posts";
 
+// Calm, subtle "like" sound (soft chime)
+const playLikeSound = () => {
+	try {
+		const AudioCtx = window.AudioContext || window.webkitAudioContext;
+		if (!AudioCtx) return;
+		const ctx = new AudioCtx();
+
+		const osc = ctx.createOscillator();
+		const gain = ctx.createGain();
+
+		osc.type = "sine";
+		// Soft mid-high tone with tiny upward glide
+		osc.frequency.setValueAtTime(520, ctx.currentTime);
+		osc.frequency.linearRampToValueAtTime(580, ctx.currentTime + 0.18);
+
+		// Very gentle volume, slow-ish fade out
+		gain.gain.setValueAtTime(0.08, ctx.currentTime);
+		gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.4);
+
+		osc.connect(gain);
+		gain.connect(ctx.destination);
+
+		osc.start();
+		osc.stop(ctx.currentTime + 0.45);
+		osc.onended = () => ctx.close();
+	} catch (e) {
+		// Ignore audio errors so UI still works everywhere
+	}
+};
+
 const formatLocationName = (name) => {
 	if (!name) return "";
 	const parts = name
@@ -37,14 +67,14 @@ const Post = ({ post }) => {
 	const queryParams = new URLSearchParams(location.search);
 	const currentPage = queryParams.get("page") || 1;
 
-	const [likes, setLikes] = useState(post?.likes);
+	const [likes, setLikes] = useState(post?.likes || []);
 	const [menuOpen, setMenuOpen] = useState(false);
 	const [isExpanded, setIsExpanded] = useState(false);
 	const [reportModalOpen, setReportModalOpen] = useState(false);
 	const [reportReason, setReportReason] = useState("not_real_place");
 	const [reportDetails, setReportDetails] = useState("");
 	const userId = user?.result?.googleId || user?.result?._id;
-	const hasAlreadyLiked = post.likes.find((like) => like === userId);
+	const hasLiked = userId && likes?.some((like) => like === userId);
 	const isOwner =
 		user?.result?.googleId === post?.creator ||
 		user?.result?._id === post?.creator;
@@ -54,7 +84,7 @@ const Post = ({ post }) => {
 	const Likes = () => {
 		const len = likes.length;
 		if (len > 0) {
-			return hasAlreadyLiked ? (
+			return hasLiked ? (
 				<span className="flex items-center gap-1">
 					<MdThumbUp size={16} />
 					{len >= 2
@@ -107,11 +137,17 @@ const Post = ({ post }) => {
 	};
 
 	const handleLike = () => {
+		if (!user?.result) {
+			toast.info("Please sign in to like posts.");
+			return;
+		}
+
 		dispatch(likePost(post._id));
-		if (hasAlreadyLiked) {
-			setLikes(post.likes.filter((id) => id !== userId));
+		if (hasLiked) {
+			setLikes((prev) => prev.filter((id) => id !== userId));
 		} else {
-			setLikes([...post.likes, userId]);
+			setLikes((prev) => [...prev, userId]);
+			playLikeSound();
 		}
 	};
 
@@ -310,11 +346,10 @@ const Post = ({ post }) => {
 			<div className="flex items-center justify-between px-2 py-2 border-t border-light-green/30 bg-off-white">
 				<button
 					className="flex-1 flex items-center justify-center gap-2 text-text-gray hover:bg-gray-100 py-2 rounded font-semibold text-sm transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-					disabled={!user?.result}
 					onClick={handleLike}
-					title={!user?.result ? "Sign in to like posts" : "Like this post"}
+					title={!user?.result ? "Sign in to like posts" : hasLiked ? "Unlike this post" : "Like this post"}
 				>
-					{hasAlreadyLiked ? (
+					{hasLiked ? (
 						<>
 							<MdThumbUp size={18} className="text-dark-green" />
 							<span className="text-dark-green">Liked</span>

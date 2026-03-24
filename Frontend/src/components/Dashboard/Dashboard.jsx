@@ -99,12 +99,12 @@ function ReportActionModal({ title, description, confirmLabel, onConfirm, onCanc
 }
 
 ReportActionModal.propTypes = {
-	title: PropTypes.string.isRequired,
-	description: PropTypes.string.isRequired,
-	confirmLabel: PropTypes.string.isRequired,
-	onConfirm: PropTypes.func.isRequired,
-	onCancel: PropTypes.func.isRequired,
-	loading: PropTypes.bool,
+  title: PropTypes.string.isRequired,
+  description: PropTypes.string.isRequired,
+  confirmLabel: PropTypes.string.isRequired,
+  onConfirm: PropTypes.func.isRequired,
+  onCancel: PropTypes.func.isRequired,
+  loading: PropTypes.bool,
 };
 
 function ReviewDiffModal({ report, onClose, onAccept, onReject, loading }) {
@@ -436,12 +436,79 @@ CreateUserModal.propTypes = {
 	loading: PropTypes.bool,
 };
 
+function UserPostsModal({ user, posts, onClose, onViewPost, onDeletePost, loading }) {
+	if (!user) return null;
+
+	return (
+		<div className="fixed inset-0 z-[2050] flex items-center justify-center bg-dark-green/70 backdrop-blur-sm px-4">
+			<div className="bg-off-white rounded-2xl shadow-[0_16px_48px_rgba(12,52,44,0.3)] border border-light-green p-6 w-full max-w-3xl max-h-[80vh] overflow-y-auto">
+				<div className="flex items-center justify-between mb-3">
+					<div>
+						<h3 className="text-text-dark font-extrabold text-lg">Posts by {user.name}</h3>
+						<p className="text-text-gray text-xs break-all">{user.email}</p>
+					</div>
+					<button onClick={onClose} className="text-text-gray hover:text-dark-green transition-colors">
+						<MdClose size={20} />
+					</button>
+				</div>
+				{loading ? (
+					<div className="flex justify-center items-center py-10">
+						<div className="w-10 h-10 rounded-full border-4 border-off-white border-t-dark-green animate-spin" />
+					</div>
+				) : posts.length === 0 ? (
+					<p className="text-text-gray text-sm py-4 text-center">This user has not created any posts yet.</p>
+				) : (
+					<table>
+						<thead>
+							<tr>
+								<th>Title</th>
+								<th>Created</th>
+								<th>Actions</th>
+							</tr>
+						</thead>
+						<tbody>
+							{posts.map((post) => (
+								<tr key={post._id}>
+									<td className="max-w-[260px] truncate font-medium cursor-pointer text-dark-green hover:underline" onClick={() => onViewPost(post._id)}>
+										{post.title}
+									</td>
+									<td className="text-xs text-text-gray">{post.createdAt ? new Date(post.createdAt).toLocaleDateString() : ""}</td>
+									<td className="whitespace-nowrap text-xs">
+										<button type="button" className="details mr-2" onClick={() => onViewPost(post._id)}>
+											View
+										</button>
+										<button type="button" className="delete" onClick={() => onDeletePost(post._id)}>
+											<MdDelete size={14} className="inline mr-1" />
+											Delete
+										</button>
+									</td>
+								</tr>
+							))}
+						</tbody>
+					</table>
+				)}
+			</div>
+		</div>
+	);
+}
+
+UserPostsModal.propTypes = {
+	user: PropTypes.object,
+	posts: PropTypes.arrayOf(PropTypes.object).isRequired,
+	onClose: PropTypes.func.isRequired,
+	onViewPost: PropTypes.func.isRequired,
+	onDeletePost: PropTypes.func.isRequired,
+	loading: PropTypes.bool,
+};
+
 function Dashboard() {
 	const history = useHistory();
 	const [posts, setPosts] = useState([]);
 	const [users, setUsers] = useState([]);
 	const [reports, setReports] = useState([]);
 	const [reviewReports, setReviewReports] = useState([]);
+	const [postsPage, setPostsPage] = useState(1);
+	const [postsTotalPages, setPostsTotalPages] = useState(1);
 	const [activeTab, setActiveTab] = useState("posts");
 	const [loading, setLoading] = useState(true);
 	const [actionLoading, setActionLoading] = useState(false);
@@ -452,35 +519,49 @@ function Dashboard() {
 	const [reportActionModal, setReportActionModal] = useState(null);
 	const [reviewDiffModal, setReviewDiffModal] = useState(null);
 	const [reportsView, setReportsView] = useState("active");
+	const [userPostsModal, setUserPostsModal] = useState(null);
 
-	const fetchData = useCallback(async () => {
-		setLoading(true);
-		try {
-			const [postsRes, usersRes, reportsRes] = await Promise.all([
-				api.fetchPosts(1, { summary: true }),
-				api.getAllUsers(),
-				api.fetchPostReports(),
-			]);
+	const fetchData = useCallback(
+		async (page = 1) => {
+			setLoading(true);
+			try {
+				const [postsRes, usersRes, reportsRes] = await Promise.all([
+					api.fetchPosts(page, { summary: true }),
+					api.getAllUsers(),
+					api.fetchPostReports(),
+				]);
 
-			const postsList = postsRes?.data?.data || postsRes?.data?.posts || postsRes?.data?.results || postsRes?.data || [];
-			const usersList = usersRes?.data?.users || usersRes?.data?.data || usersRes?.data || [];
-			const reportList = reportsRes?.data?.reports || reportsRes?.data || [];
+				const postsList = postsRes?.data?.data || postsRes?.data?.posts || postsRes?.data?.results || postsRes?.data || [];
+				const usersList = usersRes?.data?.users || usersRes?.data?.data || usersRes?.data || [];
+				const reportList = reportsRes?.data?.reports || reportsRes?.data || [];
+				const currentPage = postsRes?.data?.currentPage || page;
+				const totalPages = postsRes?.data?.numberOfPages || 1;
 
-			setPosts(Array.isArray(postsList) ? postsList : []);
-			setUsers(Array.isArray(usersList) ? usersList : []);
-			setReports(Array.isArray(reportList) ? reportList : []);
-			setReviewReports(Array.isArray(reportList) ? reportList.filter((r) => r.status === "under_review") : []);
-		} catch (error) {
-			console.error("Failed to load dashboard data:", error);
-			toast.error("Failed to load dashboard data.");
-		} finally {
-			setLoading(false);
-		}
-	}, []);
+				setPosts(Array.isArray(postsList) ? postsList : []);
+				setUsers(Array.isArray(usersList) ? usersList : []);
+				setReports(Array.isArray(reportList) ? reportList : []);
+				setReviewReports(Array.isArray(reportList) ? reportList.filter((r) => r.status === "under_review") : []);
+				setPostsPage(currentPage);
+				setPostsTotalPages(totalPages);
+			} catch (error) {
+				console.error("Failed to load dashboard data:", error);
+				toast.error("Failed to load dashboard data.");
+			} finally {
+				setLoading(false);
+			}
+		},
+		[],
+	);
 
 	useEffect(() => {
 		fetchData();
 	}, [fetchData]);
+
+	const handlePostsPageChange = (page) => {
+		if (!page || page === postsPage) return;
+		if (page < 1 || page > postsTotalPages) return;
+		fetchData(page);
+	};
 
 	const handleDeletePost = (postId) => {
 		setConfirmModal({
@@ -490,17 +571,39 @@ function Dashboard() {
 				try {
 					await api.deletePost(postId);
 					toast.success("Post deleted.");
-					await fetchData();
+					setPosts((prev) => prev.filter((p) => p._id !== postId));
+					setUserPostsModal((prev) =>
+						prev ? { ...prev, posts: prev.posts.filter((p) => p._id !== postId) } : prev,
+					);
+					// Close the confirm dialog immediately; refresh in background
+					setConfirmModal(null);
+					fetchData(postsPage);
 				} catch (error) {
 					console.error(error);
 					toast.error("Failed to delete post.");
 				} finally {
 					setActionLoading(false);
-					setConfirmModal(null);
 				}
 			},
 			onCancel: () => setConfirmModal(null),
 		});
+	};
+
+	const handleOpenUserPosts = async (user) => {
+		if (!user || !user._id) return;
+		setUserPostsModal({ user, posts: [], loading: true });
+		try {
+			const { data } = await api.fetchUserProfile(user._id);
+			setUserPostsModal({
+				user: data.user || user,
+				posts: Array.isArray(data.posts) ? data.posts : [],
+				loading: false,
+			});
+		} catch (error) {
+			console.error("Failed to load user posts", error);
+			setUserPostsModal(null);
+			toast.error("Failed to load user posts.");
+		}
 	};
 
 	const handleDeleteUser = (userId) => {
@@ -511,13 +614,13 @@ function Dashboard() {
 				try {
 					await api.deleteUser(userId);
 					toast.success("User deleted.");
-					await fetchData();
+					setConfirmModal(null);
+					fetchData(postsPage);
 				} catch (error) {
 					console.error(error);
 					toast.error("Failed to delete user.");
 				} finally {
 					setActionLoading(false);
-					setConfirmModal(null);
 				}
 			},
 			onCancel: () => setConfirmModal(null),
@@ -531,7 +634,7 @@ function Dashboard() {
 			await api.updatePost(editPostModal._id, updated);
 			toast.success("Post updated.");
 			setEditPostModal(null);
-			await fetchData();
+			await fetchData(postsPage);
 		} catch (error) {
 			console.error(error);
 			toast.error("Failed to update post.");
@@ -547,7 +650,7 @@ function Dashboard() {
 			await api.editUser(editUserModal._id, updated);
 			toast.success("User updated.");
 			setEditUserModal(null);
-			await fetchData();
+			await fetchData(postsPage);
 		} catch (error) {
 			console.error(error);
 			toast.error("Failed to update user.");
@@ -562,7 +665,7 @@ function Dashboard() {
 			await api.createUserByAdmin(payload);
 			toast.success("User created.");
 			setCreateUserModal(false);
-			await fetchData();
+			await fetchData(postsPage);
 		} catch (error) {
 			console.error(error);
 			const message = error?.response?.data?.message || "Failed to create user.";
@@ -576,7 +679,7 @@ function Dashboard() {
 		setActionLoading(true);
 		try {
 			await api.adminActOnReport(reportId, { action, note });
-			await fetchData();
+			await fetchData(postsPage);
 			toast.success("Report updated.");
 		} catch (error) {
 			console.error("Failed to act on report:", error);
@@ -664,6 +767,16 @@ function Dashboard() {
 					loading={actionLoading}
 				/>
 			)}
+			{userPostsModal && (
+				<UserPostsModal
+					user={userPostsModal.user}
+					posts={userPostsModal.posts}
+					onClose={() => setUserPostsModal(null)}
+					onViewPost={openPostDetails}
+					onDeletePost={handleDeletePost}
+					loading={userPostsModal.loading}
+				/>
+			)}
 
 			<div className="bg-gradient-to-br from-dark-green to-[#0a2d26] px-4 py-8">
 				<div className="max-w-6xl mx-auto">
@@ -678,7 +791,7 @@ function Dashboard() {
 								</div>
 						</div>
 						<button
-							onClick={fetchData}
+							onClick={() => fetchData(postsPage)}
 							disabled={loading}
 							className="flex items-center gap-1.5 bg-light-green/15 hover:bg-light-green/25 border border-light-green/30 text-light-green font-semibold text-sm px-4 py-2 rounded-lg transition-colors disabled:opacity-50"
 						>
@@ -768,46 +881,89 @@ function Dashboard() {
 							{posts.length === 0 ? (
 								<p className="text-text-gray text-sm py-6 text-center">No posts found.</p>
 							) : (
-								<table>
-									<thead>
-										<tr>
-											<th>Title</th>
-											<th>Author</th>
-											<th>Tags</th>
-											<th>Likes</th>
-											<th>Comments</th>
-											<th>Actions</th>
-										</tr>
-									</thead>
-									<tbody>
-										{posts.map((post) => (
-											<tr key={post._id}>
-												<td className="max-w-[180px] truncate font-medium">{post.title}</td>
-												<td>{post.name}</td>
-												<td className="max-w-[140px]">
-													<div className="flex flex-wrap gap-1">
-														{(Array.isArray(post.tags) ? post.tags : []).slice(0, 3).map((tag) => (
-															<span key={tag} className="bg-light-green/20 text-dark-green text-[0.65rem] font-semibold px-1.5 py-0.5 rounded-full">{tag}</span>
-														))}
-														{Array.isArray(post.tags) && post.tags.length > 3 && <span className="text-text-gray text-[0.65rem]">+{post.tags.length - 3}</span>}
-													</div>
-												</td>
-												<td>{post.likes?.length || 0}</td>
-												<td>{post.comments?.length || 0}</td>
-												<td className="whitespace-nowrap">
-													<button className="edit" onClick={() => setEditPostModal(post)}>
-														<MdEdit size={14} className="inline mr-1" />
-														Edit
-													</button>
-													<button className="delete" onClick={() => handleDeletePost(post._id)}>
-														<MdDelete size={14} className="inline mr-1" />
-														Delete
-													</button>
-												</td>
+								<>
+									<table>
+										<thead>
+											<tr>
+												<th>Title</th>
+												<th>Author</th>
+												<th>Tags</th>
+												<th>Likes</th>
+												<th>Comments</th>
+												<th>Actions</th>
 											</tr>
-										))}
-									</tbody>
-								</table>
+										</thead>
+										<tbody>
+											{posts.map((post) => (
+												<tr key={post._id}>
+													<td className="max-w-[180px] truncate font-medium">{post.title}</td>
+													<td>{post.name}</td>
+													<td className="max-w-[140px]">
+														<div className="flex flex-wrap gap-1">
+															{(Array.isArray(post.tags) ? post.tags : []).slice(0, 3).map((tag) => (
+																<span key={tag} className="bg-light-green/20 text-dark-green text-[0.65rem] font-semibold px-1.5 py-0.5 rounded-full">{tag}</span>
+															))}
+															{Array.isArray(post.tags) && post.tags.length > 3 && <span className="text-text-gray text-[0.65rem]">+{post.tags.length - 3}</span>}
+														</div>
+													</td>
+													<td>{post.likes?.length || 0}</td>
+													<td>{typeof post.commentsCount === "number" ? post.commentsCount : post.comments?.length || 0}</td>
+													<td className="whitespace-nowrap">
+														<button className="edit" onClick={() => setEditPostModal(post)}>
+															<MdEdit size={14} className="inline mr-1" />
+															Edit
+														</button>
+														<button className="delete" onClick={() => handleDeletePost(post._id)}>
+															<MdDelete size={14} className="inline mr-1" />
+															Delete
+														</button>
+													</td>
+												</tr>
+											))}
+										</tbody>
+									</table>
+									{postsTotalPages > 1 && (
+										<div className="flex items-center justify-between mt-4 gap-3 text-sm">
+											<button
+												type="button"
+												onClick={() => handlePostsPageChange(postsPage - 1)}
+												disabled={postsPage === 1}
+												className="px-3 py-1.5 rounded-lg border border-dark-green/20 text-text-dark hover:bg-light-green/20 disabled:opacity-40 disabled:hover:bg-transparent"
+											>
+												Previous
+											</button>
+											<div className="flex flex-wrap justify-center gap-1">
+												{Array.from({ length: postsTotalPages }, (_, idx) => {
+													const page = idx + 1;
+													const isActive = page === postsPage;
+													return (
+														<button
+															key={page}
+															type="button"
+															onClick={() => handlePostsPageChange(page)}
+															disabled={isActive}
+															className={`min-w-[2.25rem] px-2 py-1 rounded-md border text-xs font-semibold transition-colors ${
+																isActive
+																	? "bg-dark-green text-off-white border-dark-green cursor-default"
+																	: "bg-off-white text-text-dark border-dark-green/20 hover:bg-light-green/20"
+															}`}
+														>
+															{page}
+														</button>
+													);
+												})}
+											</div>
+											<button
+												type="button"
+												onClick={() => handlePostsPageChange(postsPage + 1)}
+												disabled={postsPage === postsTotalPages}
+												className="px-3 py-1.5 rounded-lg border border-dark-green/20 text-text-dark hover:bg-light-green/20 disabled:opacity-40 disabled:hover:bg-transparent"
+											>
+												Next
+											</button>
+										</div>
+									)}
+								</>
 							)}
 						</div>
 					)}
@@ -844,6 +1000,13 @@ function Dashboard() {
 												<td>{user.email}</td>
 												<td>{user.isAdmin ? <span className="bg-light-green text-dark-green text-xs font-bold px-2 py-0.5 rounded-full">Admin</span> : <span className="text-text-gray text-xs">—</span>}</td>
 												<td className="whitespace-nowrap">
+													<button
+														type="button"
+														className="details mr-2"
+														onClick={() => handleOpenUserPosts(user)}
+													>
+														Details
+													</button>
 													<button className="edit mr-2" onClick={() => setEditUserModal(user)}>
 														<MdEdit size={14} className="inline mr-1" />
 														Edit

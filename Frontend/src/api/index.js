@@ -91,8 +91,12 @@ export const commentPost = (comment, postId) => {
 };
 
 // Admin / user management
-export const getAllUsers = () => {
-	return API.get("/users");
+export const getAllUsers = (page) => {
+	let url = "/users";
+	if (page) {
+		url += `?page=${page}`;
+	}
+	return API.get(url);
 };
 
 export const deleteUser = (userId) => {

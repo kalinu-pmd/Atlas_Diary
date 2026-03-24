@@ -16,7 +16,7 @@ import CommentSection from "./CommentSection";
 import SimilarPosts from "../SimilarPosts/SimilarPosts";
 
 function PostDetails() {
-	const { post, posts, isLoading } = useSelector((state) => state.posts);
+	const { post, posts } = useSelector((state) => state.posts);
 	const dispatch = useDispatch();
 	const history = useHistory();
 	const { id } = useParams();
@@ -27,14 +27,17 @@ function PostDetails() {
 	const [reviewSent, setReviewSent] = useState(false);
 	const [reviewSending, setReviewSending] = useState(false);
 	const [latestReportStatus, setLatestReportStatus] = useState(null);
+	const [isPostLoading, setIsPostLoading] = useState(true);
 
 	useEffect(() => {
+		setIsPostLoading(true);
 		dispatch(getPostById(id));
 		dispatch(trackPostView(id));
 	}, [dispatch, id]);
 
 	useEffect(() => {
-		if (post) {
+		if (post && String(post._id) === String(id)) {
+			setIsPostLoading(false);
 			// If backend returned latestReport, keep its status for banners
 			if (post.latestReport && post.latestReport.status) {
 				setLatestReportStatus(post.latestReport.status);
@@ -46,7 +49,7 @@ function PostDetails() {
 				}),
 			);
 		}
-	}, [dispatch, post]);
+	}, [dispatch, post, id]);
 
 	const recommendedPosts = posts.filter(
 		(recommendedPost) => recommendedPost?._id !== post?._id,
@@ -85,7 +88,7 @@ function PostDetails() {
 		window.scrollTo({ top: 0, behavior: "smooth" });
 	};
 
-	if (isLoading) {
+	if (isPostLoading) {
 		return (
 			<div className="flex justify-center items-center h-[77vh] bg-off-white border-2 border-dark-green rounded-[15px]">
 				<div
