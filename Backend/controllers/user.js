@@ -99,15 +99,22 @@ export const signUp = async (req, res) => {
 		// the signup request appear "stuck" for the user.
 		sendOtpEmail(email, otp);
 		console.log("[signUp] Generated OTP for", email, "is", otp);
-		const isProd = process.env.NODE_ENV === "production";
+		// TEMP / DEMO: control whether we expose the raw OTP
+		// in the API response so the frontend can auto-fill it
+		// when SMTP email delivery is unavailable.
+		//
+		// By default, we expose it in non-production environments.
+		// In production-like hosting, you can still enable it by
+		// setting EXPOSE_DEBUG_OTP=true.
+		const exposeDebugOtp =
+			process.env.EXPOSE_DEBUG_OTP === "true" ||
+			process.env.NODE_ENV !== "production";
 
 		return res.status(200).json({
 			message: "OTP sent. Please check your email to verify your account.",
 			userId: userDoc._id,
 			email: userDoc.email,
-			// For development/testing only we return the OTP in the response
-			// so you can verify things are wired correctly. This is omitted in production.
-			...(isProd ? {} : { debugOtp: otp }),
+			...(exposeDebugOtp ? { debugOtp: otp } : {}),
 		});
 	} catch (error) {
 		console.error("signUp error:", error);
