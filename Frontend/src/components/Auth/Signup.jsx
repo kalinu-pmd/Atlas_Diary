@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useDispatch } from "react-redux";
 import { useHistory } from "react-router-dom";
 import { MdLockOutline } from "react-icons/md";
@@ -31,6 +31,17 @@ const Signup = ({ onSwitchToSignIn }) => {
 	const [showPassword, setShowPassword] = useState(false);
 	const [errors, setErrors] = useState({});
 	const [passwordsMatch, setPasswordsMatch] = useState(false);
+	const [isSubmitting, setIsSubmitting] = useState(false);
+
+	// Keep the live password match indicator in sync even when
+	// form data is restored from localStorage on mount.
+	useEffect(() => {
+		if (formData.password && formData.confirmPassword) {
+			setPasswordsMatch(formData.password === formData.confirmPassword);
+		} else {
+			setPasswordsMatch(false);
+		}
+	}, [formData.password, formData.confirmPassword]);
 
 	const namePattern = /^[a-zA-Z]+$/;
 	const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -61,13 +72,18 @@ const Signup = ({ onSwitchToSignIn }) => {
 		return Object.keys(newErrors).length === 0;
 	};
 
-	const handleSubmit = (e) => {
+	const handleSubmit = async (e) => {
 		e.preventDefault();
 		if (!validate()) {
 			toast.error("Please fix the form errors before submitting.");
 			return;
 		}
-		dispatch(signUp(formData, history));
+		if (isSubmitting) return;
+		setIsSubmitting(true);
+		const success = await dispatch(signUp(formData, history));
+		if (!success) {
+			setIsSubmitting(false);
+		}
 	};
 
 	const handleChange = (event) => {
@@ -98,12 +114,35 @@ const Signup = ({ onSwitchToSignIn }) => {
 		}
 	};
 
-	const canSubmit =
-		namePattern.test(formData.firstName) &&
-		namePattern.test(formData.lastName) &&
-		emailPattern.test(formData.email) &&
-		passwordPattern.test(formData.password) &&
-		formData.password === formData.confirmPassword;
+	const canSubmit = (() => {
+		const firstName = formData.firstName.trim();
+		const lastName = formData.lastName.trim();
+		const email = formData.email.trim();
+
+		if (
+			!firstName ||
+			!lastName ||
+			!email ||
+			!formData.password ||
+			!formData.confirmPassword
+		) {
+			return false;
+		}
+
+		if (!namePattern.test(firstName) || !namePattern.test(lastName)) {
+			return false;
+		}
+		if (!emailPattern.test(email)) {
+			return false;
+		}
+		if (!passwordPattern.test(formData.password)) {
+			return false;
+		}
+		if (formData.password !== formData.confirmPassword) {
+			return false;
+		}
+		return true;
+	})();
 
 	return (
 		<div className="min-h-screen flex items-center justify-center bg-off-white px-4 py-12">
@@ -191,14 +230,14 @@ const Signup = ({ onSwitchToSignIn }) => {
 
 					<button
 						type="submit"
-						disabled={!canSubmit}
+						disabled={!canSubmit || isSubmitting}
 						className={`w-full mt-2 font-bold py-2.5 rounded-md transition-colors ${
-							canSubmit
+							canSubmit && !isSubmitting
 								? "bg-light-green hover:bg-light-green-hover text-text-dark"
 								: "bg-gray-300 text-gray-500 cursor-not-allowed"
 						}`}
 					>
-						Send OTP
+						{isSubmitting ? "Sending..." : "Send OTP"}
 					</button>
 
 					<button

@@ -94,8 +94,10 @@ export const signUp = async (req, res) => {
 			});
 		}
 
-		// Send OTP email (best-effort)
-		await sendOtpEmail(email, otp);
+		// Send OTP email (best-effort, do not block response)
+		// Fire-and-forget so slow SMTP or network issues don't make
+		// the signup request appear "stuck" for the user.
+		sendOtpEmail(email, otp);
 		console.log("[signUp] Generated OTP for", email, "is", otp);
 		const isProd = process.env.NODE_ENV === "production";
 
