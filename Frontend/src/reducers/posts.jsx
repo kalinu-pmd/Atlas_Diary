@@ -11,6 +11,7 @@ import {
   COMMENT,
   FETCH_RECOMMENDATIONS,
   FETCH_SIMILAR_POSTS,
+  APPEND_POSTS,
 } from "../constants/actionTypes";
 
 const initialState = {
@@ -46,6 +47,35 @@ const recuder = (state = initialState, action) => {
         similarPosts: state.similarPosts,
         recommendations: state.recommendations,
       };
+
+    case APPEND_POSTS: {
+      const incoming = Array.isArray(action.payload?.data)
+        ? action.payload.data
+        : [];
+
+      if (incoming.length === 0) {
+        return {
+          ...state,
+          currentPage: action.payload.currentPage ?? state.currentPage,
+          numberOfPages: action.payload.numberOfPages ?? state.numberOfPages,
+        };
+      }
+
+      const existingIds = new Set(state.posts.map((p) => String(p._id)));
+      const merged = [
+        ...state.posts,
+        ...incoming.filter((p) => !existingIds.has(String(p._id))),
+      ];
+
+      return {
+        ...state,
+        posts: merged,
+        currentPage: action.payload.currentPage,
+        numberOfPages: action.payload.numberOfPages,
+        similarPosts: state.similarPosts,
+        recommendations: state.recommendations,
+      };
+    }
 
     case UPDATE:
       return {

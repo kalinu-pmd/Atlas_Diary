@@ -90,7 +90,17 @@ export default function Settings() {
             <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} className="w-full px-3 py-2 rounded border border-dark-green focus:outline-none" />
 
             <div className="flex gap-3 justify-end mt-2">
-              <button type="submit" disabled={loading} className="px-4 py-2 rounded bg-light-green hover:bg-light-green-hover font-bold">Save</button>
+              <button
+                type="submit"
+                disabled={loading}
+                className={`px-4 py-2 rounded font-bold text-sm transition-all duration-150 ${
+                  loading
+                    ? "bg-light-green/60 text-text-gray cursor-wait animate-pulse"
+                    : "bg-light-green hover:bg-light-green-hover text-text-dark hover:-translate-y-0.5 hover:shadow-sm cursor-pointer"
+                }`}
+              >
+                {loading ? "Saving..." : "Save"}
+              </button>
             </div>
           </form>
         </div>

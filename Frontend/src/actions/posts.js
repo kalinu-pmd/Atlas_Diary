@@ -13,6 +13,7 @@ import {
 	COMMENT,
 	FETCH_RECOMMENDATIONS,
 	FETCH_SIMILAR_POSTS,
+	APPEND_POSTS,
 } from "../constants/actionTypes";
 
 export const getPosts = (page) => async (dispatch) => {
@@ -27,6 +28,19 @@ export const getPosts = (page) => async (dispatch) => {
 		dispatch({ type: END_LOADING });
 		toast.error(
 			"Failed to load posts. Please check your connection and try again.",
+		);
+	}
+};
+
+// Append additional posts for infinite scrolling without replacing the whole list
+export const loadMorePosts = (page) => async (dispatch) => {
+	try {
+		const { data } = await api.fetchPosts(page);
+		dispatch({ type: APPEND_POSTS, payload: data });
+	} catch (error) {
+		console.log("Error message : " + error);
+		toast.error(
+			"Failed to load more posts. Please check your connection and try again.",
 		);
 	}
 };

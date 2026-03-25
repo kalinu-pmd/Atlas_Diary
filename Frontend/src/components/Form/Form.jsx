@@ -93,9 +93,9 @@ import { verifyPostLocation, sendPostForReview } from "../../api";
 
 	const validateForm = () => {
 		if (!postData.title || !postData.message || !postData.tags) {
-			setError("Title, message, and tags are required.");
+			setError("Location name, message, and tags are required.");
 			toast.error(
-				"Please fill in all required fields (Title, Message, and Tags).",
+				"Please fill in all required fields (Location name, Message, and Tags).",
 			);
 			return false;
 		}
@@ -111,7 +111,7 @@ import { verifyPostLocation, sendPostForReview } from "../../api";
 		}
 
 		if (!postData.title && !postData.message) {
-			toast.warn("Add a place name in the title or message to verify location.");
+			toast.warn("Add a place name in the Location name field or message to verify location.");
 			return;
 		}
 
@@ -148,7 +148,7 @@ import { verifyPostLocation, sendPostForReview } from "../../api";
 				);
 			} else if (data?.status === "outside-radius") {
 				toast.warn(
-					"The place mentioned in your title/description is more than 50km away from the selected pin. Please adjust the pin or your text.",
+					"The place mentioned in your location name/description is more than 50km away from the selected pin. Please adjust the pin or your text.",
 				);
 			} else if (data?.status === "no-match") {
 				toast.warn(
@@ -156,7 +156,7 @@ import { verifyPostLocation, sendPostForReview } from "../../api";
 				);
 			} else if (data?.status === "no-text") {
 				toast.warn(
-					"Add a place name in the title or message so we can verify the location.",
+					"Add a place name in the Location name field or message so we can verify the location.",
 				);
 			} else if (data?.status === "service-unavailable") {
 				toast.info(
@@ -251,23 +251,37 @@ import { verifyPostLocation, sendPostForReview } from "../../api";
 			}
 		} else {
 			dispatch(
-				createPost({
-					...finalPostData,
-					name: user?.result?.name,
-					authorImage: user?.result?.profileImage || user?.result?.imageUrl,
-				}, history),
+				createPost(
+					{
+						...finalPostData,
+						name: user?.result?.name,
+						authorImage:
+							user?.result?.profileImage || user?.result?.imageUrl,
+					},
+					history,
+				),
 			);
 		}
-		clearPost();
+
+		// After updating an existing post, clear the editor and
+		// return to the posts list. For new posts, navigation is
+		// handled inside the createPost action (it redirects to the
+		// new post's detail page), so we avoid changing the route
+		// again here.
+		if (selectedPost) {
+			clearPost();
+		}
 	};
 
-	const clearPost = () => {
+	const clearPost = (options = {}) => {
+		const { navigateToPosts = true } = options;
 		setPostData(initial);
 		setError("");
 		setLocationVerification(null);
 		dispatch({ type: "SELECTED_POST", payload: "" });
-		toast.info("Form cleared!");
-		history.push("/posts");
+		if (navigateToPosts) {
+			history.push("/posts");
+		}
 	};
 
 	if (!user?.result?.name) {
@@ -290,13 +304,13 @@ import { verifyPostLocation, sendPostForReview } from "../../api";
 					<p className="text-red-500 text-sm font-medium">{error}</p>
 				)}
 
-				{/* Title */}
+				{/* Location name (used as title) */}
 				<div className="flex flex-col gap-1">
 					<label
 						htmlFor="title"
 						className="text-xs font-semibold text-dark-green"
 					>
-						Title <span className="text-red-500">*</span>
+						Location name <span className="text-red-500">*</span>
 					</label>
 					<input
 						id="title"
@@ -305,7 +319,7 @@ import { verifyPostLocation, sendPostForReview } from "../../api";
 						onChange={(e) =>
 							setPostData({ ...postData, title: e.target.value })
 						}
-						placeholder="Enter post title"
+						placeholder="e.g. Marine Drive, Mumbai"
 						className="w-full bg-off-white border border-dark-green hover:border-light-green focus:border-dark-green focus:outline-none rounded-md px-3 py-2 text-sm text-text-dark transition-colors"
 					/>
 				</div>
@@ -519,7 +533,10 @@ import { verifyPostLocation, sendPostForReview } from "../../api";
 				{/* Clear */}
 				<button
 					type="button"
-					onClick={clearPost}
+					onClick={() => {
+						clearPost();
+						toast.info("Form cleared!");
+					}}
 					className="w-full bg-orange/10 hover:bg-orange/20 text-orange font-semibold py-2 rounded-md text-sm transition-colors"
 				>
 					Clear

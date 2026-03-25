@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import moment from "moment";
 import { useParams, useHistory } from "react-router-dom";
-import { MdClose, MdChevronLeft, MdChevronRight } from "react-icons/md";
+import { MdClose, MdChevronLeft, MdChevronRight, MdThumbUp, MdThumbUpOffAlt } from "react-icons/md";
 import LinesEllipsis from "react-lines-ellipsis";
 import { toast } from "react-toastify";
 
@@ -10,6 +10,7 @@ import {
 	getPostById,
 	getPostsBySearch,
 	trackPostView,
+	likePost,
 }	from "../../actions/posts";
 import * as api from "../../api";
 import CommentSection from "./CommentSection";
@@ -28,6 +29,7 @@ function PostDetails() {
 	const [reviewSending, setReviewSending] = useState(false);
 	const [latestReportStatus, setLatestReportStatus] = useState(null);
 	const [isPostLoading, setIsPostLoading] = useState(true);
+	const [likes, setLikes] = useState([]);
 
 	useEffect(() => {
 		setIsPostLoading(true);
@@ -38,6 +40,7 @@ function PostDetails() {
 	useEffect(() => {
 		if (post && String(post._id) === String(id)) {
 			setIsPostLoading(false);
+			setLikes(post.likes || []);
 			// If backend returned latestReport, keep its status for banners
 			if (post.latestReport && post.latestReport.status) {
 				setLatestReportStatus(post.latestReport.status);
@@ -61,6 +64,8 @@ function PostDetails() {
 		currentUserId && post?.creator
 			? String(currentUserId) === String(post.creator)
 			: false;
+	const hasLiked =
+		currentUserId && likes?.some((likeId) => String(likeId) === String(currentUserId));
 
 	const handleEditPost = () => {
 		if (!isOwner) return;
@@ -86,6 +91,26 @@ function PostDetails() {
 	const openPost = (_id) => {
 		history.push(`/posts/${_id}`);
 		window.scrollTo({ top: 0, behavior: "smooth" });
+	};
+
+	const handleToggleLike = () => {
+		if (!user?.result) {
+			toast.info("Please sign in to like posts.");
+			return;
+		}
+
+		if (!post?._id) return;
+
+		dispatch(likePost(post._id));
+
+		setLikes((prevLikes) => {
+			if (hasLiked) {
+				return prevLikes.filter(
+					(idVal) => String(idVal) !== String(currentUserId),
+				);
+			}
+			return [...prevLikes, currentUserId];
+		});
 	};
 
 	if (isPostLoading) {
@@ -334,6 +359,34 @@ function PostDetails() {
 
 					{/* Images section - centered */}
 					{renderImages()}
+
+					{/* Primary actions: likes summary */}
+					<div className="flex items-center justify-between mt-3 mb-3 px-1">
+						<button
+							type="button"
+							onClick={handleToggleLike}
+							className={`inline-flex items-center gap-1 text-sm font-semibold rounded-full px-3 py-1 border transition-colors ${
+								hasLiked
+									? "bg-accent-green/10 border-accent-green text-accent-green"
+									: "bg-off-white border-dark-green/30 text-text-dark hover:bg-light-green/20"
+							}`}
+						>
+							{hasLiked ? (
+								<MdThumbUp size={16} />
+							) : (
+								<MdThumbUpOffAlt size={16} />
+							)}
+							<span>
+								{likes.length > 0
+									? `${likes.length} like${likes.length > 1 ? "s" : ""}`
+									: "Like"}
+							</span>
+						</button>
+						<span className="text-xs text-text-gray">
+							{post.comments?.length || 0} comment
+							{(post.comments?.length || 0) === 1 ? "" : "s"}
+						</span>
+					</div>
 
 					{/* Comments section */}
 					<CommentSection post={post} />

@@ -161,27 +161,39 @@ export default function Landing() {
 							className="flex flex-wrap items-center gap-3"
 						>
 							{user ? (
-								<RouterLink
-									to="/posts"
-									className="inline-flex items-center gap-2 bg-gradient-to-b from-accent-green to-accent-green-2 text-white font-extrabold text-base px-6 py-3 rounded-full no-underline shadow-[0_12px_40px_rgba(47,107,79,0.22)] transition-all hover:-translate-y-0.5 hover:shadow-[0_18px_48px_rgba(47,107,79,0.28)]"
-								>
-									Go to Your Feed
-								</RouterLink>
-							) : (
-								<RouterLink
-									to="/signup"
-									className="inline-flex items-center gap-2 bg-gradient-to-b from-accent-green to-accent-green-2 text-white font-extrabold text-base px-6 py-3 rounded-full no-underline shadow-[0_12px_40px_rgba(47,107,79,0.22)] transition-all hover:-translate-y-0.5 hover:shadow-[0_18px_48px_rgba(47,107,79,0.28)]"
-								>
-									Start Your Journey &mdash; It&apos;s Free
-								</RouterLink>
-							)}
+								<>
+									{/* Logged-in: highlight Public Diaries as the main CTA */}
+									<RouterLink
+										to="/posts"
+										className="inline-flex items-center gap-2 bg-gradient-to-b from-accent-green to-accent-green-2 text-white font-extrabold text-base px-6 py-3 rounded-full no-underline shadow-[0_12px_40px_rgba(47,107,79,0.22)] transition-all hover:-translate-y-0.5 hover:shadow-[0_18px_48px_rgba(47,107,79,0.28)]"
+									>
+										Explore Public Diaries
+									</RouterLink>
 
-							<RouterLink
-								to="/posts"
-								className="inline-flex items-center gap-2 bg-[rgba(250,248,244,0.15)] hover:bg-[rgba(250,248,244,0.22)] text-white font-bold text-base px-5 py-3 rounded-full no-underline border border-white/30 transition-all backdrop-blur-sm hover:-translate-y-px"
-							>
-								Explore Public Diaries
-							</RouterLink>
+									<RouterLink
+										to="/recommendations"
+										className="inline-flex items-center gap-2 bg-[rgba(250,248,244,0.15)] hover:bg-[rgba(250,248,244,0.22)] text-white font-semibold text-sm px-4 py-2.5 rounded-full no-underline border border-white/25 transition-all backdrop-blur-sm hover:-translate-y-px"
+									>
+										For You
+									</RouterLink>
+								</>
+							) : (
+								<>
+									<RouterLink
+										to="/signup"
+										className="inline-flex items-center gap-2 bg-gradient-to-b from-accent-green to-accent-green-2 text-white font-extrabold text-base px-6 py-3 rounded-full no-underline shadow-[0_12px_40px_rgba(47,107,79,0.22)] transition-all hover:-translate-y-0.5 hover:shadow-[0_18px_48px_rgba(47,107,79,0.28)]"
+									>
+										Start Your Journey &mdash; It&apos;s Free
+									</RouterLink>
+
+									<RouterLink
+										to="/posts"
+										className="inline-flex items-center gap-2 bg-[rgba(250,248,244,0.15)] hover:bg-[rgba(250,248,244,0.22)] text-white font-bold text-base px-5 py-3 rounded-full no-underline border border-white/30 transition-all backdrop-blur-sm hover:-translate-y-px"
+									>
+										Explore Public Diaries
+									</RouterLink>
+								</>
+							)}
 						</div>
 					</div>
 				</div>

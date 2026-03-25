@@ -15,6 +15,7 @@ import {
 	trackPostView,
 	likePost,
 } from "../../actions/posts";
+import { FETCH_RECOMMENDATIONS } from "../../constants/actionTypes";
 import moment from "moment";
 
 const Recommendations = () => {
@@ -28,8 +29,17 @@ const Recommendations = () => {
 	const [fullScreenImage, setFullScreenImage] = useState(null);
 	const [imageDialogOpen, setImageDialogOpen] = useState(false);
 	const [currentImageIndex, setCurrentImageIndex] = useState(0);
+	const [hasAttemptedFetch, setHasAttemptedFetch] = useState(false);
 
 	const requestLocation = () => {
+		if (!hasAttemptedFetch) {
+			setHasAttemptedFetch(true);
+		}
+
+		// Clear any previous recommendations from Redux so we don't briefly
+		// show stale cards while a new fetch is in flight.
+		dispatch({ type: FETCH_RECOMMENDATIONS, payload: [] });
+
 		if (typeof navigator === "undefined" || !navigator.geolocation) {
 			// Fallback: fetch recommendations without location
 			dispatch(getRecommendations(10));
@@ -59,8 +69,52 @@ const Recommendations = () => {
 
 	useEffect(() => {
 		if (!user?.token) return;
-		requestLocation();
-	}, [dispatch, user]);
+
+		// If Permissions API is available, listen for geolocation permission
+		// changes so we can automatically refresh recommendations when the user
+		// switches location access from Blocked to Allowed in the browser.
+		if (typeof navigator === "undefined") {
+			requestLocation();
+			return;
+		}
+
+		if (!navigator.permissions || !navigator.permissions.query) {
+			// Older browsers: just request once (current behaviour)
+			requestLocation();
+			return;
+		}
+
+		let permissionStatus;
+
+		navigator.permissions
+			.query({ name: "geolocation" })
+			.then((status) => {
+				permissionStatus = status;
+
+				// Always attempt a location-based (or fallback) fetch at least once
+				// when the recommendations page is opened.
+				requestLocation();
+
+				// When the user changes permission (e.g. from Blocked -> Allowed)
+				// re-run the location request so recommendations refresh
+				status.onchange = () => {
+					if (status.state === "granted") {
+						requestLocation();
+					}
+				};
+			})
+			.catch(() => {
+				// If Permissions API fails for any reason, fall back to a single
+				// location request so behaviour stays as before.
+				requestLocation();
+			});
+
+		return () => {
+			if (permissionStatus) {
+				permissionStatus.onchange = null;
+			}
+		};
+	}, [user]);
 
 	const handleViewPost = (postId) => {
 		if (user?.token) {
@@ -101,7 +155,7 @@ const Recommendations = () => {
 		);
 	}
 
-	if (isLoading) {
+	if (!hasAttemptedFetch || isLoading) {
 		return (
 			<div className="p-5 text-center bg-off-white border border-dark-green rounded-[15px] shadow-card">
 				<p className="text-lg font-semibold text-text-dark">
@@ -111,7 +165,7 @@ const Recommendations = () => {
 		);
 	}
 
-	if (!recommendations || recommendations.length === 0) {
+	if (hasAttemptedFetch && (!recommendations || recommendations.length === 0)) {
 		return (
 			<div className="p-5 text-center bg-off-white border-2 border-dashed border-light-green rounded-[15px]">
 				<p className="text-lg font-semibold text-dark-green mb-2">

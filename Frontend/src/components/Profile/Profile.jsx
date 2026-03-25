@@ -107,11 +107,13 @@ export default function Profile() {
           {posts.length === 0 ? (
             <p className="text-sm text-text-gray">No posts yet.</p>
           ) : (
-            <div className="grid gap-4 md:grid-cols-2">
-              {posts.map((post) => (
-                <Post key={post._id} post={post} />
-              ))}
+          <div className="columns-1 md:columns-2 gap-4 [column-fill:_balance]">
+            {posts.map((post) => (
+            <div key={post._id} className="mb-4 break-inside-avoid">
+              <Post post={post} />
             </div>
+            ))}
+          </div>
           )}
         </div>
       </div>

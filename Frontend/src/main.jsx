@@ -17,19 +17,29 @@ createRoot(document.getElementById("root")).render(
     <Provider store={store}>
       <ToastContainer
         position="top-right"
-        autoClose={1500}
-        hideProgressBar={false}
-        newestOnTop={false}
+        autoClose={1400}
+        hideProgressBar
+        newestOnTop
         closeOnClick
         rtl={false}
         pauseOnFocusLoss
-        draggable
-        pauseOnHover
+        draggable={false}
+        pauseOnHover={false}
+        limit={2}
         theme="light"
+        icon={false}
         toastStyle={{
           backgroundColor: "#fef9f5", // Off white
           color: "#333333", // Black
           border: "1px solid #affa01", // Light green border
+          fontSize: "0.8rem",
+          padding: "6px 10px",
+          borderRadius: "10px",
+        }}
+        style={{
+          width: "auto",
+          maxWidth: "260px",
+          marginTop: "0.75rem",
         }}
         progressStyle={{
           backgroundColor: "#0c342c", // Dark green

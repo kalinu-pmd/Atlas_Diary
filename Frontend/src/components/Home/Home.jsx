@@ -1,12 +1,11 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useLocation, useHistory } from "react-router-dom";
 import { MdSearch, MdClose, MdAdd, MdTune } from "react-icons/md";
 
 import Posts from "../Posts/Posts";
-import Paginate from "../Pagination/Pagination";
 import Footer from "../Footer/Footer";
-import { getPostsBySearch } from "../../actions/posts";
+import { getPosts, getPostsBySearch, loadMorePosts } from "../../actions/posts";
 
 function useQuery() {
 	return new URLSearchParams(useLocation().search);
@@ -14,24 +13,74 @@ function useQuery() {
 
 export default function Home() {
 	const query = useQuery();
-	const page = query.get("page") || 1;
 	const searchQuery = query.get("searchQuery");
 
 	const dispatch = useDispatch();
 	const history = useHistory();
 	const user = useSelector((state) => state.auth.authData);
+	const { currentPage, numberOfPages, isLoading } = useSelector(
+		(state) => state.posts,
+	);
 
 	const [search, setSearch] = useState("");
 	const [tags, setTags] = useState([]);
 	const [tagInput, setTagInput] = useState("");
 	const [showForm, setShowForm] = useState(false);
 	const [showFilters, setShowFilters] = useState(false);
+	const [isLoadingMore, setIsLoadingMore] = useState(false);
+	const [hasMore, setHasMore] = useState(true);
+	const loadMoreRef = useRef(null);
+	const [showScrollTop, setShowScrollTop] = useState(false);
+	const [isHidingScrollTop, setIsHidingScrollTop] = useState(false);
+
+	const isSearchActive = search.trim() || tags.length > 0;
+
+	// Track scroll position to toggle the floating "scroll to top" button
+	useEffect(() => {
+		const handleScroll = () => {
+			const y = window.scrollY || window.pageYOffset || 0;
+			const shouldShow = y > 400;
+
+			if (shouldShow) {
+				setShowScrollTop(true);
+				setIsHidingScrollTop(false);
+			} else if (!shouldShow && showScrollTop && !isHidingScrollTop) {
+				// Smoothly hide when user scrolls near the top
+				setIsHidingScrollTop(true);
+				setTimeout(() => {
+					setShowScrollTop(false);
+					setIsHidingScrollTop(false);
+				}, 250);
+			}
+		};
+
+		window.addEventListener("scroll", handleScroll, { passive: true });
+		handleScroll();
+
+		return () => {
+			window.removeEventListener("scroll", handleScroll);
+		};
+	}, [showScrollTop, isHidingScrollTop]);
 
 	useEffect(() => {
 		if (searchQuery) {
 			setSearch(decodeURIComponent(searchQuery));
 		}
 	}, [searchQuery]);
+
+	// Initial feed load when not in search mode
+	useEffect(() => {
+		if (!isSearchActive) {
+			dispatch(getPosts(1));
+		}
+	}, [dispatch, isSearchActive]);
+
+	// Track whether more pages are available
+	useEffect(() => {
+		if (numberOfPages && currentPage) {
+			setHasMore(currentPage < numberOfPages);
+		}
+	}, [currentPage, numberOfPages]);
 
 	const handleSearch = (e) => {
 		e.preventDefault();
@@ -71,7 +120,77 @@ export default function Home() {
 		setTags(tags.filter((t) => t !== tag));
 	};
 
-	const isSearchActive = search.trim() || tags.length > 0;
+	// Infinite scroll observer for the main feed
+	useEffect(() => {
+		if (isSearchActive) return; // no infinite scroll in search mode
+		if (!hasMore) return;
+		if (isLoadingMore) return;
+
+		const element = loadMoreRef.current;
+		if (!element) return;
+
+		const observer = new IntersectionObserver(
+			(entries) => {
+				const [entry] = entries;
+				if (entry.isIntersecting && !isLoadingMore && hasMore) {
+					const nextPage = (currentPage || 1) + 1;
+					if (!numberOfPages || nextPage > numberOfPages) return;
+
+					setIsLoadingMore(true);
+					dispatch(loadMorePosts(nextPage)).finally(() => {
+						setIsLoadingMore(false);
+					});
+				}
+			},
+			{
+				root: null,
+				rootMargin: "0px 0px 200px 0px",
+				threshold: 0.1,
+			},
+		);
+
+		observer.observe(element);
+
+		return () => {
+			observer.disconnect();
+		};
+	}, [
+		dispatch,
+		currentPage,
+		numberOfPages,
+		isSearchActive,
+		hasMore,
+		isLoadingMore,
+	]);
+
+	const handleScrollToTop = () => {
+		if (!showScrollTop) return;
+		setIsHidingScrollTop(true);
+
+		// Easing-based scroll: fast at start, slows near the top
+		const startY = window.scrollY || window.pageYOffset || 0;
+		const duration = 550; // ms
+		const startTime = performance.now();
+
+		const easeOutCubic = (t) => 1 - Math.pow(1 - t, 3);
+
+		const step = (now) => {
+			const elapsed = now - startTime;
+			const t = Math.min(1, elapsed / duration);
+			const eased = easeOutCubic(t);
+			const nextY = startY * (1 - eased);
+			window.scrollTo(0, nextY);
+
+			if (t < 1) {
+				requestAnimationFrame(step);
+			} else {
+				setShowScrollTop(false);
+				setIsHidingScrollTop(false);
+			}
+		};
+
+		requestAnimationFrame(step);
+	};
 
 	return (
 		<div className="min-h-screen bg-off-white flex flex-col">
@@ -223,15 +342,57 @@ export default function Home() {
 				{/* Posts feed (centered) */}
 				<div className="w-full lg:max-w-2xl">
 					<Posts />
+					{/* Infinite scroll sentinel & status (only in main feed) */}
 					{!isSearchActive && (
-						<div className="mt-8">
-							<Paginate page={page} />
+						<div className="mt-8 flex flex-col items-center gap-3 pb-10">
+							<div
+								ref={loadMoreRef}
+								className="h-1 w-full"
+							/>
+							{isLoadingMore && (
+								<div className="flex items-center gap-2 text-text-gray text-sm">
+									<div className="w-4 h-4 rounded-full border-2 border-transparent border-t-dark-green animate-spin" />
+									<span>Finding more adventures for you…</span>
+								</div>
+							)}
+							{!isLoading && !isLoadingMore && !hasMore && (
+								<div className="text-center text-xs sm:text-sm text-text-gray space-y-1">
+									<p className="text-text-dark font-semibold text-sm sm:text-base">
+										You&apos;re all caught up for now.
+									</p>
+									<p>
+										Come back later for fresh adventures, or share your own story.
+									</p>
+									<button
+										onClick={() => history.push("/create-post")}
+										className="mt-2 inline-flex items-center justify-center px-4 py-2 rounded-xl bg-dark-green text-off-white text-xs sm:text-sm font-bold hover:bg-dark-green-hover transition-colors"
+									>
+										Create a new adventure
+									</button>
+								</div>
+							)}
 						</div>
 					)}
 				</div>
 				{/* Sidebar removed - create post moved to separate page */}
 				</div>
 			</main>
+
+		{/* Floating scroll-to-top button */}
+		{showScrollTop && (
+			<button
+				type="button"
+				onClick={handleScrollToTop}
+				className={`fixed right-4 bottom-5 z-[1100] inline-flex items-center justify-center rounded-full bg-dark-green text-off-white shadow-[0_10px_25px_rgba(12,52,44,0.35)] transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-light-green/70 ${
+					isHidingScrollTop
+						? "opacity-0 translate-y-3 scale-90 pointer-events-none"
+						: "opacity-100 translate-y-0 scale-100"
+				}`}
+				aria-label="Scroll back to top"
+			>
+				<span className="px-3 py-3 text-lg leading-none">↑</span>
+			</button>
+		)}
 
 			<Footer />
 		</div>

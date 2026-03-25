@@ -31,14 +31,8 @@ const App = () => {
 				<div className="h-16" />
 				<div className="px-0">
 					<Switch>
-						{/* Root: Landing for guests, feed for logged-in users */}
-						<Route
-							path="/"
-							exact
-							component={() =>
-								user ? <Redirect to="/posts" /> : <Landing />
-							}
-						/>
+						{/* Root: always show marketing homepage (Landing) */}
+						<Route path="/" exact component={Landing} />
 
 						{/* Main posts feed */}
 						<Route path="/posts" exact component={Home} />

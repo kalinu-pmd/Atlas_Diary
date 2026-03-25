@@ -281,9 +281,19 @@ function Navbar() {
 			</div>
 		</div>
 	) : (
-		<div className="flex items-center gap-3">
-			<Link to="/auth" className="text-dark-green font-semibold text-sm px-4 py-2 rounded-full border border-dark-green/30 hover:border-dark-green hover:bg-dark-green/5 transition-all no-underline whitespace-nowrap">Login</Link>
-			<Link to="/signup" className="bg-gradient-to-b from-accent-green to-accent-green-2 text-white font-bold text-sm px-6 py-2 rounded-full shadow-md hover:brightness-95 transition-all no-underline whitespace-nowrap">Sign Up</Link>
+		<div className="flex items-center gap-2 sm:gap-3">
+			<Link
+				to="/auth"
+				className="inline-flex items-center justify-center h-9 px-4 text-dark-green font-semibold text-sm rounded-full border border-dark-green/30 hover:border-dark-green hover:bg-dark-green/5 transition-all no-underline whitespace-nowrap"
+			>
+				Login
+			</Link>
+			<Link
+				to="/signup"
+				className="inline-flex items-center justify-center h-9 px-5 bg-gradient-to-b from-accent-green to-accent-green-2 text-white font-bold text-sm rounded-full shadow-md hover:brightness-95 transition-all no-underline whitespace-nowrap"
+			>
+				Sign Up
+			</Link>
 		</div>
 	);
 
@@ -329,7 +339,14 @@ function Navbar() {
 
 					<button className="md:hidden text-accent-green p-1 rounded" aria-label={mobileOpen ? "Close menu" : "Open menu"} onClick={toggleMobile}>{mobileOpen ? <MdClose size={24} /> : <MdMenu size={24} />}</button>
 
-					<Link to="/create-post" className="md:hidden ml-2 inline-flex items-center justify-center bg-gradient-to-b from-accent-green to-accent-green-2 text-white p-2 rounded-full shadow-sm"><MdAdd size={18} /></Link>
+					{user && (
+						<Link
+							to="/create-post"
+							className="md:hidden ml-2 inline-flex items-center justify-center bg-gradient-to-b from-accent-green to-accent-green-2 text-white p-2 rounded-full shadow-sm"
+						>
+							<MdAdd size={18} />
+						</Link>
+					)}
 
 					{authControls}
 				</div>
