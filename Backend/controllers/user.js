@@ -142,8 +142,34 @@ export const editUser = async (req, res, next) => {
 		return res.status(404).json({ msg: "No user found" });
 	}
 
-	const { email, password, name, bio, profileImage, location, isAdmin } =
-		req.body;
+	const {
+		email,
+		password,
+		name,
+		bio,
+		profileImage,
+		location,
+		isAdmin,
+		currentPassword,
+	} = req.body;
+
+	// Determine whether the requester is editing their own account
+	const isSelfUpdate = req.userId && String(req.userId) === String(id);
+
+	let requestingUser = null;
+
+	// If this is not a self-update, only admins may edit another user
+	if (!isSelfUpdate) {
+		if (!req.userId) {
+			return res.status(401).json({ message: "Unauthorized" });
+		}
+		requestingUser = await User.findById(req.userId);
+		if (!requestingUser || !requestingUser.isAdmin) {
+			return res
+				.status(403)
+				.json({ message: "Admin privileges required to edit other users" });
+		}
+	}
 
 	// Prepare update object
 	const updateData = { email, name };
@@ -153,8 +179,35 @@ export const editUser = async (req, res, next) => {
 	if (profileImage !== undefined) updateData.profileImage = profileImage;
 	if (location !== undefined) updateData.location = location;
 
-	// Only hash and include password if provided
+	// Password change rules:
+	// - If user edits their own password, require currentPassword and verify it.
+	// - Admins editing other users may set a new password without currentPassword.
 	if (password) {
+		if (isSelfUpdate) {
+			if (!currentPassword) {
+				return res
+					.status(400)
+					.json({ message: "Current password is required to change password." });
+			}
+
+			const isMatch = await bcrypt.compare(currentPassword, user.password);
+			if (!isMatch) {
+				return res
+					.status(400)
+					.json({ message: "Current password is incorrect." });
+			}
+		} else {
+			// Ensure requestingUser is loaded for admin edits
+			if (!requestingUser && req.userId) {
+				requestingUser = await User.findById(req.userId);
+			}
+			if (!requestingUser || !requestingUser.isAdmin) {
+				return res
+					.status(403)
+					.json({ message: "Admin privileges required to change another user's password" });
+			}
+		}
+
 		const hashedPassword = await bcrypt.hash(password, 12);
 		updateData.password = hashedPassword;
 	}
@@ -169,7 +222,9 @@ export const editUser = async (req, res, next) => {
 			return res.status(401).json({ message: "Unauthorized" });
 		}
 
-		const requestingUser = await User.findById(req.userId);
+		if (!requestingUser) {
+			requestingUser = await User.findById(req.userId);
+		}
 		if (!requestingUser || !requestingUser.isAdmin) {
 			return res
 				.status(403)

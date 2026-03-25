@@ -887,7 +887,7 @@ function Dashboard() {
 											<tr>
 												<th>Title</th>
 												<th>Author</th>
-												<th>Tags</th>
+													<th>Description</th>
 												<th>Likes</th>
 												<th>Comments</th>
 												<th>Actions</th>
@@ -898,14 +898,13 @@ function Dashboard() {
 												<tr key={post._id}>
 													<td className="max-w-[180px] truncate font-medium">{post.title}</td>
 													<td>{post.name}</td>
-													<td className="max-w-[140px]">
-														<div className="flex flex-wrap gap-1">
-															{(Array.isArray(post.tags) ? post.tags : []).slice(0, 3).map((tag) => (
-																<span key={tag} className="bg-light-green/20 text-dark-green text-[0.65rem] font-semibold px-1.5 py-0.5 rounded-full">{tag}</span>
-															))}
-															{Array.isArray(post.tags) && post.tags.length > 3 && <span className="text-text-gray text-[0.65rem]">+{post.tags.length - 3}</span>}
-														</div>
-													</td>
+														<td className="max-w-[260px] text-xs" title={post.message || ""}>
+															{post.message
+																? post.message.length > 80
+																	? `${post.message.slice(0, 80)}…`
+																	: post.message
+																: ""}
+														</td>
 													<td>{post.likes?.length || 0}</td>
 													<td>{typeof post.commentsCount === "number" ? post.commentsCount : post.comments?.length || 0}</td>
 													<td className="whitespace-nowrap">

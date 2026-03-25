@@ -10,7 +10,9 @@ export default function Settings() {
   const history = useHistory();
   const [name, setName] = useState(user?.result?.name || "");
   const [email, setEmail] = useState(user?.result?.email || "");
-  const [password, setPassword] = useState("");
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [bio, setBio] = useState(user?.result?.bio || "");
   const [location, setLocation] = useState(user?.result?.location || "");
   const [profileImage, setProfileImage] = useState(
@@ -21,13 +23,26 @@ export default function Settings() {
   const handleSave = async (e) => {
     e.preventDefault();
     if (!name.trim() || !email.trim()) return toast.error("Name and email required");
+
+    // If the user is changing password, require current + new + confirm
+    if (currentPassword || newPassword || confirmPassword) {
+      if (!currentPassword || !newPassword || !confirmPassword) {
+        return toast.error("Please fill current, new and confirm password.");
+      }
+      if (newPassword !== confirmPassword) {
+        return toast.error("New password and confirm password do not match.");
+      }
+    }
+
     setLoading(true);
     try {
       const id = user?.result?._id || (user?.result?.googleId ?? null);
       await api.editUser(user.result._id, {
         name: name.trim(),
         email: email.trim(),
-        ...(password.trim() ? { password } : {}),
+        ...(newPassword.trim()
+          ? { password: newPassword.trim(), currentPassword: currentPassword.trim() }
+          : {}),
         bio: bio.trim(),
         location: location.trim(),
         profileImage,
@@ -86,8 +101,29 @@ export default function Settings() {
               />
             </div>
 
-            <label className="text-xs font-semibold text-dark-green">New Password <span className="text-text-gray">(leave blank to keep)</span></label>
-            <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} className="w-full px-3 py-2 rounded border border-dark-green focus:outline-none" />
+        <label className="text-xs font-semibold text-dark-green">Current password</label>
+        <input
+          type="password"
+          value={currentPassword}
+          onChange={(e) => setCurrentPassword(e.target.value)}
+          className="w-full px-3 py-2 rounded border border-dark-green focus:outline-none"
+        />
+
+        <label className="text-xs font-semibold text-dark-green">New password <span className="text-text-gray">(leave blank to keep)</span></label>
+        <input
+          type="password"
+          value={newPassword}
+          onChange={(e) => setNewPassword(e.target.value)}
+          className="w-full px-3 py-2 rounded border border-dark-green focus:outline-none"
+        />
+
+        <label className="text-xs font-semibold text-dark-green">Confirm new password</label>
+        <input
+          type="password"
+          value={confirmPassword}
+          onChange={(e) => setConfirmPassword(e.target.value)}
+          className="w-full px-3 py-2 rounded border border-dark-green focus:outline-none"
+        />
 
             <div className="flex gap-3 justify-end mt-2">
               <button

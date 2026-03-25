@@ -57,7 +57,7 @@ const formatLocationName = (name) => {
 	return label.length > 40 ? primary : label;
 };
 
-const Post = ({ post }) => {
+const Post = ({ post, onDeleted }) => {
 	const dispatch = useDispatch();
 	const history = useHistory();
 	const location = useLocation();
@@ -166,7 +166,11 @@ const Post = ({ post }) => {
 		const confirmed = window.confirm("Are you sure you want to delete this post?");
 		if (!confirmed) return;
 		// Keep existing delete behavior so pagination stays in sync
-		dispatch(deletePost(post._id, parseInt(currentPage)));
+		dispatch(deletePost(post._id, parseInt(currentPage, 10))).then((success) => {
+			if (success && typeof onDeleted === "function") {
+				onDeleted(post._id);
+			}
+		});
 	};
 
 	const imageUrl =
@@ -463,6 +467,7 @@ Post.propTypes = {
 		authorImage: PropTypes.string,
 		locationName: PropTypes.string,
 	}).isRequired,
+	onDeleted: PropTypes.func,
 };
 
 export default Post;

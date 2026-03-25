@@ -114,12 +114,14 @@ export const deletePost = (postId, currentPage = 1) => async (dispatch) => {
 		}, 500);
 		
 		toast.success("Post deleted successfully!");
+		return true;
 	} catch (error) {
 		console.log("Error message : " + error);
 		const errorMessage =
 			error.response?.data?.message ||
 			"Failed to delete post. Please try again.";
 		toast.error(errorMessage);
+		return false;
 	}
 };
 

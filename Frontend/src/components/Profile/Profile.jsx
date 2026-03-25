@@ -110,7 +110,14 @@ export default function Profile() {
           <div className="columns-1 md:columns-2 gap-4 [column-fill:_balance]">
             {posts.map((post) => (
             <div key={post._id} className="mb-4 break-inside-avoid">
-              <Post post={post} />
+              <Post
+                post={post}
+                onDeleted={(deletedId) =>
+                  setPosts((prevPosts) =>
+                    prevPosts.filter((p) => p._id !== deletedId),
+                  )
+                }
+              />
             </div>
             ))}
           </div>

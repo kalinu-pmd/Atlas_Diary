@@ -21,13 +21,6 @@ export const signUp = (formData, history) => async (dispatch) => {
   try {
     const { data } = await api.signUp(formData);
 
-    // Cache the signup details so the user can go back and edit
-    try {
-      localStorage.setItem("pending-signup-data", JSON.stringify(formData));
-    } catch {
-      // ignore storage errors
-    }
-
   // TEMPORARY: store debugOtp locally so we can
   // auto-fill it on the verify-email screen when
   // SMTP is blocked in hosting. Safe to delete.
@@ -71,12 +64,9 @@ export const verifyOtp = (formData, history) => async (dispatch) => {
     toast.success(
       `Welcome, ${data?.result?.name || "traveller"}! Your email has been verified.`,
     );
-    history.push("/");
-  try {
-    localStorage.removeItem("pending-signup-data");
-  } catch {
-    // ignore
-  }
+		// After successful signup + email verification, send user to
+		// Account Settings so they can complete their profile first.
+		history.push("/settings");
   } catch (error) {
     console.log(error);
     const errorMessage =

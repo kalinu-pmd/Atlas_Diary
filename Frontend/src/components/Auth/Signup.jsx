@@ -20,14 +20,7 @@ const Signup = ({ onSwitchToSignIn }) => {
 		confirmPassword: "",
 	};
 
-	const [formData, setFormData] = useState(() => {
-		try {
-			const stored = localStorage.getItem("pending-signup-data");
-			return stored ? JSON.parse(stored) : initialFormData;
-		} catch {
-			return initialFormData;
-		}
-	});
+	const [formData, setFormData] = useState(initialFormData);
 	const [showPassword, setShowPassword] = useState(false);
 	const [errors, setErrors] = useState({});
 	const [passwordsMatch, setPasswordsMatch] = useState(false);
@@ -115,33 +108,19 @@ const Signup = ({ onSwitchToSignIn }) => {
 	};
 
 	const canSubmit = (() => {
+		// Only check that all fields are filled; detailed
+		// validation is handled on submit with alerts.
 		const firstName = formData.firstName.trim();
 		const lastName = formData.lastName.trim();
 		const email = formData.email.trim();
 
-		if (
-			!firstName ||
-			!lastName ||
-			!email ||
-			!formData.password ||
-			!formData.confirmPassword
-		) {
-			return false;
-		}
-
-		if (!namePattern.test(firstName) || !namePattern.test(lastName)) {
-			return false;
-		}
-		if (!emailPattern.test(email)) {
-			return false;
-		}
-		if (!passwordPattern.test(formData.password)) {
-			return false;
-		}
-		if (formData.password !== formData.confirmPassword) {
-			return false;
-		}
-		return true;
+		return (
+			firstName &&
+			lastName &&
+			email &&
+			formData.password &&
+			formData.confirmPassword
+		);
 	})();
 
 	return (
