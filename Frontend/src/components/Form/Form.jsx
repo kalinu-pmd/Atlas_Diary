@@ -31,6 +31,7 @@ import { verifyPostLocation, sendPostForReview } from "../../api";
 	const [error, setError] = useState("");
 	const [locationVerification, setLocationVerification] = useState(null);
 	const [isVerifyingLocation, setIsVerifyingLocation] = useState(false);
+	const [isSubmitting, setIsSubmitting] = useState(false);
 
 	const dispatch = useDispatch();
 	const history = useHistory();
@@ -176,6 +177,9 @@ import { verifyPostLocation, sendPostForReview } from "../../api";
 
 	const handleFormSubmit = async (event) => {
 		event.preventDefault();
+
+		if (isSubmitting) return;
+
 		if (!validateForm()) return;
 
 		if (!postData.location || postData.location.lat == null || postData.location.lng == null) {
@@ -226,50 +230,50 @@ import { verifyPostLocation, sendPostForReview } from "../../api";
 
 		let finalPostData = { ...postData };
 
-		if (selectedPost) {
-			await dispatch(
-				updatePost(selectedPost, {
-					...finalPostData,
-					name: user?.result?.name,
-				}),
-			);
-
-			if (sendForReviewAfterUpdate) {
-				try {
-					await sendPostForReview(selectedPost, reportId ? { reportId } : {});
-					toast.success(
-						"Your updated post has been sent to the admins for review.",
-					);
-				} catch (err) {
-					// eslint-disable-next-line no-console
-					console.error("Auto send for review failed:", err);
-					const message =
-						err?.response?.data?.message ||
-						"Failed to send your updates for review. Please try again.";
-					toast.error(message);
-				}
-			}
-		} else {
-			dispatch(
-				createPost(
-					{
+		setIsSubmitting(true);
+		try {
+			if (selectedPost) {
+				await dispatch(
+					updatePost(selectedPost, {
 						...finalPostData,
 						name: user?.result?.name,
-						authorImage:
-							user?.result?.profileImage || user?.result?.imageUrl,
-					},
-					history,
-				),
-			);
-		}
+					}),
+				);
 
-		// After updating an existing post, clear the editor and
-		// return to the posts list. For new posts, navigation is
-		// handled inside the createPost action (it redirects to the
-		// new post's detail page), so we avoid changing the route
-		// again here.
-		if (selectedPost) {
-			clearPost();
+				if (sendForReviewAfterUpdate) {
+					try {
+						await sendPostForReview(selectedPost, reportId ? { reportId } : {});
+						toast.success(
+							"Your updated post has been sent to the admins for review.",
+						);
+					} catch (err) {
+						// eslint-disable-next-line no-console
+						console.error("Auto send for review failed:", err);
+						const message =
+							err?.response?.data?.message ||
+							"Failed to send your updates for review. Please try again.";
+						toast.error(message);
+					}
+				}
+
+				// After updating an existing post, clear the editor and
+				// return to the posts list.
+				clearPost();
+			} else {
+				await dispatch(
+					createPost(
+						{
+							...finalPostData,
+							name: user?.result?.name,
+							authorImage:
+								user?.result?.profileImage || user?.result?.imageUrl,
+						},
+						history,
+					),
+				);
+			}
+		} finally {
+			setIsSubmitting(false);
 		}
 	};
 
@@ -518,16 +522,24 @@ import { verifyPostLocation, sendPostForReview } from "../../api";
 				{/* Submit */}
 				<button
 					type="submit"
-					disabled={
-						!selectedPost && (!locationVerification || locationVerification.status !== "within-radius")
-					}
-					className={`w-full font-bold py-2.5 rounded-md transition-colors mt-1 ${
-						!selectedPost && (!locationVerification || locationVerification.status !== "within-radius")
-							? "bg-light-green/40 text-text-gray cursor-not-allowed"
-							: "bg-light-green hover:bg-light-green-hover text-text-dark"
-					}`}
+							disabled={
+								isSubmitting ||
+								(!selectedPost && (!locationVerification || locationVerification.status !== "within-radius"))
+							}
+							className={`w-full font-bold py-2.5 rounded-md transition-colors mt-1 ${
+								isSubmitting ||
+								(!selectedPost && (!locationVerification || locationVerification.status !== "within-radius"))
+									? "bg-light-green/40 text-text-gray cursor-not-allowed"
+									: "bg-light-green hover:bg-light-green-hover text-text-dark"
+							}`}
 				>
-					Submit
+							{isSubmitting
+								? selectedPost
+									? "Updating..."
+									: "Uploading..."
+								: selectedPost
+									? "Update Post"
+									: "Submit"}
 				</button>
 
 				{/* Clear */}
