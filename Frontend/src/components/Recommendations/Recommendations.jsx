@@ -312,18 +312,21 @@ const Recommendations = () => {
 					className="fixed inset-0 z-[1400] bg-black/90 flex items-center justify-center"
 					onClick={handleCloseImageDialog}
 				>
+					<button
+						onClick={(e) => {
+							e.stopPropagation();
+							handleCloseImageDialog();
+						}}
+						className="absolute top-6 right-6 z-10 bg-white text-dark-green rounded-full p-2 shadow-lg hover:bg-light-green hover:text-text-dark transition-colors"
+						aria-label="Close image"
+					>
+						<MdClose size={24} />
+					</button>
+
 					<div
 						className="relative flex flex-col items-center max-w-full max-h-full p-4"
 						onClick={(e) => e.stopPropagation()}
 					>
-						{/* Close button */}
-						<button
-							onClick={handleCloseImageDialog}
-							className="absolute top-4 right-4 z-10 bg-white/20 hover:bg-white/30 text-white rounded-full p-2 transition-colors"
-						>
-							<MdClose size={24} />
-						</button>
-
 						{fullScreenImage && (
 							<div className="flex flex-col items-center">
 								<div className="relative flex items-center">

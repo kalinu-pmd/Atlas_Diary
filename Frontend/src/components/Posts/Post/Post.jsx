@@ -194,7 +194,7 @@ const Post = ({ post }) => {
 			: `${messageText.slice(0, maxDescriptionChars).trim()}...`;
 
 	return (
-		<div className="bg-off-white rounded-2xl shadow-card hover:shadow-card-hover transition-all duration-200 overflow-hidden border border-light-green/60 hover:-translate-y-1">
+		<div className="bg-white rounded-2xl shadow-card hover:shadow-card-hover transition-all duration-200 overflow-hidden border border-light-green/60 hover:-translate-y-1">
 			{/* Header with author info */}
 			<div className="px-4 pt-4 pb-3 flex items-center justify-between bg-white/70 backdrop-blur-sm border-b border-light-green/20">
 				<button
@@ -278,7 +278,7 @@ const Post = ({ post }) => {
 			{/* Tags (subtitle) */}
 
 			{/* Description + hashtags (above image, like Facebook) */}
-			<div className="px-4 pt-3 pb-3 bg-off-white">
+			<div className="px-4 pt-3 pb-3 bg-white">
 				<p className="text-sm text-text-dark leading-relaxed">
 					{visibleMessage}
 					{isLongDescription && (
@@ -343,7 +343,7 @@ const Post = ({ post }) => {
 			</div>
 
 			{/* Action buttons */}
-			<div className="flex items-center justify-between px-2 py-2 border-t border-light-green/30 bg-off-white">
+			<div className="flex items-center justify-between px-2 py-2 border-t border-light-green/30 bg-white">
 				<button
 					className="flex-1 flex items-center justify-center gap-2 text-text-gray hover:bg-gray-100 py-2 rounded font-semibold text-sm transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
 					onClick={handleLike}

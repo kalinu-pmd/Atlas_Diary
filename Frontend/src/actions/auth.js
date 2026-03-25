@@ -28,6 +28,24 @@ export const signUp = (formData, history) => async (dispatch) => {
       // ignore storage errors
     }
 
+  // TEMPORARY: store debugOtp locally so we can
+  // auto-fill it on the verify-email screen when
+  // SMTP is blocked in hosting. Safe to delete.
+  try {
+    if (data?.debugOtp) {
+      localStorage.setItem(
+        "debug-signup-otp",
+        JSON.stringify({
+          email: data.email || formData.email,
+          otp: data.debugOtp,
+          createdAt: Date.now(),
+        }),
+      );
+    }
+  } catch {
+    // ignore storage errors
+  }
+
     toast.success(
       "OTP sent to your email. Please verify to complete signup.",
     );

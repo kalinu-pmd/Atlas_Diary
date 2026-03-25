@@ -208,22 +208,25 @@ function PostDetails() {
 		<div>
 			{/* Lightbox Modal */}
 			{lightboxOpen && (
-				<div 
-					className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm"
+				<div
+					className="fixed inset-0 z-[1400] flex items-center justify-center bg-black/75 backdrop-blur-sm"
 					onClick={() => setLightboxOpen(false)}
 				>
-					<div 
+					<button
+						onClick={(e) => {
+							e.stopPropagation();
+							setLightboxOpen(false);
+						}}
+						className="absolute top-6 right-6 bg-white text-dark-green rounded-full p-2 shadow-lg hover:bg-light-green hover:text-text-dark transition-colors"
+						aria-label="Close image"
+					>
+						<MdClose size={24} />
+					</button>
+
+					<div
 						className="relative w-full max-w-4xl mx-4 flex items-center justify-center"
 						onClick={(e) => e.stopPropagation()}
 					>
-						<button
-							onClick={() => setLightboxOpen(false)}
-							className="absolute top-4 right-4 bg-white/20 hover:bg-white/30 text-white rounded-full p-2 transition-colors"
-							aria-label="Close"
-						>
-							<MdClose size={24} />
-						</button>
-
 						{/* Main image */}
 						<div className="relative w-full">
 							<img
