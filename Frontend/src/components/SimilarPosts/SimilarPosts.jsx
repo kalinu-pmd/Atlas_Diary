@@ -57,7 +57,7 @@ const SimilarPosts = ({ postId }) => {
 	return (
 		<div className="bg-off-white border border-dark-green rounded-[15px] shadow-card p-5 mt-5">
 			<h3 className="text-dark-green font-bold text-lg mb-4">
-				Similar Posts
+				You might also like
 			</h3>
 
 			<ul className="flex flex-col gap-0">

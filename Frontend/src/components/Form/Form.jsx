@@ -358,7 +358,7 @@ import { verifyPostLocation, sendPostForReview } from "../../api";
 						htmlFor="tags"
 						className="text-xs font-semibold text-dark-green"
 					>
-						Tags (comma separated){" "}
+						Add hashtags (no need to add #, separate words using comma){" "}
 						<span className="text-red-500">*</span>
 					</label>
 					<input
@@ -375,7 +375,7 @@ import { verifyPostLocation, sendPostForReview } from "../../api";
 								tags: e.target.value.split(","),
 							})
 						}
-						placeholder="travel, adventure, journal"
+						placeholder="mountains, cafe, chiya break"
 						className="w-full bg-off-white border border-dark-green hover:border-light-green focus:border-dark-green focus:outline-none rounded-md px-3 py-2 text-sm text-text-dark transition-colors"
 					/>
 				</div>
