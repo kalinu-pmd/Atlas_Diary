@@ -19,7 +19,9 @@ import {
 export const getPosts = (page) => async (dispatch) => {
 	try {
 		dispatch({ type: START_LOADING });
-		const { data } = await api.fetchPosts(page);
+		// For the main feed we only need a lightweight summary of posts;
+		// this avoids sending full comments and all images for every post.
+		const { data } = await api.fetchPosts(page, { summary: true });
 
 		dispatch({ type: FETCH_ALL, payload: data });
 		dispatch({ type: END_LOADING });
@@ -35,7 +37,7 @@ export const getPosts = (page) => async (dispatch) => {
 // Append additional posts for infinite scrolling without replacing the whole list
 export const loadMorePosts = (page) => async (dispatch) => {
 	try {
-		const { data } = await api.fetchPosts(page);
+		const { data } = await api.fetchPosts(page, { summary: true });
 		dispatch({ type: APPEND_POSTS, payload: data });
 	} catch (error) {
 		console.log("Error message : " + error);

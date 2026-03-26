@@ -341,7 +341,7 @@ const Post = ({ post, onDeleted }) => {
 				{post.comments?.length > 0 && (
 					<span className="flex items-center gap-1">
 						<MdComment size={14} />
-						{post.comments.length} {post.comments.length === 1 ? "comment" : "comments"}
+						{post.comments?.length || post.commentsCount || 0} {(post.comments?.length || post.commentsCount || 0) === 1 ? "comment" : "comments"}
 					</span>
 				)}
 			</div>

@@ -23,15 +23,40 @@ export const getPosts = async (req, res) => {
       .limit(LIMIT)
       .skip(startIndex);
 
-    // If caller requested a lightweight summary (e.g., dashboard), remove heavy fields
+    // If caller requested a lightweight summary (e.g., main feed/dashboard),
+    // trim heavy fields so the response is much smaller for hosted clients.
     if (summary === "true") {
       const summarized = posts.map((p) => {
         const obj = p.toObject();
-        obj.commentsCount = Array.isArray(p.comments) ? p.comments.length : 0;
-        delete obj.comments;
-        delete obj.message;
-        delete obj.selectedFile;
-        return obj;
+
+        const commentsCount = Array.isArray(obj.comments)
+          ? obj.comments.length
+          : 0;
+
+        // Keep only the first image (used as card thumbnail) instead of
+        // sending every base64 string in the array.
+        let firstImage = null;
+        if (Array.isArray(obj.selectedFile) && obj.selectedFile.length > 0) {
+          firstImage = obj.selectedFile[0];
+        } else if (typeof obj.selectedFile === "string") {
+          firstImage = obj.selectedFile;
+        }
+
+        return {
+          _id: obj._id,
+          title: obj.title,
+          message: obj.message,
+          name: obj.name,
+          creator: obj.creator,
+          tags: obj.tags,
+          selectedFile: firstImage,
+          likes: obj.likes,
+          commentsCount,
+          createdAt: obj.createdAt,
+          authorImage: obj.authorImage,
+          locationName: obj.locationName,
+          location: obj.location,
+        };
       });
 
       return res.status(200).json({
