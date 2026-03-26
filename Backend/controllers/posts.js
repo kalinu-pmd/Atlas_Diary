@@ -5,6 +5,7 @@ import PostReport from "../models/postReport.js";
 import mongoose from "mongoose";
 import recommendationService from "../services/recommendationService.js";
 import fetch from "node-fetch";
+import stringSimilarity from "string-similarity";
 
 export const getPosts = async (req, res) => {
   const { page, summary } = req.query;
@@ -55,10 +56,143 @@ export const getPostsBySearch = async (req, res) => {
   const { search, tags } = req.query;
 
   try {
-    const title = new RegExp(search, "i");
-    const posts = await PostMessage.find({
-      $or: [{ title }, { tags: { $in: tags.split(",") } }],
-    });
+    // Treat "none" or empty as no text search (frontend sends "none" when only tags are used)
+    const hasSearch = search && search !== "none";
+    // Frontend sends "none" when there is no tag filter, so treat that as empty
+    const hasTags = tags && tags.trim().length > 0 && tags !== "none";
+
+    // If no filters at all, just return latest posts (defensive fallback)
+    if (!hasSearch && !hasTags) {
+      const posts = await PostMessage.find().sort({ _id: -1 }).limit(20);
+      return res.status(200).json(posts);
+    }
+
+    const escapeRegExp = (str) => str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+    let words = [];
+    let tagArray = [];
+    const andConditions = [];
+
+    if (hasSearch) {
+      // Split search into words and require **all** words to be present
+      words = search.trim().split(/\s+/).filter(Boolean);
+
+      words.forEach((word) => {
+        const safe = escapeRegExp(word);
+        // Match whole words in title/message and also check tags
+        const regex = new RegExp(`\\b${safe}\\b`, "i");
+        andConditions.push({
+          $or: [
+            { title: regex },
+            { message: regex },
+            { locationName: regex },
+            { tags: { $in: [word.toLowerCase()] } },
+          ],
+        });
+      });
+    }
+
+    if (hasTags) {
+      tagArray = tags
+        .split(",")
+        .map((t) => t.trim().toLowerCase())
+        .filter((t) => t && t !== "none");
+
+      if (tagArray.length > 0) {
+        andConditions.push({ tags: { $in: tagArray } });
+      }
+    }
+
+    const query = andConditions.length > 0 ? { $and: andConditions } : {};
+
+    let posts = await PostMessage.find(query).sort({ _id: -1 });
+
+    // Re-rank by relevance when doing a text search so that
+    // posts with the place/title/message match appear first.
+    if (hasSearch && words.length > 0 && posts.length > 1) {
+      const lowerWords = words.map((w) => w.toLowerCase());
+
+      posts = posts
+        .map((post) => {
+          let score = 0;
+          const title = (post.title || "").toLowerCase();
+          const message = (post.message || "").toLowerCase();
+          const locationName = (post.locationName || "").toLowerCase();
+          const tags = Array.isArray(post.tags)
+            ? post.tags.map((t) => (t || "").toLowerCase())
+            : [];
+
+          lowerWords.forEach((word) => {
+            const inLocation = locationName.includes(word);
+            const inTitle = title.includes(word);
+            const inMessage = message.includes(word);
+            const inTags = tags.includes(word);
+
+            if (inLocation) score += 6; // strongest signal for place searches
+            if (inTitle) score += 5;
+            if (inTags) score += 4;
+            if (inMessage) score += 2;
+          });
+
+          return { post, score };
+        })
+        .sort((a, b) => {
+          if (b.score !== a.score) return b.score - a.score;
+          // tie-breaker: newer posts first
+          return (
+            new Date(b.post.createdAt).getTime() -
+            new Date(a.post.createdAt).getTime()
+          );
+        })
+        .map((entry) => entry.post);
+    }
+
+    // Fuzzy fallback: if strict search returns no results, try approximate matching
+    // so that small typos like "butwall" still surface "Butwal" posts.
+    if (hasSearch && posts.length === 0) {
+      const lowerSearch = search.toLowerCase().trim();
+      // Limit to a reasonable number of recent candidates, optionally filtered by tags
+      const baseQuery =
+        tagArray && tagArray.length > 0 ? { tags: { $in: tagArray } } : {};
+
+      const candidates = await PostMessage.find(baseQuery)
+        .sort({ _id: -1 })
+        .limit(200);
+
+      const scored = candidates
+        .map((post) => {
+          const pieces = [];
+          if (post.locationName) pieces.push(post.locationName);
+          if (post.title) pieces.push(post.title);
+          if (post.message) pieces.push(post.message);
+          if (Array.isArray(post.tags)) pieces.push(...post.tags);
+
+          const tokens = pieces
+            .join(" ")
+            .toLowerCase()
+            .split(/[^a-z0-9]+/)
+            .filter(Boolean);
+
+          let maxScore = 0;
+          tokens.forEach((token) => {
+            const s = stringSimilarity.compareTwoStrings(lowerSearch, token);
+            if (s > maxScore) maxScore = s;
+          });
+
+          return { post, score: maxScore };
+        })
+        // Require a minimum similarity on some token so we don't return completely unrelated posts
+        .filter((entry) => entry.score >= 0.7)
+        .sort((a, b) => {
+          if (b.score !== a.score) return b.score - a.score;
+          return (
+            new Date(b.post.createdAt).getTime() -
+            new Date(a.post.createdAt).getTime()
+          );
+        });
+
+      posts = scored.map((entry) => entry.post);
+    }
 
     res.status(200).json(posts);
   } catch (error) {
