@@ -149,7 +149,7 @@ class RecommendationService {
   calculateRecommendationScore(post, userProfile) {
     let score = 0;
 
-    // Tag similarity score (30% weight)
+    // Tag similarity score (15% weight)
     const postTags = post.tags.map((tag) => tag.toLowerCase());
     let tagScore = 0;
     postTags.forEach((tag) => {
@@ -159,19 +159,19 @@ class RecommendationService {
     });
     score +=
       (tagScore / Math.max(1, Object.keys(userProfile.tagFrequency).length)) *
-      0.3;
+      0.15;
 
-    // Content similarity score (30% weight)
+    // Content similarity score (35% weight)
     let maxContentSimilarity = 0;
     userProfile.contentProfile.forEach((userPost) => {
       const similarity = this.calculateContentSimilarity(post, userPost);
       maxContentSimilarity = Math.max(maxContentSimilarity, similarity);
     });
-    score += maxContentSimilarity * 0.3;
+    score += maxContentSimilarity * 0.35;
 
-    // Popularity score (10% weight) - based on likes and comments
+    // Popularity score (15% weight) - based on likes and comments
     const popularityScore = (post.likes.length + post.comments.length) / 100;
-    score += Math.min(popularityScore, 1) * 0.1;
+    score += Math.min(popularityScore, 1) * 0.15;
 
     // Recency score (10% weight) - newer posts get slight boost
     const daysSinceCreated =
@@ -179,7 +179,7 @@ class RecommendationService {
     const recencyScore = Math.max(0, 1 - daysSinceCreated / 30); // Boost for posts within 30 days
     score += recencyScore * 0.1;
 
-    // Location proximity score (20% weight)
+    // Location proximity score (25% weight)
     // If userProfile.location and post.location exist, calculate distance and score
     let locationScore = 0;
     if (userProfile.location && post.location && Array.isArray(post.location.coordinates)) {
@@ -202,7 +202,7 @@ class RecommendationService {
       else if (distance >= 10000) locationScore = 0;
       else locationScore = 1 - (distance - 1000) / 9000;
     }
-    score += locationScore * 0.2;
+    score += locationScore * 0.25;
 
     return score;
   }
