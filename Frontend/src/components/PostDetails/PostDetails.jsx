@@ -33,8 +33,17 @@ function PostDetails() {
 	const [showScrollButton, setShowScrollButton] = useState(true);
 	const similarPostsRef = useRef(null);
 
-	// Detect when similar posts section is visible to hide button
+	// Detect when similar posts section is visible to hide button.
+	// In production, data can render later, so re-bind observer after post loads.
 	useEffect(() => {
+		const target = similarPostsRef.current;
+		if (!target) return;
+
+		if (typeof window === "undefined" || !window.IntersectionObserver) {
+			setShowScrollButton(true);
+			return;
+		}
+
 		const observer = new IntersectionObserver(
 			([entry]) => {
 				setShowScrollButton(!entry.isIntersecting);
@@ -42,16 +51,13 @@ function PostDetails() {
 			{ threshold: 0.1 }
 		);
 
-		if (similarPostsRef.current) {
-			observer.observe(similarPostsRef.current);
-		}
+		observer.observe(target);
 
 		return () => {
-			if (similarPostsRef.current) {
-				observer.unobserve(similarPostsRef.current);
-			}
+			observer.unobserve(target);
+			observer.disconnect();
 		};
-	}, []);
+	}, [isPostLoading, post?._id]);
 
 	useEffect(() => {
 		setIsPostLoading(true);
