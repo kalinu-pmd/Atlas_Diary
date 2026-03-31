@@ -1,6 +1,5 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import LocationPicker from "./LocationPicker";
-import FileBase from "react-file-base64";
 import { useHistory } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import { toast } from "react-toastify";
@@ -32,6 +31,9 @@ import { verifyPostLocation, sendPostForReview } from "../../api";
 	const [locationVerification, setLocationVerification] = useState(null);
 	const [isVerifyingLocation, setIsVerifyingLocation] = useState(false);
 	const [isSubmitting, setIsSubmitting] = useState(false);
+	const [autoVerifyAfterSearch, setAutoVerifyAfterSearch] = useState(false);
+	const MAX_TOTAL_IMAGE_BYTES = 12 * 1024 * 1024; // Keep safely below Mongo 16MB doc limit
+	const fileInputRef = useRef(null);
 
 	const dispatch = useDispatch();
 	const history = useHistory();
@@ -104,6 +106,151 @@ import { verifyPostLocation, sendPostForReview } from "../../api";
 		return true;
 	};
 
+	const estimateBase64Bytes = (dataUrl) => {
+		if (!dataUrl || typeof dataUrl !== "string") return 0;
+		const base64 = dataUrl.includes(",") ? dataUrl.split(",")[1] : dataUrl;
+		if (!base64) return 0;
+		const padding = (base64.match(/=+$/) || [""])[0].length;
+		return Math.floor((base64.length * 3) / 4) - padding;
+	};
+
+	const validateImagePayloadSize = () => {
+		const images = Array.isArray(postData.selectedFile)
+			? postData.selectedFile
+			: postData.selectedFile
+				? [postData.selectedFile]
+				: [];
+
+		const totalBytes = images.reduce(
+			(sum, img) => sum + estimateBase64Bytes(img),
+			0,
+		);
+
+		if (totalBytes > MAX_TOTAL_IMAGE_BYTES) {
+			const mb = (totalBytes / (1024 * 1024)).toFixed(1);
+			setError(
+				`Images are too large (${mb}MB). Please upload smaller/compressed images (max ~12MB total).`,
+			);
+			toast.error(
+				`Upload too large (${mb}MB). Please compress images and keep total under ~12MB.`,
+			);
+			return false;
+		}
+
+		return true;
+	};
+
+	const toBase64 = (file) =>
+		new Promise((resolve, reject) => {
+			const reader = new FileReader();
+			reader.onload = () => resolve(reader.result);
+			reader.onerror = reject;
+			reader.readAsDataURL(file);
+		});
+
+	const appendImagesToPost = async (files, source = "selected") => {
+		if (!Array.isArray(files) || files.length === 0) return;
+
+		try {
+			const encoded = await Promise.all(files.map((f) => toBase64(f)));
+			setPostData((prev) => {
+				const existing = Array.isArray(prev.selectedFile)
+					? prev.selectedFile
+					: prev.selectedFile
+						? [prev.selectedFile]
+						: [];
+				return {
+					...prev,
+					selectedFile: [...existing, ...encoded],
+				};
+			});
+
+			const actionText = source === "clipboard" ? "pasted" : "added";
+			toast.success(
+				`${files.length} image${files.length > 1 ? "s" : ""} ${actionText} successfully!`,
+			);
+		} catch (err) {
+			toast.error("Could not read selected images. Please try again.");
+		}
+	};
+
+	const handleSelectImages = async (event) => {
+		const files = Array.from(event?.target?.files || []);
+		if (!files.length) {
+			// User canceled picker; keep existing images unchanged.
+			return;
+		}
+
+		await appendImagesToPost(files, "selected");
+	};
+
+	const handlePasteImages = async (event) => {
+		const clipboardItems = Array.from(event?.clipboardData?.items || []);
+		if (!clipboardItems.length) return;
+
+		const imageFiles = clipboardItems
+			.filter((item) => item.kind === "file" && item.type?.startsWith("image/"))
+			.map((item) => item.getAsFile())
+			.filter(Boolean);
+
+		if (!imageFiles.length) return;
+
+		event.preventDefault();
+		await appendImagesToPost(imageFiles, "clipboard");
+	};
+
+	const handleRemoveImage = (indexToRemove) => {
+		setPostData((prev) => {
+			const existing = Array.isArray(prev.selectedFile)
+				? prev.selectedFile
+				: prev.selectedFile
+					? [prev.selectedFile]
+					: [];
+			return {
+				...prev,
+				selectedFile: existing.filter((_, idx) => idx !== indexToRemove),
+			};
+		});
+	};
+
+	const moveImage = (fromIndex, toIndex) => {
+		setPostData((prev) => {
+			const existing = Array.isArray(prev.selectedFile)
+				? [...prev.selectedFile]
+				: prev.selectedFile
+					? [prev.selectedFile]
+					: [];
+
+			if (
+				fromIndex < 0 ||
+				toIndex < 0 ||
+				fromIndex >= existing.length ||
+				toIndex >= existing.length ||
+				fromIndex === toIndex
+			) {
+				return prev;
+			}
+
+			const [moved] = existing.splice(fromIndex, 1);
+			existing.splice(toIndex, 0, moved);
+
+			return {
+				...prev,
+				selectedFile: existing,
+			};
+		});
+	};
+
+	const setImageAsFirst = (index) => {
+		moveImage(index, 0);
+		toast.info("Photo order updated. This image will display first.");
+	};
+
+	const handleClearImages = () => {
+		setPostData((prev) => ({ ...prev, selectedFile: [] }));
+		toast.info("All selected images removed.");
+	};
+
 	const handleVerifyLocation = async () => {
 		if (!postData.location || postData.location.lat == null || postData.location.lng == null) {
 			toast.error("Please select a location on the map before verifying.");
@@ -128,20 +275,38 @@ import { verifyPostLocation, sendPostForReview } from "../../api";
 
 			setLocationVerification(data);
 
-			if (data?.status === "within-radius" && data?.newLocation) {
+			if (data?.status === "within-radius") {
+				const preservedLocationName = (postData.locationName || "").trim();
+				const nextLocation = data?.newLocation || postData.location;
+
 				setPostData({
 					...postData,
-					location: data.newLocation,
+					location: nextLocation,
+					// Keep the user's searched/entered label for feed readability.
+					// Only fallback to geocoder label when field is empty.
 					locationName:
+						preservedLocationName ||
 						formatLocationName(data.placeName) ||
-						postData.locationName ||
 						"",
 				});
-				toast.info(
-					data.placeName
-						? `Location verified within 20km: ${data.placeName}.`
-						: "Location verified within 20km of your pin.",
-				);
+
+				if (data?.pinHandling === "kept-user-pin") {
+					toast.success(
+						"Location verified. Your pin is within 10km, so your selected pin was kept.",
+					);
+				} else if (data?.pinHandling === "snapped-to-match") {
+					toast.info(
+						data.placeName
+							? `Location verified. Pin updated to exact match: ${data.placeName}.`
+							: "Location verified. Pin updated to the matched place.",
+					);
+				} else {
+					toast.info(
+						data.placeName
+							? `Location verified within 20km: ${data.placeName}.`
+							: "Location verified within 20km of your pin.",
+					);
+				}
 			} else if (data?.status === "within-search-radius") {
 				// Place is within 50km but further than 20km — close, but not accepted
 				toast.warn(
@@ -175,12 +340,29 @@ import { verifyPostLocation, sendPostForReview } from "../../api";
 		}
 	};
 
+	useEffect(() => {
+		if (!autoVerifyAfterSearch) return;
+		if (isVerifyingLocation) return;
+		if (!postData.location || postData.location.lat == null || postData.location.lng == null) return;
+		if (!postData.locationName || !postData.locationName.trim()) return;
+
+		setAutoVerifyAfterSearch(false);
+		handleVerifyLocation();
+	}, [
+		autoVerifyAfterSearch,
+		postData.location,
+		postData.locationName,
+		isVerifyingLocation,
+	]);
+
 	const handleFormSubmit = async (event) => {
 		event.preventDefault();
 
 		if (isSubmitting) return;
 
 		if (!validateForm()) return;
+
+		if (!validateImagePayloadSize()) return;
 
 		if (!postData.location || postData.location.lat == null || postData.location.lng == null) {
 			toast.error("Please select a location on the map before posting.");
@@ -282,6 +464,9 @@ import { verifyPostLocation, sendPostForReview } from "../../api";
 		setPostData(initial);
 		setError("");
 		setLocationVerification(null);
+		if (fileInputRef.current) {
+			fileInputRef.current.value = "";
+		}
 		dispatch({ type: "SELECTED_POST", payload: "" });
 		if (navigateToPosts) {
 			history.push("/posts");
@@ -380,37 +565,57 @@ import { verifyPostLocation, sendPostForReview } from "../../api";
 					/>
 				</div>
 
-				{/* Location Picker */}
-				<div className="flex flex-col gap-1">
-					<label
-						htmlFor="locationName"
-						className="text-xs font-semibold text-dark-green"
-					>
-						Location name <span className="text-red-500">*</span>
-					</label>
-					<input
-						id="locationName"
-						name="locationName"
-						value={postData.locationName || ""}
-						onChange={(e) =>
-							setPostData({ ...postData, locationName: e.target.value })
-						}
-						placeholder="e.g. Pokhara, Lakeside"
-						className="w-full bg-off-white border border-dark-green hover:border-light-green focus:border-dark-green focus:outline-none rounded-md px-3 py-2 text-sm text-text-dark transition-colors"
-					/>
-					<label className="text-xs font-semibold text-dark-green">
-						Select Location (click on map)
-					</label>
+				{/* Location (Search + Pin) */}
+				<div className="rounded-xl border-2 border-light-green/60 bg-gradient-to-br from-off-white via-off-white to-light-green/10 p-4 shadow-sm">
+					<div className="mb-2">
+						<p className="text-sm font-bold text-dark-green">
+							Find Your Place <span className="text-red-500">*</span>
+						</p>
+						<p className="text-xs text-text-gray">
+							Search first for best accuracy. If needed, fine-tune by pinning on map.
+						</p>
+					</div>
+
 					<LocationPicker
 						value={postData.location}
-						onChange={(loc) => {
-							setPostData({ ...postData, location: loc });
+						onChange={(loc, meta) => {
+							setPostData((prev) => {
+								const next = { ...prev, location: loc };
+								if (meta?.source === "search" && meta?.placeName) {
+									next.locationName = meta.placeName;
+								}
+								return next;
+							});
+							setAutoVerifyAfterSearch(meta?.source === "search");
 							setLocationVerification(null);
 						}}
 					/>
+
+					<div className="mt-2 flex flex-col gap-1">
+						<label
+							htmlFor="locationName"
+							className="text-xs font-semibold text-dark-green"
+						>
+							Enter location name <span className="text-red-500">*</span>
+						</label>
+						<input
+							id="locationName"
+							name="locationName"
+							value={postData.locationName || ""}
+							onChange={(e) =>
+								setPostData({ ...postData, locationName: e.target.value })
+							}
+							placeholder="Auto-filled from search (you can edit)"
+							className="w-full bg-white border border-dark-green/40 hover:border-light-green focus:border-dark-green focus:outline-none rounded-md px-3 py-2 text-sm text-text-dark transition-colors"
+						/>
+					</div>
+
 					{postData.location && (
-						<div className="text-xs text-text-gray">Selected: Lat {postData.location.lat}, Lng {postData.location.lng}</div>
+						<div className="mt-2 text-xs text-text-gray bg-white/70 border border-dark-green/10 rounded-md px-2 py-1">
+							Selected pin: Lat {postData.location.lat}, Lng {postData.location.lng}
+						</div>
 					)}
+
 					<div className="flex gap-2 mt-3">
 						<button
 							type="button"
@@ -418,10 +623,10 @@ import { verifyPostLocation, sendPostForReview } from "../../api";
 							disabled={isVerifyingLocation}
 							className={`flex-1 px-4 py-3 rounded-lg text-sm font-bold border-2 transition-all transform ${
 								locationVerification?.status === "within-radius"
-									? "bg-dark-green text-off-white border-dark-green shadow-lg hover:shadow-xl hover:scale-105"
-									: "bg-light-green text-text-dark border-dark-green shadow-md hover:shadow-lg hover:scale-105 hover:bg-light-green-hover"
+									? "bg-dark-green text-off-white border-dark-green shadow-lg hover:shadow-xl"
+									: "bg-light-green text-text-dark border-dark-green shadow-md hover:shadow-lg hover:bg-light-green-hover"
 							} ${
-								isVerifyingLocation ? "opacity-75 cursor-not-allowed scale-100" : "cursor-pointer"
+								isVerifyingLocation ? "opacity-75 cursor-not-allowed" : "cursor-pointer"
 							}`}
 						>
 							{isVerifyingLocation ? (
@@ -443,7 +648,7 @@ import { verifyPostLocation, sendPostForReview } from "../../api";
 						</button>
 					</div>
 					<p className="text-xs text-text-gray italic mt-2">
-						⭐ Verify your location to ensure accuracy and help other users find genuine places!
+						⭐ Tip: Searching by place name is usually more accurate than manual pinning.
 					</p>
 					{locationVerification && (
 						<div
@@ -507,6 +712,14 @@ import { verifyPostLocation, sendPostForReview } from "../../api";
 					<p className="text-dark-green font-semibold text-sm mb-2">
 						Upload Images (Optional)
 					</p>
+					<div
+						onPaste={handlePasteImages}
+						tabIndex={0}
+						className="mb-3 rounded-md border border-dashed border-dark-green/40 bg-white/70 px-3 py-2 text-xs text-text-gray focus:outline-none focus:ring-2 focus:ring-light-green/70"
+						title="Click here and press Ctrl+V to paste an image from clipboard"
+					>
+						Paste from clipboard: click this box and press Ctrl+V
+					</div>
 					{(Array.isArray(postData.selectedFile)
 						? postData.selectedFile.length > 0
 						: !!postData.selectedFile) && (
@@ -515,44 +728,107 @@ import { verifyPostLocation, sendPostForReview } from "../../api";
 								? postData.selectedFile
 								: [postData.selectedFile]
 							).map((image, idx) => (
-								<img
-									key={idx}
-									src={image}
-									alt={`Existing upload ${idx + 1}`}
-									className="w-full h-24 object-cover rounded-md border border-dark-green/20"
-									onError={(e) => {
-										e.target.onerror = null;
-										e.target.src =
-											"https://user-images.githubusercontent.com/194400/49531010-48dad180-f8b1-11e8-8d89-1e61320e1d82.png";
-									}}
-								/>
+								<div key={idx} className="relative">
+									<img
+										src={image}
+										alt={`Existing upload ${idx + 1}`}
+										className="w-full h-24 object-cover rounded-md border border-dark-green/20"
+										onError={(e) => {
+											e.target.onerror = null;
+											e.target.src =
+												"https://user-images.githubusercontent.com/194400/49531010-48dad180-f8b1-11e8-8d89-1e61320e1d82.png";
+										}}
+									/>
+									{idx === 0 && (
+										<span className="absolute left-1 top-1 text-[10px] font-bold bg-dark-green text-off-white px-2 py-0.5 rounded-full">
+											1st
+										</span>
+									)}
+									<button
+										type="button"
+										onClick={() => handleRemoveImage(idx)}
+										className="absolute top-1 right-1 w-6 h-6 rounded-full bg-black/70 text-white text-xs font-bold hover:bg-orange transition-colors"
+										title="Remove this image"
+									>
+										×
+									</button>
+									<div className="absolute bottom-1 left-1 right-1 flex gap-1">
+										<button
+											type="button"
+											onClick={() => moveImage(idx, idx - 1)}
+											disabled={idx === 0}
+											className="flex-1 text-[10px] font-semibold bg-black/65 text-white rounded px-1 py-0.5 disabled:opacity-40"
+											title="Move left"
+										>
+											←
+										</button>
+										<button
+											type="button"
+											onClick={() => setImageAsFirst(idx)}
+											disabled={idx === 0}
+											className="flex-1 text-[10px] font-semibold bg-black/65 text-white rounded px-1 py-0.5 disabled:opacity-40"
+											title="Set as first image"
+										>
+											1st
+										</button>
+										<button
+											type="button"
+											onClick={() => moveImage(idx, idx + 1)}
+											disabled={
+												idx ===
+												(Array.isArray(postData.selectedFile)
+													? postData.selectedFile.length
+													: [postData.selectedFile].length) -
+													1
+											}
+											className="flex-1 text-[10px] font-semibold bg-black/65 text-white rounded px-1 py-0.5 disabled:opacity-40"
+											title="Move right"
+										>
+											→
+										</button>
+									</div>
+								</div>
 							))}
 						</div>
 					)}
-					<FileBase
-						type="file"
-						multiple={true}
-						onDone={(files) => {
-							if (Array.isArray(files)) {
-								const fileStrings = files.map((f) => f.base64);
-								setPostData({
-									...postData,
-									selectedFile: fileStrings,
-								});
-								toast.success(
-									`${files.length} image${files.length > 1 ? "s" : ""} uploaded successfully!`,
-								);
-							} else {
-								setPostData({
-									...postData,
-									selectedFile: [files.base64],
-								});
-								toast.success("Image uploaded successfully!");
-							}
-						}}
-					/>
+					<div className="flex flex-wrap gap-2 items-center">
+						<input
+							ref={fileInputRef}
+							type="file"
+							accept="image/*"
+							multiple
+							onChange={handleSelectImages}
+							className="hidden"
+						/>
+						<button
+							type="button"
+							onClick={() => fileInputRef.current?.click()}
+							className="px-3 py-2 rounded-md bg-dark-green text-off-white text-sm font-semibold hover:bg-dark-green-hover transition-colors"
+						>
+							Add Photos
+						</button>
+						{(Array.isArray(postData.selectedFile)
+							? postData.selectedFile.length > 0
+							: !!postData.selectedFile) && (
+							<>
+								<span className="text-xs text-text-gray font-medium">
+									{Array.isArray(postData.selectedFile)
+										? `${postData.selectedFile.length} image${postData.selectedFile.length > 1 ? "s" : ""} selected`
+										: "1 image selected"}
+								</span>
+								<button
+									type="button"
+									onClick={handleClearImages}
+									className="px-3 py-2 rounded-md bg-orange/10 text-orange text-sm font-semibold hover:bg-orange/20 transition-colors"
+								>
+									Remove All
+								</button>
+							</>
+						)}
+					</div>
 					<p className="text-text-gray text-xs italic mt-2">
 						You can upload multiple images to enhance your post.
+						 Use arrows or "1st" to rearrange display order.
 						Supported formats: JPG, PNG, GIF
 					</p>
 				</div>

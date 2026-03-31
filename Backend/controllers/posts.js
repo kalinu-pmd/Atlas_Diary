@@ -272,7 +272,20 @@ export const createPost = async (req, res) => {
     await newPost.save();
     res.status(201).json(newPost);
   } catch (error) {
-    res.status(409).json({ message: error });
+    const messageText = String(error?.message || "");
+    const isDocTooLarge =
+      messageText.includes("BSON") ||
+      messageText.toLowerCase().includes("document") &&
+        messageText.toLowerCase().includes("too large");
+
+    if (isDocTooLarge) {
+      return res.status(413).json({
+        message:
+          "Post data is too large (images exceed limit). Please upload smaller or compressed images.",
+      });
+    }
+
+    res.status(409).json({ message: messageText || "Failed to create post." });
   }
 };
 
@@ -291,7 +304,20 @@ export const updatePost = async (req, res) => {
     );
     res.status(200).json(updatedPost);
   } catch (error) {
-    res.status(409).json({ message: error });
+    const messageText = String(error?.message || "");
+    const isDocTooLarge =
+      messageText.includes("BSON") ||
+      messageText.toLowerCase().includes("document") &&
+        messageText.toLowerCase().includes("too large");
+
+    if (isDocTooLarge) {
+      return res.status(413).json({
+        message:
+          "Updated post is too large (images exceed limit). Please use smaller/compressed images.",
+      });
+    }
+
+    res.status(409).json({ message: messageText || "Failed to update post." });
   }
 };
 
@@ -350,18 +376,41 @@ export const likePost = async (req, res) => {
       const isOwner = String(post.creator) === String(req.userId);
       if (!isOwner) {
         try {
-          await Notification.create({
+          const existingUnreadLike = await Notification.findOne({
             user: post.creator,
             fromUser: req.userId,
             post: post._id,
             type: "like",
+            read: false,
           });
+
+          if (!existingUnreadLike) {
+            await Notification.create({
+              user: post.creator,
+              fromUser: req.userId,
+              post: post._id,
+              type: "like",
+            });
+          }
         } catch (notifyError) {
           console.error("Failed to create like notification:", notifyError);
         }
       }
     } else {
       post.likes = post.likes.filter((id) => id !== String(req.userId));
+
+      // If user unlikes, remove their pending unread like alert for this post.
+      try {
+        await Notification.deleteMany({
+          user: post.creator,
+          fromUser: req.userId,
+          post: post._id,
+          type: "like",
+          read: false,
+        });
+      } catch (notifyError) {
+        console.error("Failed to clear like notification on unlike:", notifyError);
+      }
     }
 
     const updatedPost = await PostMessage.findByIdAndUpdate(id, post, {
@@ -844,8 +893,10 @@ function haversineDistanceMeters(lat1, lng1, lat2, lng2) {
   return R * c;
 }
 
-// Verify that the place mentioned in title/message exists near the selected map point
-// and, if found within a 20km radius, snap the coordinates to that exact place.
+// Verify that the place mentioned in title/message exists near the selected map point.
+// Pin handling rule:
+// - If matched place is within 10km of current pin: keep user's pin unchanged.
+// - If matched place is beyond 10km (but within 20km accept radius): auto-snap to matched place.
 export const verifyPostLocation = async (req, res) => {
   const { title, message, location } = req.body || {};
 
@@ -860,10 +911,11 @@ export const verifyPostLocation = async (req, res) => {
     return res.status(200).json({ status: "no-text", verified: false });
   }
 
-  // We search within 50km, but only accept posts when the mentioned
-  // place is within 20km of the selected pin.
+  // We search within 50km, and accept when within 20km of the selected pin.
+  // For accepted matches, only snap pin when distance is greater than 10km.
   const searchRadiusKm = 50;
   const acceptRadiusKm = 20;
+  const snapThresholdKm = 10;
   const { lat, lng } = location;
 
   // Approximate bounding box for 50km search radius
@@ -954,11 +1006,15 @@ export const verifyPostLocation = async (req, res) => {
     const { place: validPlace, placeLat, placeLng, distanceMeters } = nearest;
 
     if (distanceMeters <= acceptRadiusKm * 1000) {
-      // Place exists within 20km radius — snap the coordinates to this place
+      const shouldSnapToMatch = distanceMeters > snapThresholdKm * 1000;
+
+      // Keep user's pin if already close (<=10km); otherwise snap to matched place.
       return res.status(200).json({
         status: "within-radius",
         verified: true,
-        newLocation: { lat: placeLat, lng: placeLng },
+        pinHandling: shouldSnapToMatch ? "snapped-to-match" : "kept-user-pin",
+        newLocation: shouldSnapToMatch ? { lat: placeLat, lng: placeLng } : null,
+        currentLocation: { lat, lng },
         placeName: validPlace.display_name,
         distanceMeters,
       });

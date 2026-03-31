@@ -63,7 +63,7 @@ function Navbar() {
 			// Optional: only poll when tab is visible
 			if (typeof document !== "undefined" && document.visibilityState === "hidden") return;
 			dispatch(getNotifications());
-		}, 3000); // every 3 seconds (local DB)
+		}, 7000); // every 7 seconds (local DB)
 
 		return () => clearInterval(intervalId);
 	}, [dispatch, user?.token]);
