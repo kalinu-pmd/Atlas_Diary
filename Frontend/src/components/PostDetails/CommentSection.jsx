@@ -23,77 +23,87 @@ const CommentSection = ({ post }) => {
 	};
 
 	return (
-		<div className="bg-light-green/5 p-3 rounded-lg border border-light-green shadow-sm">
+		<div className="bg-gradient-to-br from-light-green/10 via-off-white to-light-green/5 p-5 rounded-[18px] border-2 border-light-green/50 shadow-lg">
+			{/* Header */}
+			<div className="mb-5 pb-4 border-b-2 border-light-green/40">
+				<h3 className="text-dark-green font-extrabold text-lg flex items-center gap-2">
+					<span className="text-xl">💬</span>
+					Comments {hasComments && `(${comments.length})`}
+				</h3>
+				{!hasComments && (
+					<p className="text-xs text-text-gray italic mt-1">No comments yet. Be the first to share your thoughts!</p>
+				)}
+			</div>
+
 			{/* Comments list */}
-			{hasComments ? (
+			{hasComments && (
 				<div
-					className="max-h-[240px] overflow-y-auto bg-off-white p-3 rounded-lg border border-dark-green/20 shadow-sm mb-3"
+					className="max-h-[300px] overflow-y-auto bg-off-white/60 p-4 rounded-[15px] border-2 border-light-green/30 shadow-inner mb-5 space-y-3"
 					style={{
 						scrollbarWidth: "thin",
-						scrollbarColor: "#affa01 #f1f1f1",
+						scrollbarColor: "#affa01 transparent",
 					}}
 				>
-					<h3 className="text-dark-green font-bold text-sm mb-2">
-						Comments ({comments.length})
-					</h3>
+					{comments.map((c, i) => {
+						const [userName, ...commentParts] = c.split(": ");
+						const commentText = commentParts.join(": ");
+						return (
+							<div
+								key={i}
+								className="bg-gradient-to-r from-light-green/20 to-dark-green/10 px-4 py-3 rounded-[12px] border-l-4 border-light-green shadow-sm hover:shadow-md transition-all duration-300 hover:translate-x-1"
+							>
+								<p className="text-xs text-text-dark leading-relaxed">
+									<strong className="text-dark-green font-bold text-sm block mb-1.5">
+										✍️ {userName}
+									</strong>
+									<span className="text-text-dark">{commentText}</span>
+								</p>
+							</div>
+						);
+					})}
 
-					{comments.map((c, i) => (
-						<div
-							key={i}
-							className="bg-light-green/10 px-2 py-2 my-1 rounded text-xs border border-dark-green/10"
-						>
-							<p className="text-xs text-text-dark">
-								<strong className="text-dark-green font-semibold">
-									{c?.split(": ")[0]}
-								</strong>
-								<span className="ml-1">
-									{c?.split(": ")?.slice(1).join(": ")}
-								</span>
-							</p>
-						</div>
-					))}
-
-					<div ref={commentRef} />
-				</div>
-			) : (
-				<div className="flex items-center justify-between mb-2 text-xs text-text-gray px-1">
-					<span className="font-semibold text-dark-green">
-						Comments (0)
-					</span>
-					<span className="italic">No comments yet. Be first!</span>
+					<div ref={commentRef} className="h-0" />
 				</div>
 			)}
 
 			{/* Comment form - integrated inside */}
 			{user?.result?.name ? (
-				<div className="flex flex-col gap-2">
-					<textarea
-						rows={2}
-						value={comment}
-						onChange={(e) => setComment(e.target.value)}
-						placeholder="Add a comment..."
-						className="w-full bg-off-white border border-dark-green hover:border-light-green focus:border-light-green focus:outline-none rounded text-xs px-2 py-1.5 text-text-dark resize-none transition-colors"
-					/>
+				<div className="flex flex-col gap-3">
+					<div className="relative">
+						<label className="text-xs font-bold text-dark-green mb-2 block">Your comment</label>
+						<textarea
+							rows={3}
+							value={comment}
+							onChange={(e) => setComment(e.target.value)}
+							placeholder="Share your thoughts about this amazing place..."
+							className="w-full bg-white border-2 border-light-green/50 hover:border-light-green focus:border-dark-green focus:outline-none rounded-[12px] text-sm px-4 py-3 text-text-dark resize-none transition-all duration-300 shadow-sm focus:shadow-md focus:ring-2 focus:ring-light-green/30"
+						/>
+					</div>
 
 					<button
 						onClick={handleClick}
 						disabled={!comment.trim()}
-						className="w-full text-xs bg-light-green hover:bg-light-green-hover disabled:bg-gray-200 disabled:text-gray-400 text-text-dark font-bold py-1.5 px-3 rounded transition-colors disabled:cursor-not-allowed"
+						className="w-full text-sm bg-gradient-to-r from-dark-green to-dark-green/80 hover:from-light-green hover:to-light-green/80 disabled:from-gray-300 disabled:to-gray-300 text-off-white hover:text-text-dark disabled:text-gray-500 font-bold py-2.5 px-4 rounded-[12px] transition-all duration-300 disabled:cursor-not-allowed shadow-md hover:shadow-lg hover:translate-y-0.5 border border-light-green/30"
 					>
-						Comment
+						✓ Post Comment
 					</button>
 				</div>
 			) : (
-				<div className="bg-gradient-to-br from-light-green/10 to-dark-green/5 p-3 rounded-lg border border-light-green shadow-sm flex flex-col items-center justify-center gap-2">
-					<MdLogin size={24} className="text-dark-green opacity-60" />
-					<p className="text-dark-green font-semibold text-xs text-center">
-						Sign in to comment
+				<div
+					className="bg-gradient-to-br from-dark-green/5 via-light-green/10 to-dark-green/5 p-6 rounded-[15px] border-2 border-dashed border-light-green shadow-md flex flex-col items-center justify-center gap-3 backdrop-blur-sm"
+				>
+					<div className="text-4xl">🔐</div>
+					<p className="text-dark-green font-bold text-sm text-center">
+						Sign in to share your thoughts
+					</p>
+					<p className="text-xs text-text-gray text-center max-w-xs">
+						Join our community and leave comments on amazing travel spots
 					</p>
 					<button
 						onClick={() => history.push("/auth")}
-						className="w-full text-xs bg-dark-green hover:bg-dark-green-hover text-off-white font-bold py-1.5 px-2 rounded transition-colors"
+						className="w-40 text-sm bg-gradient-to-r from-dark-green to-dark-green/80 hover:from-light-green hover:to-light-green/80 text-off-white hover:text-text-dark font-bold py-2.5 px-4 rounded-full transition-all duration-300 shadow-lg hover:shadow-xl border border-light-green/40"
 					>
-						Sign In
+						🔑 Sign In
 					</button>
 				</div>
 			)}

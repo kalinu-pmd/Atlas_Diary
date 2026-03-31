@@ -83,12 +83,14 @@ export const requestPasswordReset = (formData) => async () => {
       data?.message ||
       "If an account with that email exists, we have sent a reset code.";
     toast.success(message);
+    return true;
   } catch (error) {
     console.log(error);
     const errorMessage =
       error.response?.data?.message ||
       "Failed to request password reset. Please try again.";
     toast.error(errorMessage);
+    return false;
   }
 };
 

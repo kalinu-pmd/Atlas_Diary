@@ -93,10 +93,10 @@ import { verifyPostLocation, sendPostForReview } from "../../api";
 	}, [selectedPost, posts, detailedPost]);
 
 	const validateForm = () => {
-		if (!postData.title || !postData.message || !postData.tags) {
-			setError("Location name, message, and tags are required.");
+		if (!postData.title || !postData.locationName || !postData.message || !postData.tags) {
+			setError("Title, location name, message, and tags are required.");
 			toast.error(
-				"Please fill in all required fields (Location name, Message, and Tags).",
+				"Please fill in all required fields (Title, Location name, Message, and Tags).",
 			);
 			return false;
 		}
@@ -111,8 +111,8 @@ import { verifyPostLocation, sendPostForReview } from "../../api";
 			return;
 		}
 
-		if (!postData.title && !postData.message) {
-			toast.warn("Add a place name in the Location name field or message to verify location.");
+		if (!postData.locationName) {
+			toast.warn("Add a place name in the Location name field to verify location.");
 			return;
 		}
 
@@ -121,7 +121,7 @@ import { verifyPostLocation, sendPostForReview } from "../../api";
 
 		try {
 			const { data } = await verifyPostLocation({
-				title: postData.title,
+				title: postData.locationName,
 				message: postData.message,
 				location: postData.location,
 			});
@@ -157,7 +157,7 @@ import { verifyPostLocation, sendPostForReview } from "../../api";
 				);
 			} else if (data?.status === "no-text") {
 				toast.warn(
-					"Add a place name in the Location name field or message so we can verify the location.",
+					"Add a place name in the Location name field so we can verify the location.",
 				);
 			} else if (data?.status === "service-unavailable") {
 				toast.info(
@@ -308,13 +308,13 @@ import { verifyPostLocation, sendPostForReview } from "../../api";
 					<p className="text-red-500 text-sm font-medium">{error}</p>
 				)}
 
-				{/* Location name (used as title) */}
+				{/* Title */}
 				<div className="flex flex-col gap-1">
 					<label
 						htmlFor="title"
 						className="text-xs font-semibold text-dark-green"
 					>
-						Location name <span className="text-red-500">*</span>
+						Title <span className="text-red-500">*</span>
 					</label>
 					<input
 						id="title"
@@ -323,7 +323,7 @@ import { verifyPostLocation, sendPostForReview } from "../../api";
 						onChange={(e) =>
 							setPostData({ ...postData, title: e.target.value })
 						}
-						placeholder="e.g. Marine Drive, Mumbai"
+						placeholder="e.g. Sunset walk at Lakeside"
 						className="w-full bg-off-white border border-dark-green hover:border-light-green focus:border-dark-green focus:outline-none rounded-md px-3 py-2 text-sm text-text-dark transition-colors"
 					/>
 				</div>
@@ -382,6 +382,22 @@ import { verifyPostLocation, sendPostForReview } from "../../api";
 
 				{/* Location Picker */}
 				<div className="flex flex-col gap-1">
+					<label
+						htmlFor="locationName"
+						className="text-xs font-semibold text-dark-green"
+					>
+						Location name <span className="text-red-500">*</span>
+					</label>
+					<input
+						id="locationName"
+						name="locationName"
+						value={postData.locationName || ""}
+						onChange={(e) =>
+							setPostData({ ...postData, locationName: e.target.value })
+						}
+						placeholder="e.g. Pokhara, Lakeside"
+						className="w-full bg-off-white border border-dark-green hover:border-light-green focus:border-dark-green focus:outline-none rounded-md px-3 py-2 text-sm text-text-dark transition-colors"
+					/>
 					<label className="text-xs font-semibold text-dark-green">
 						Select Location (click on map)
 					</label>
@@ -395,18 +411,40 @@ import { verifyPostLocation, sendPostForReview } from "../../api";
 					{postData.location && (
 						<div className="text-xs text-text-gray">Selected: Lat {postData.location.lat}, Lng {postData.location.lng}</div>
 					)}
-					<div className="flex gap-2 mt-1">
+					<div className="flex gap-2 mt-3">
 						<button
 							type="button"
 							onClick={handleVerifyLocation}
 							disabled={isVerifyingLocation}
-							className={`px-3 py-1 rounded-md text-xs font-semibold border border-dark-green text-dark-green bg-off-white hover:bg-light-green/20 transition-colors ${
-								isVerifyingLocation ? "opacity-60 cursor-not-allowed" : ""
+							className={`flex-1 px-4 py-3 rounded-lg text-sm font-bold border-2 transition-all transform ${
+								locationVerification?.status === "within-radius"
+									? "bg-dark-green text-off-white border-dark-green shadow-lg hover:shadow-xl hover:scale-105"
+									: "bg-light-green text-text-dark border-dark-green shadow-md hover:shadow-lg hover:scale-105 hover:bg-light-green-hover"
+							} ${
+								isVerifyingLocation ? "opacity-75 cursor-not-allowed scale-100" : "cursor-pointer"
 							}`}
 						>
-							{isVerifyingLocation ? "Verifying..." : "Verify location"}
+							{isVerifyingLocation ? (
+								<>
+									<span className="inline-block mr-2">⏳</span>
+									Verifying Location...
+								</>
+							) : locationVerification?.status === "within-radius" ? (
+								<>
+									<span className="inline-block mr-2">✅</span>
+									Location Verified!
+								</>
+							) : (
+								<>
+									<span className="inline-block mr-2">📍</span>
+									Verify Location
+								</>
+							)}
 						</button>
 					</div>
+					<p className="text-xs text-text-gray italic mt-2">
+						⭐ Verify your location to ensure accuracy and help other users find genuine places!
+					</p>
 					{locationVerification && (
 						<div
 							className={`text-[11px] mt-1 ${
@@ -447,7 +485,7 @@ import { verifyPostLocation, sendPostForReview } from "../../api";
 							)}
 							{locationVerification.status === "no-text" && (
 								<span>
-									Add a place name in the title or message to verify the location.
+									Add a place name in the Location name field to verify the location.
 								</span>
 							)}
 							{locationVerification.status === "service-unavailable" && (

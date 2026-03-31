@@ -46,7 +46,7 @@ const Input = ({
 					{label}
 				</label>
 
-				{name === "password" && handleShowPassword && (
+				{(name === "password" || name === "newPassword" || name === "confirmPassword") && handleShowPassword && (
 					<button
 						type="button"
 						onClick={handleShowPassword}

@@ -55,13 +55,20 @@ const SimilarPosts = ({ postId }) => {
 	}
 
 	return (
-		<div className="bg-off-white border border-dark-green rounded-[15px] shadow-card p-5 mt-5">
-			<h3 className="text-dark-green font-bold text-lg mb-4">
-				You might also like
-			</h3>
+		<div className="bg-gradient-to-br from-off-white via-off-white to-light-green/5 border-2 border-light-green rounded-[20px] shadow-lg p-6 mt-5">
+			{/* Header section with gradient accent */}
+			<div className="mb-6 pb-4 border-b-2 border-light-green/40">
+				<h3 className="text-dark-green font-extrabold text-2xl mb-1">
+					✨ You might also like
+				</h3>
+				<p className="text-text-gray text-sm">
+					Discovering places based on tags and location similarity
+				</p>
+			</div>
 
-			<ul className="flex flex-col gap-0">
-				{similarPosts.map((simPost) => {
+			{/* Grid layout for better visual management */}
+			<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+				{similarPosts.map((simPost, idx) => {
 					// Calculate distance if both posts have location
 					let nearbyText = null;
 					if (
@@ -80,86 +87,118 @@ const SimilarPosts = ({ postId }) => {
 							nearbyText = `Nearby: ${(dist).toFixed(2)} km`;
 						}
 					}
+
 					return (
-						<li
+						<div
 							key={simPost._id}
 							onClick={() => handleViewPost(simPost._id)}
-							className={`
-								flex items-start gap-3 py-3 px-3 rounded-lg cursor-pointer
-								bg-light-green/5 border border-light-green/30 mb-2
-								hover:bg-light-green/10 hover:translate-x-1
-								transition-all duration-200
-							`}
+							className="group bg-white border-2 border-light-green/50 rounded-[15px] p-4 cursor-pointer hover:border-dark-green hover:shadow-xl transition-all duration-300 hover:-translate-y-1"
+							style={{
+								animation: `slideIn 0.5s ease-out ${idx * 0.1}s backwards`,
+							}}
 						>
-							{/* Avatar */}
-							<div className="shrink-0 w-10 h-10 rounded-full bg-dark-green text-off-white flex items-center justify-center font-bold text-sm overflow-hidden">
-								{Array.isArray(simPost.selectedFile) &&
-								simPost.selectedFile.length > 0 ? (
-									<img
-										src={simPost.selectedFile[0]}
-										alt={simPost.title}
-										className="w-full h-full object-cover"
-										onError={(e) => {
-											e.target.onerror = null;
-											e.target.style.display = "none";
-										}}
-									/>
-								) : simPost.selectedFile ? (
-									<img
-										src={simPost.selectedFile}
-										alt={simPost.title}
-										className="w-full h-full object-cover"
-										onError={(e) => {
-											e.target.onerror = null;
-											e.target.style.display = "none";
-										}}
-									/>
-								) : (
-									simPost.title.charAt(0).toUpperCase()
-								)}
+							{/* Thumbnail Image */}
+							<div className="relative mb-3 overflow-hidden rounded-[10px] bg-gray-200 h-40">
+								<img
+									src={
+										Array.isArray(simPost.selectedFile) &&
+										simPost.selectedFile.length > 0
+											? simPost.selectedFile[0]
+											: simPost.selectedFile
+									}
+									alt={simPost.title}
+									className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
+									onError={(e) => {
+										e.target.onerror = null;
+										e.target.src =
+											"https://user-images.githubusercontent.com/194400/49531010-48dad180-f8b1-11e8-8d89-1e61320e1d82.png";
+									}}
+								/>
+								{/* Similarity badge overlay */}
+								<div className="absolute top-2 right-2 bg-dark-green text-light-green text-xs font-bold px-2.5 py-1 rounded-full backdrop-blur-sm">
+									{(simPost.similarityScore * 100).toFixed(0)}% Match
+								</div>
 							</div>
 
-							{/* Content */}
-							<div className="flex-1 min-w-0">
-								<p className="font-bold text-text-dark text-sm leading-snug mb-0.5">
+							{/* Content Section */}
+							<div>
+								{/* Author & Time */}
+								<p className="text-[0.75rem] text-text-gray font-medium mb-1.5 flex items-center gap-1.5">
+									<span className="inline-block w-5 h-5 rounded-full bg-light-green/40 text-text-dark text-[0.6rem] flex items-center justify-center font-bold">
+										{simPost.name?.charAt(0).toUpperCase()}
+									</span>
+									{simPost.name} • {moment(simPost.createdAt).fromNow()}
+								</p>
+
+								{/* Title */}
+								<h4 className="font-bold text-text-dark text-sm leading-snug mb-2 line-clamp-2 group-hover:text-dark-green transition-colors">
 									{simPost.title}
-								</p>
+								</h4>
 
-								<p className="text-text-gray text-xs mb-1 line-clamp-2">
-									{simPost.message.substring(0, 80)}...
-								</p>
-
-								<p className="text-text-gray text-xs italic mb-1">
-									By {simPost.name} &bull; {moment(simPost.createdAt).fromNow()}
+								{/* Description */}
+								<p className="text-text-gray text-xs mb-2.5 line-clamp-2 leading-relaxed">
+									{simPost.message.substring(0, 85)}...
 								</p>
 
 								{/* Tags */}
-								<div className="flex flex-wrap gap-1 mt-1">
-									{simPost.tags.slice(0, 3).map((tag, tagIndex) => (
+								<div className="flex flex-wrap gap-1.5 mb-2.5">
+									{simPost.tags.slice(0, 2).map((tag, tagIndex) => (
 										<span
 											key={tagIndex}
-											className="bg-light-green text-text-dark text-[0.7rem] font-medium px-2 py-0.5 rounded-full border border-dark-green/20"
+											className="bg-light-green/80 text-text-dark text-[0.65rem] font-semibold px-2 py-0.5 rounded-full border border-dark-green/30"
 										>
-											{tag}
+											#{tag}
 										</span>
 									))}
+									{simPost.tags.length > 2 && (
+										<span className="text-[0.65rem] text-text-gray font-medium px-2 py-0.5 italic">
+											+{simPost.tags.length - 2} more
+										</span>
+									)}
 								</div>
 
-								{/* Similarity score (content/tags only) */}
-								<p className="text-[#1976d2] font-bold text-xs mt-1.5">
-									Similarity: {(simPost.similarityScore * 100).toFixed(0)}%
-								</p>
-								{/* Separate nearby distance indicator based on location */}
-								{nearbyText && (
-									<p className="text-green-800 font-semibold text-xs mt-0.5">
-										{nearbyText}
-									</p>
-								)}
+								{/* Location/Distance & CTA */}
+								<div className="flex items-center justify-between pt-2 border-t border-light-green/30">
+									<div className="flex-1">
+										{nearbyText ? (
+											<p className="text-green-700 font-bold text-xs flex items-center gap-1">
+												📍 {nearbyText}
+											</p>
+										) : (
+											<p className="text-text-gray text-xs italic">
+												Similar location
+											</p>
+										)}
+									</div>
+									<button
+										className="text-dark-green hover:text-light-green font-bold text-xs bg-light-green/10 hover:bg-light-green/30 px-2.5 py-1 rounded-lg transition-all group-hover:translate-x-0.5"
+										onClick={(e) => {
+											e.stopPropagation();
+											handleViewPost(simPost._id);
+										}}
+									>
+										View →
+									</button>
+								</div>
 							</div>
-						</li>
+						</div>
 					);
 				})}
-			</ul>
+			</div>
+
+			{/* Add animation keyframes */}
+			<style>{`
+				@keyframes slideIn {
+					from {
+						opacity: 0;
+						transform: translateY(20px);
+					}
+					to {
+						opacity: 1;
+						transform: translateY(0);
+					}
+				}
+			`}</style>
 		</div>
 	);
 };

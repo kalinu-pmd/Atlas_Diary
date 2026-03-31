@@ -1,3 +1,6 @@
 node_modules
 package-lock.json
 package.json
+RECOMMENDATION_SYSTEM.md
+COLOR_SCHEME_GUIDE.md
+.vscode/

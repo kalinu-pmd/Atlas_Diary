@@ -24,30 +24,39 @@ const ResetPassword = () => {
 
   const [errors, setErrors] = useState({});
   const [otpVerified, setOtpVerified] = useState(false);
+  const [isVerifyingOtp, setIsVerifyingOtp] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   useEffect(() => {
     if (!emailFromQuery) {
-      toast.error("Missing email. Please request a new reset link.");
+      toast.error("❌ Missing email. Please request a new reset link.", {
+        position: "top-center",
+        autoClose: 4000,
+        hideProgressBar: false,
+        closeOnClick: true,
+        pauseOnHover: true,
+        draggable: true,
+      });
     }
   }, [emailFromQuery]);
 
   const validateAll = () => {
     const newErrors = {};
-    const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     const passwordPattern =
       /^(?=.*[A-Z])(?=.*[a-z])(?=.*\d)(?=.*[@$!%*?&]).{8,}$/;
 
-    if (!emailPattern.test(formData.email)) {
-      newErrors.email = "Invalid email format.";
-    }
-    if (!formData.otp || formData.otp.length < 4) {
-      newErrors.otp = "Please enter the code we emailed you.";
-    }
-    if (!passwordPattern.test(formData.newPassword)) {
+    if (!formData.newPassword) {
+      newErrors.newPassword = "Password is required.";
+    } else if (!passwordPattern.test(formData.newPassword)) {
       newErrors.newPassword =
-        "Password must be at least 8 characters and include uppercase, lowercase, number and special character.";
+        "Password must be 8+ chars with uppercase, lowercase, number & special character.";
     }
-    if (formData.newPassword !== formData.confirmPassword) {
+    
+    if (!formData.confirmPassword) {
+      newErrors.confirmPassword = "Please confirm your password.";
+    } else if (formData.newPassword !== formData.confirmPassword) {
       newErrors.confirmPassword = "Passwords do not match.";
     }
 
@@ -57,6 +66,7 @@ const ResetPassword = () => {
 
   const handleVerifyCode = async (e) => {
     e.preventDefault();
+    if (isVerifyingOtp) return;
 
     const newErrors = {};
     const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -75,42 +85,69 @@ const ResetPassword = () => {
       return;
     }
 
-    const ok = await dispatch(
-      verifyResetOtp({ email: formData.email, otp: formData.otp }),
-    );
-    if (ok) {
-      setOtpVerified(true);
+    setIsVerifyingOtp(true);
+    try {
+      const ok = await dispatch(
+        verifyResetOtp({ email: formData.email, otp: formData.otp }),
+      );
+      if (ok) {
+        setOtpVerified(true);
+      }
+    } finally {
+      setIsVerifyingOtp(false);
     }
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
+    if (isSubmitting) return;
+
     if (!otpVerified) {
-      toast.error("Please verify the reset code first.");
+      toast.error("Please verify your reset code first.");
       return;
     }
-
+    
     if (!validateAll()) {
-      toast.error("Please fix the form errors before submitting.");
+      toast.error("✋ Please fix the form errors before submitting", {
+        position: "top-center",
+        autoClose: 4000,
+        hideProgressBar: false,
+        closeOnClick: true,
+        pauseOnHover: true,
+        draggable: true,
+      });
       return;
     }
 
-    dispatch(
-      resetPasswordWithOtp(
-        {
-          email: formData.email,
-          otp: formData.otp,
-          newPassword: formData.newPassword,
-          confirmPassword: formData.confirmPassword,
-        },
-        history,
-      ),
-    );
+    setIsSubmitting(true);
+    try {
+      await dispatch(
+        resetPasswordWithOtp(
+          {
+            email: formData.email,
+            otp: formData.otp,
+            newPassword: formData.newPassword,
+            confirmPassword: formData.confirmPassword,
+          },
+          history,
+        ),
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleChange = (event) => {
     setFormData({ ...formData, [event.target.name]: event.target.value });
     setErrors({ ...errors, [event.target.name]: "" });
+  };
+
+  const handleShowPassword = () => {
+    setShowPassword(!showPassword);
+  };
+
+  const handleShowConfirmPassword = () => {
+    setShowConfirmPassword(!showConfirmPassword);
   };
 
   return (
@@ -131,7 +168,7 @@ const ResetPassword = () => {
         <form
           onSubmit={handleSubmit}
           noValidate
-          className="w-full flex flex-col gap-3"
+          className="w-full flex flex-col gap-4"
         >
           <Input
             name="email"
@@ -156,39 +193,68 @@ const ResetPassword = () => {
           <button
             type="button"
             onClick={handleVerifyCode}
-            className="w-full mt-1 bg-light-green hover:bg-light-green-hover text-text-dark font-bold py-2.5 rounded-md transition-colors"
+            disabled={isVerifyingOtp || otpVerified}
+            className={`w-full font-bold py-2.5 rounded-md transition-colors ${
+              isVerifyingOtp || otpVerified
+                ? "bg-light-green/60 text-text-gray cursor-not-allowed"
+                : "bg-light-green hover:bg-light-green-hover text-text-dark"
+            }`}
           >
-            Verify code
+            {otpVerified
+              ? "Code verified"
+              : isVerifyingOtp
+                ? "Verifying..."
+                : "Verify code"}
           </button>
 
           {otpVerified && (
             <>
-              <Input
-                name="newPassword"
-                label="New Password"
-                value={formData.newPassword}
-                handleChange={handleChange}
-                type="password"
-                error={!!errors.newPassword}
-                helperText={errors.newPassword}
-              />
+          <Input
+            name="newPassword"
+            label="New Password"
+            value={formData.newPassword}
+            handleChange={handleChange}
+            type={showPassword ? "text" : "password"}
+            error={!!errors.newPassword}
+            helperText={errors.newPassword}
+            handleShowPassword={handleShowPassword}
+          />
 
-              <Input
-                name="confirmPassword"
-                label="Confirm New Password"
-                value={formData.confirmPassword}
-                handleChange={handleChange}
-                type="password"
-                error={!!errors.confirmPassword}
-                helperText={errors.confirmPassword}
-              />
+          <Input
+            name="confirmPassword"
+            label="Confirm New Password"
+            value={formData.confirmPassword}
+            handleChange={handleChange}
+            type={showConfirmPassword ? "text" : "password"}
+            error={!!errors.confirmPassword}
+            helperText={errors.confirmPassword}
+            handleShowPassword={handleShowConfirmPassword}
+          />
 
-              <button
-                type="submit"
-                className="w-full mt-2 bg-light-green hover:bg-light-green-hover text-text-dark font-bold py-2.5 rounded-md transition-colors"
-              >
-                Reset password
-              </button>
+          {errors.newPassword && (
+            <div className="bg-red-50 border border-red-300 rounded-lg p-3 text-xs text-red-700">
+              <p className="font-semibold mb-1">Password Requirements:</p>
+              <ul className="list-disc list-inside space-y-1">
+                <li>At least 8 characters</li>
+                <li>One uppercase letter (A-Z)</li>
+                <li>One lowercase letter (a-z)</li>
+                <li>One number (0-9)</li>
+                <li>One special character (@$!%*?&)</li>
+              </ul>
+            </div>
+          )}
+
+          <button
+            type="submit"
+            disabled={isSubmitting}
+            className={`w-full mt-2 font-bold py-2.5 rounded-md transition-colors ${
+              isSubmitting
+                ? "bg-light-green/60 text-text-gray cursor-not-allowed"
+                : "bg-light-green hover:bg-light-green-hover text-text-dark"
+            }`}
+          >
+            {isSubmitting ? "Resetting..." : "Reset password"}
+          </button>
             </>
           )}
 

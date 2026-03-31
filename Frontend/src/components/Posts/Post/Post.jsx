@@ -10,6 +10,8 @@ import {
 	MdDelete,
 	MdMoreHoriz,
 	MdComment,
+	MdChevronLeft,
+	MdChevronRight,
 } from "react-icons/md";
 
 import { deletePost, likePost, reportPost } from "../../../actions/posts";
@@ -70,6 +72,7 @@ const Post = ({ post, onDeleted }) => {
 	const [likes, setLikes] = useState(post?.likes || []);
 	const [menuOpen, setMenuOpen] = useState(false);
 	const [isExpanded, setIsExpanded] = useState(false);
+	const [currentImageIndex, setCurrentImageIndex] = useState(0);
 	const [reportModalOpen, setReportModalOpen] = useState(false);
 	const [reportReason, setReportReason] = useState("not_real_place");
 	const [reportDetails, setReportDetails] = useState("");
@@ -173,14 +176,22 @@ const Post = ({ post, onDeleted }) => {
 		});
 	};
 
-	const imageUrl =
-		Array.isArray(post.selectedFile) && post.selectedFile.length > 0
-			? post.selectedFile[0]
-			: post.selectedFile ||
-				"https://user-images.githubusercontent.com/194400/49531010-48dad180-f8b1-11e8-8d89-1e61320e1d82.png";
+	const imageListRaw = Array.isArray(post.selectedFile)
+		? post.selectedFile.filter(Boolean)
+		: post.selectedFile
+			? [post.selectedFile]
+			: [];
+	const imageList =
+		imageListRaw.length > 0
+			? imageListRaw
+			: [
+				"https://user-images.githubusercontent.com/194400/49531010-48dad180-f8b1-11e8-8d89-1e61320e1d82.png",
+			];
+	const imageUrl = imageList[currentImageIndex] || imageList[0];
 
 	const avatarUrl = post.authorImage || (isOwner ? currentUserProfileImage : null);
-	const placeLabel = formatLocationName(post.locationName || post.title);
+	const placeLabel = formatLocationName(post.locationName || "");
+	const postTitle = (post.title || "").trim();
 	// Keep cards visually similar in height by truncating
 	// descriptions a bit earlier and using a See more toggle.
 	const maxDescriptionChars = 160;
@@ -197,10 +208,24 @@ const Post = ({ post, onDeleted }) => {
 			? messageText
 			: `${messageText.slice(0, maxDescriptionChars).trim()}...`;
 
+	const showImageNavigation = imageList.length > 1;
+	const hasPrevImage = currentImageIndex > 0;
+	const hasNextImage = currentImageIndex < imageList.length - 1;
+	const handlePrevImage = (e) => {
+		e.stopPropagation();
+		if (!hasPrevImage) return;
+		setCurrentImageIndex((prev) => prev - 1);
+	};
+	const handleNextImage = (e) => {
+		e.stopPropagation();
+		if (!hasNextImage) return;
+		setCurrentImageIndex((prev) => prev + 1);
+	};
+
 	return (
 		<div className="bg-white rounded-2xl shadow-card hover:shadow-card-hover transition-all duration-200 overflow-hidden border border-light-green/60 hover:-translate-y-1">
 			{/* Header with author info */}
-			<div className="px-4 pt-4 pb-3 flex items-center justify-between bg-white/70 backdrop-blur-sm border-b border-light-green/20">
+			<div className="px-4 pt-4 pb-2 flex items-center justify-between bg-white/70 backdrop-blur-sm border-b border-light-green/20">
 				<button
 					type="button"
 					onClick={openAuthorProfile}
@@ -230,7 +255,7 @@ const Post = ({ post, onDeleted }) => {
 								? `${post.name || "Someone"} is at ${placeLabel}`
 								: ""}
 						</p>
-						<p className="text-[11px] text-text-gray mt-0.5">
+						<p className="text-[11px] text-text-gray mt-0">
 							{moment(post.createdAt).fromNow()}
 						</p>
 					</div>
@@ -282,7 +307,12 @@ const Post = ({ post, onDeleted }) => {
 			{/* Tags (subtitle) */}
 
 			{/* Description + hashtags (above image, like Facebook) */}
-			<div className="px-4 pt-3 pb-3 bg-white">
+			<div className="px-4 pt-2 pb-3 bg-white">
+				{postTitle && (
+					<p className="text-sm font-bold text-text-dark mb-1">
+						{postTitle}
+					</p>
+				)}
 				<p className="text-sm text-text-dark leading-relaxed">
 					{visibleMessage}
 					{isLongDescription && (
@@ -304,7 +334,7 @@ const Post = ({ post, onDeleted }) => {
 			</div>
 
 			{/* Image */}
-			<div className="relative w-full bg-gray-200 overflow-hidden" style={{ paddingTop: "56.25%" }}>
+			<div className="relative w-full bg-gray-200 overflow-hidden group" style={{ paddingTop: "56.25%" }}>
 				<img
 					src={imageUrl}
 					alt={post.title}
@@ -318,13 +348,37 @@ const Post = ({ post, onDeleted }) => {
 					}}
 				/>
 
+				{showImageNavigation && (
+					<>
+						{hasPrevImage && (
+							<button
+								type="button"
+								onClick={handlePrevImage}
+								className="absolute left-3 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-black/45 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200 hover:bg-black/65"
+								title="Previous photo"
+							>
+								<MdChevronLeft size={22} />
+							</button>
+						)}
+						{hasNextImage && (
+							<button
+								type="button"
+								onClick={handleNextImage}
+								className="absolute right-3 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-black/45 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200 hover:bg-black/65"
+								title="Next photo"
+							>
+								<MdChevronRight size={22} />
+							</button>
+						)}
+					</>
+				)}
+
 				{/* Image counter badge */}
-				{Array.isArray(post.selectedFile) &&
-						post.selectedFile.length > 1 && (
-							<div className="absolute top-3 right-3 bg-black/75 text-white text-xs font-bold px-2.5 py-1 rounded-lg backdrop-blur-sm">
-							+{post.selectedFile.length - 1}
-						</div>
-					)}
+				{showImageNavigation && (
+					<div className="absolute top-3 right-3 bg-black/75 text-white text-xs font-bold px-2.5 py-1 rounded-lg backdrop-blur-sm">
+						{currentImageIndex + 1}/{imageList.length}
+					</div>
+				)}
 
 				{/* Gradient overlay at bottom for readability */}
 				<div className="pointer-events-none absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-black/35 to-transparent" />

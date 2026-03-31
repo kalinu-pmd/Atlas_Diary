@@ -13,6 +13,7 @@ const ForgotPassword = () => {
 
   const [formData, setFormData] = useState({ email: "" });
   const [errors, setErrors] = useState({});
+  const [isSending, setIsSending] = useState(false);
 
   const validate = () => {
     const newErrors = {};
@@ -26,16 +27,24 @@ const ForgotPassword = () => {
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
+    if (isSending) return;
+
     if (!validate()) {
       toast.error("Please enter a valid email.");
       return;
     }
 
-    dispatch(requestPasswordReset({ email: formData.email }));
-    // After requesting, guide user towards reset screen
-    history.push(`/reset-password?email=${encodeURIComponent(formData.email)}`);
+    setIsSending(true);
+    try {
+      const ok = await dispatch(requestPasswordReset({ email: formData.email }));
+      if (ok) {
+        history.push(`/reset-password?email=${encodeURIComponent(formData.email)}`);
+      }
+    } finally {
+      setIsSending(false);
+    }
   };
 
   const handleChange = (event) => {
@@ -76,9 +85,14 @@ const ForgotPassword = () => {
 
           <button
             type="submit"
-            className="w-full mt-2 bg-light-green hover:bg-light-green-hover text-text-dark font-bold py-2.5 rounded-md transition-colors"
+            disabled={isSending}
+            className={`w-full mt-2 font-bold py-2.5 rounded-md transition-colors ${
+              isSending
+                ? "bg-light-green/60 text-text-gray cursor-not-allowed"
+                : "bg-light-green hover:bg-light-green-hover text-text-dark"
+            }`}
           >
-            Send reset code
+            {isSending ? "Sending..." : "Send reset code"}
           </button>
 
           <button

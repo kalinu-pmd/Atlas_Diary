@@ -33,14 +33,13 @@ export const getPosts = async (req, res) => {
           ? obj.comments.length
           : 0;
 
-        // Keep only the first image (used as card thumbnail) instead of
-        // sending every base64 string in the array.
-        let firstImage = null;
-        if (Array.isArray(obj.selectedFile) && obj.selectedFile.length > 0) {
-          firstImage = obj.selectedFile[0];
-        } else if (typeof obj.selectedFile === "string") {
-          firstImage = obj.selectedFile;
-        }
+        // Keep selectedFile as-is so feed cards can navigate through
+        // multiple images using left/right controls.
+        const normalizedSelectedFile = Array.isArray(obj.selectedFile)
+          ? obj.selectedFile
+          : obj.selectedFile
+            ? [obj.selectedFile]
+            : [];
 
         return {
           _id: obj._id,
@@ -49,7 +48,7 @@ export const getPosts = async (req, res) => {
           name: obj.name,
           creator: obj.creator,
           tags: obj.tags,
-          selectedFile: firstImage,
+          selectedFile: normalizedSelectedFile,
           likes: obj.likes,
           commentsCount,
           createdAt: obj.createdAt,

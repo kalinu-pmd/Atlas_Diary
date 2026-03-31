@@ -349,6 +349,15 @@ export default function PublicDiaries() {
 												</div>
 											)}
 
+										{Array.isArray(post.selectedFile) &&
+											post.selectedFile.length > 1 && (
+												<div className="absolute left-1/2 -translate-x-1/2 bottom-12 z-20 opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none">
+													<span className="inline-block bg-black/70 text-white text-[10px] font-semibold px-2 py-1 rounded-md backdrop-blur-sm">
+														Click to view more photos
+													</span>
+												</div>
+											)}
+
 										{/* Author chip */}
 										<div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent px-3 py-3 z-10">
 											<div className="flex items-center gap-2">
