@@ -9,6 +9,7 @@ import {
 	MdCameraAlt,
 	MdLocationOn,
 	MdFavorite,
+	MdArrowForward,
 } from "react-icons/md";
 import heroImage from "../../Images/heroSection.png";
 import Footer from "../Footer/Footer";
@@ -132,6 +133,53 @@ export default function Landing() {
 
 	return (
 		<div className="flex flex-col min-h-screen bg-off-white">
+			<style>{`
+				@keyframes heroFadeUp {
+					from { opacity: 0; transform: translateY(18px); }
+					to { opacity: 1; transform: translateY(0); }
+				}
+				@keyframes heroGlowPulse {
+					0%, 100% { transform: scale(1); opacity: 0.65; }
+					50% { transform: scale(1.08); opacity: 1; }
+				}
+				@keyframes heroFloat {
+					0%, 100% { transform: translateY(0px); }
+					50% { transform: translateY(-10px); }
+				}
+				@keyframes ambientDriftA {
+					0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
+					50% { transform: translate3d(28px, -22px, 0) scale(1.08); }
+				}
+				@keyframes ambientDriftB {
+					0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
+					50% { transform: translate3d(-24px, 26px, 0) scale(1.05); }
+				}
+			`}</style>
+
+			<div aria-hidden className="pointer-events-none fixed inset-0 -z-10 overflow-hidden">
+				<div
+					className="absolute -top-24 -left-20 w-[360px] h-[360px] rounded-full blur-3xl"
+					style={{
+						background: "radial-gradient(circle at 30% 30%, rgba(175,250,1,0.16), rgba(175,250,1,0.02) 70%)",
+						animation: "ambientDriftA 18s ease-in-out infinite",
+					}}
+				/>
+				<div
+					className="absolute top-[35%] -right-24 w-[420px] h-[420px] rounded-full blur-3xl"
+					style={{
+						background: "radial-gradient(circle at 40% 40%, rgba(47,107,79,0.18), rgba(47,107,79,0.03) 72%)",
+						animation: "ambientDriftB 22s ease-in-out infinite",
+					}}
+				/>
+				<div
+					className="absolute -bottom-24 left-[18%] w-[380px] h-[380px] rounded-full blur-3xl"
+					style={{
+						background: "radial-gradient(circle at 45% 45%, rgba(12,52,44,0.12), rgba(12,52,44,0.02) 72%)",
+						animation: "ambientDriftA 24s ease-in-out 1.2s infinite",
+					}}
+				/>
+			</div>
+
 			{/* ── Hero ──────────────────────────────────────────────────── */}
 			<section
 				role="banner"
@@ -153,6 +201,16 @@ export default function Landing() {
 							"linear-gradient(180deg, rgba(6,12,8,0.52) 0%, rgba(6,12,8,0.18) 45%, rgba(6,12,8,0.06) 70%, transparent 100%)",
 					}}
 				/>
+				<div
+					aria-hidden
+					className="absolute top-14 right-10 w-32 h-32 rounded-full bg-light-green/10 blur-3xl z-[1]"
+					style={{ animation: "heroGlowPulse 4s ease-in-out infinite" }}
+				/>
+				<div
+					aria-hidden
+					className="absolute bottom-14 right-[12%] w-24 h-24 rounded-full bg-white/10 blur-2xl z-[1]"
+					style={{ animation: "heroFloat 6s ease-in-out infinite" }}
+				/>
 
 				<div className="relative z-[2] w-full max-w-7xl mx-auto px-6 pt-4 pb-20 flex justify-start">
 					<div className="max-w-3xl text-white px-2 lg:px-6">
@@ -167,6 +225,7 @@ export default function Landing() {
 								fontSize: "clamp(1.8rem, 5.5vw, 3.8rem)",
 								textShadow: "0 18px 48px rgba(0,0,0,0.55)",
 								marginBottom: "0.6rem",
+								animation: "heroFadeUp 0.85s ease both",
 							}}
 						>
 							Document Your Adventures.
@@ -180,6 +239,7 @@ export default function Landing() {
 							className="mt-3 mb-2 text-white/85 font-medium max-w-xl"
 							style={{
 								fontSize: "clamp(0.98rem, 1.6vw, 1.1rem)",
+								animation: "heroFadeUp 0.85s ease 0.12s both",
 							}}
 						>
 							A travel diary made for real explorers — document,
@@ -188,8 +248,12 @@ export default function Landing() {
 
 						{/* Stats row */}
 						<div className="flex flex-wrap gap-5 mt-4 mb-7">
-							{stats.map((stat) => (
-								<div key={stat.label} className="flex flex-col">
+							{stats.map((stat, index) => (
+								<div
+									key={stat.label}
+									className="flex flex-col"
+									style={{ animation: `heroFadeUp 0.7s ease ${0.08 * index}s both` }}
+								>
 									<span className="text-light-green font-extrabold text-xl leading-tight">
 										{stat.value}
 									</span>
@@ -211,32 +275,53 @@ export default function Landing() {
 									{/* Logged-in: highlight Public Diaries as the main CTA */}
 									<RouterLink
 										to="/posts"
-										className="inline-flex items-center gap-2 bg-gradient-to-b from-accent-green to-accent-green-2 text-white font-extrabold text-base px-6 py-3 rounded-full no-underline shadow-[0_12px_40px_rgba(47,107,79,0.22)] transition-all hover:-translate-y-0.5 hover:shadow-[0_18px_48px_rgba(47,107,79,0.28)]"
+										className="group relative inline-flex items-center gap-2 bg-gradient-to-r from-light-green via-[#c6ff3a] to-[#aef501] text-dark-green font-black text-base px-7 py-3.5 rounded-full no-underline shadow-[0_18px_50px_rgba(175,250,1,0.22)] transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_24px_62px_rgba(175,250,1,0.34)] hover:brightness-110 border border-white/20 overflow-hidden"
+										style={{ animation: "heroFadeUp 0.85s ease 0.2s both" }}
 									>
-										Explore Public Diaries
+										<span className="pointer-events-none absolute inset-0 rounded-full border-2 border-dark-green/0 scale-100 transition-all duration-300 group-hover:scale-[1.04] group-hover:border-dark-green/35" />
+										<span className="pointer-events-none absolute inset-y-0 -left-1/2 w-1/2 bg-gradient-to-r from-transparent via-dark-green/45 to-transparent transform -skew-x-12 transition-transform duration-700 group-hover:translate-x-[330%]" />
+										<span className="pointer-events-none absolute inset-y-0 -left-1/3 w-1/3 bg-gradient-to-r from-transparent via-white/85 to-transparent transform -skew-x-12 transition-transform duration-500 delay-75 group-hover:translate-x-[390%]" />
+										<span className="relative z-[1]">Explore Public Diaries</span>
+										<span className="relative z-[1] transition-transform duration-300 group-hover:translate-x-1.5 group-hover:scale-110">
+											<MdArrowForward size={18} />
+										</span>
 									</RouterLink>
 
 									<RouterLink
 										to="/recommendations"
-										className="inline-flex items-center gap-2 bg-[rgba(250,248,244,0.15)] hover:bg-[rgba(250,248,244,0.22)] text-white font-semibold text-sm px-4 py-2.5 rounded-full no-underline border border-white/25 transition-all backdrop-blur-sm hover:-translate-y-px"
+										className="group relative inline-flex items-center gap-2 bg-white/12 hover:bg-white/24 text-white font-semibold text-sm px-5 py-3 rounded-full no-underline border border-white/25 transition-all backdrop-blur-sm hover:-translate-y-px overflow-hidden"
+										style={{ animation: "heroFadeUp 0.85s ease 0.28s both" }}
 									>
-										For You
+										<span className="pointer-events-none absolute inset-y-0 -left-1/3 w-1/3 bg-gradient-to-r from-transparent via-white/70 to-transparent transform -skew-x-12 transition-transform duration-600 group-hover:translate-x-[360%]" />
+										<span className="relative z-[1]">For You</span>
+										<span className="relative z-[1] transition-transform duration-300 group-hover:translate-x-1">
+											<MdArrowForward size={16} />
+										</span>
 									</RouterLink>
 								</>
 							) : (
 								<>
 									<RouterLink
 										to="/signup"
-										className="inline-flex items-center gap-2 bg-gradient-to-b from-accent-green to-accent-green-2 text-white font-extrabold text-base px-6 py-3 rounded-full no-underline shadow-[0_12px_40px_rgba(47,107,79,0.22)] transition-all hover:-translate-y-0.5 hover:shadow-[0_18px_48px_rgba(47,107,79,0.28)]"
+										className="group relative inline-flex items-center gap-2 bg-gradient-to-r from-light-green via-[#c6ff3a] to-[#aef501] text-dark-green font-black text-base px-7 py-3.5 rounded-full no-underline shadow-[0_18px_50px_rgba(175,250,1,0.22)] transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_24px_62px_rgba(175,250,1,0.34)] hover:brightness-110 border border-white/20 overflow-hidden"
+										style={{ animation: "heroFadeUp 0.85s ease 0.2s both" }}
 									>
-										Start Your Journey &mdash; It&apos;s Free
+										<span className="pointer-events-none absolute inset-0 rounded-full border-2 border-dark-green/0 scale-100 transition-all duration-300 group-hover:scale-[1.04] group-hover:border-dark-green/35" />
+										<span className="pointer-events-none absolute inset-y-0 -left-1/2 w-1/2 bg-gradient-to-r from-transparent via-dark-green/45 to-transparent transform -skew-x-12 transition-transform duration-700 group-hover:translate-x-[330%]" />
+										<span className="pointer-events-none absolute inset-y-0 -left-1/3 w-1/3 bg-gradient-to-r from-transparent via-white/85 to-transparent transform -skew-x-12 transition-transform duration-500 delay-75 group-hover:translate-x-[390%]" />
+										<span className="relative z-[1]">Start Your Journey &mdash; It&apos;s Free</span>
+										<span className="relative z-[1] transition-transform duration-300 group-hover:translate-x-1.5 group-hover:scale-110">
+											<MdArrowForward size={18} />
+										</span>
 									</RouterLink>
 
 									<RouterLink
 										to="/posts"
-										className="inline-flex items-center gap-2 bg-[rgba(250,248,244,0.15)] hover:bg-[rgba(250,248,244,0.22)] text-white font-bold text-base px-5 py-3 rounded-full no-underline border border-white/30 transition-all backdrop-blur-sm hover:-translate-y-px"
+										className="inline-flex items-center gap-2 bg-white/12 hover:bg-white/20 text-white font-semibold text-base px-5 py-3 rounded-full no-underline border border-white/25 transition-all backdrop-blur-sm hover:-translate-y-px"
+										style={{ animation: "heroFadeUp 0.85s ease 0.28s both" }}
 									>
 										Explore Public Diaries
+										<MdArrowForward size={18} />
 									</RouterLink>
 								</>
 							)}
@@ -263,7 +348,11 @@ export default function Landing() {
 			{/* ── Features ──────────────────────────────────────────────── */}
 			<section
 				aria-labelledby="features-heading"
-				className="py-16 sm:py-12 px-4 bg-off-white"
+				className="py-16 sm:py-12 px-4"
+				style={{
+					background:
+						"radial-gradient(circle at 12% 6%, rgba(175,250,1,0.08), transparent 42%), radial-gradient(circle at 88% 16%, rgba(47,107,79,0.09), transparent 36%), #fef9f5",
+				}}
 			>
 				<div className="max-w-6xl mx-auto">
 					<div className="text-center mb-12">
@@ -306,7 +395,11 @@ export default function Landing() {
 			{/* ── How It Works ──────────────────────────────────────────── */}
 			<section
 				aria-labelledby="how-heading"
-				className="py-16 sm:py-12 px-4 bg-gradient-to-b from-dark-green/5 to-off-white"
+				className="py-16 sm:py-12 px-4"
+				style={{
+					background:
+						"linear-gradient(180deg, rgba(12,52,44,0.06) 0%, rgba(254,249,245,1) 62%), radial-gradient(circle at 82% 82%, rgba(175,250,1,0.08), transparent 34%)",
+				}}
 			>
 				<div className="max-w-4xl mx-auto">
 					<div className="text-center mb-12">
@@ -366,7 +459,11 @@ export default function Landing() {
 			{/* ── Testimonials ──────────────────────────────────────────── */}
 			<section
 				aria-labelledby="testimonials-heading"
-				className="py-16 sm:py-12 px-4 bg-off-white"
+				className="py-16 sm:py-12 px-4"
+				style={{
+					background:
+						"radial-gradient(circle at 14% 82%, rgba(47,107,79,0.08), transparent 34%), radial-gradient(circle at 88% 20%, rgba(175,250,1,0.08), transparent 36%), #fef9f5",
+				}}
 			>
 				<div className="max-w-5xl mx-auto">
 					<div className="text-center mb-10">

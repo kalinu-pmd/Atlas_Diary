@@ -113,7 +113,7 @@ function Navbar() {
 				<span>Post</span>
 			</Link>
 
-			<Link to="/recommendations" className="hidden sm:inline-flex items-center border border-accent-green text-accent-green font-bold text-sm px-4 py-1.5 rounded-full hover:bg-[#eef7ef] hover:text-[#1f4f3f] transition-all no-underline whitespace-nowrap">For You</Link>
+					<Link to="/recommendations" className="hidden sm:inline-flex items-center gap-2 border border-accent-green/50 bg-accent-green/10 text-accent-green font-black text-sm px-4 py-2 rounded-full hover:bg-accent-green/15 hover:text-[#1f4f3f] transition-all no-underline whitespace-nowrap shadow-[0_8px_22px_rgba(47,107,79,0.08)] hover:-translate-y-0.5">For You</Link>
 
 			{/* Notifications bell */}
 			<div ref={notificationsRef} className="relative hidden sm:flex">
@@ -326,12 +326,17 @@ function Navbar() {
 								location.pathname === item.to ||
 								(location.pathname.startsWith(item.to) && item.to !== "/");
 
-							const baseClasses =
-									"no-underline text-sm font-semibold px-3 py-1.5 rounded-full whitespace-nowrap transition-colors";
-							const inactiveClasses =
-									" text-muted hover:bg-accent-green/10 hover:text-accent-green";
-							const activeClasses =
-									" text-accent-green bg-accent-green/10 shadow-[0_4px_10px_rgba(47,107,79,0.15)]";
+							const isHighlighted =
+								item.label === "Public Diaries" || item.label === "For You";
+							const baseClasses = isHighlighted
+								? "no-underline text-sm font-black px-4 py-2 rounded-full whitespace-nowrap transition-all"
+								: "no-underline text-sm font-semibold px-3 py-1.5 rounded-full whitespace-nowrap transition-colors";
+							const inactiveClasses = isHighlighted
+								? " text-text-dark bg-white hover:bg-light-green/10 shadow-[0_8px_20px_rgba(12,52,44,0.06)] border border-dark-green/10"
+								: " text-muted hover:bg-accent-green/10 hover:text-accent-green";
+							const activeClasses = isHighlighted
+								? " text-dark-green bg-gradient-to-r from-light-green to-[#d8ff56] shadow-[0_8px_24px_rgba(175,250,1,0.2)]"
+								: " text-accent-green bg-accent-green/10 shadow-[0_4px_10px_rgba(47,107,79,0.15)]";
 
 							return (
 								<Link
