@@ -19,6 +19,7 @@ import {
   sendPostForReview,
 } from "../controllers/posts.js";
 import auth from "../middleware/auth.js";
+import { optionalAuth } from "../middleware/auth.js";
 
 const router = express.Router();
 
@@ -30,7 +31,7 @@ router.get("/recommendations", auth, getRecommendations);
 router.get("/reports", auth, getPostReports);
 router.patch("/reports/:id/admin-action", auth, adminActOnReport);
 router.get("/:id", getPostById);
-router.get("/:id/similar", getSimilarPosts);
+router.get("/:id/similar", optionalAuth, getSimilarPosts);
 
 router.post("/", auth, createPost);
 router.post("/verify-location", auth, verifyPostLocation);

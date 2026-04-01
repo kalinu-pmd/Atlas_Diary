@@ -71,6 +71,7 @@ const SimilarPosts = ({ postId }) => {
 				{similarPosts.map((simPost, idx) => {
 					// Calculate distance if both posts have location
 					let nearbyText = null;
+					let isNearby = false;
 					if (
 						post &&
 						post.location &&
@@ -84,6 +85,7 @@ const SimilarPosts = ({ postId }) => {
 						const [lng2, lat2] = simPost.location.coordinates;
 						const dist = getDistanceKm(lat1, lng1, lat2, lng2);
 						if (dist !== null && dist < 50) {
+							isNearby = true;
 							nearbyText = `Nearby: ${(dist).toFixed(2)} km`;
 						}
 					}
@@ -92,7 +94,11 @@ const SimilarPosts = ({ postId }) => {
 						<div
 							key={simPost._id}
 							onClick={() => handleViewPost(simPost._id)}
-							className="group bg-white border-2 border-light-green/50 rounded-[15px] p-4 cursor-pointer hover:border-dark-green hover:shadow-xl transition-all duration-300 hover:-translate-y-1"
+							className={`group bg-white border-2 rounded-[15px] p-4 cursor-pointer transition-all duration-300 hover:-translate-y-1 hover:shadow-xl ${
+								isNearby
+									? "border-green-500/70 bg-gradient-to-br from-green-50/70 to-white shadow-[0_0_0_2px_rgba(34,197,94,0.18)]"
+									: "border-light-green/50 hover:border-dark-green"
+							}`}
 							style={{
 								animation: `slideIn 0.5s ease-out ${idx * 0.1}s backwards`,
 							}}
@@ -118,6 +124,11 @@ const SimilarPosts = ({ postId }) => {
 								<div className="absolute top-2 right-2 bg-dark-green text-light-green text-xs font-bold px-2.5 py-1 rounded-full backdrop-blur-sm">
 									{(simPost.similarityScore * 100).toFixed(0)}% Match
 								</div>
+								{isNearby && (
+									<div className="absolute top-2 left-2 bg-green-600 text-white text-[0.65rem] font-bold px-2.5 py-1 rounded-full shadow-sm">
+										Nearby
+									</div>
+								)}
 							</div>
 
 							{/* Content Section */}

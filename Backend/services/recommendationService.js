@@ -212,10 +212,11 @@ class RecommendationService {
   async getRecommendations(userId, limit = 10, location = null, radius = 50000) {
     try {
       const userProfile = await this.buildUserProfile(userId);
+      const recommendationFilter = { creator: { $ne: String(userId) } };
 
       if (!userProfile || userProfile.contentProfile.length === 0) {
         // If no user profile, return popular posts
-        return await PostMessage.find()
+        return await PostMessage.find(recommendationFilter)
           .sort({ likes: -1, createdAt: -1 })
           .limit(limit)
           .populate("creator", "name");
@@ -235,6 +236,7 @@ class RecommendationService {
       // to avoid scanning the entire collection on every recommendations request.
       const SCAN_LIMIT = 300;
       const allPosts = await PostMessage.find({
+        ...recommendationFilter,
         _id: { $nin: userProfile.interactedPostIds },
       })
         .sort({ createdAt: -1 })
@@ -264,7 +266,7 @@ class RecommendationService {
   }
 
   // Get similar posts based on a specific post
-  async getSimilarPosts(postId, limit = 5) {
+  async getSimilarPosts(postId, limit = 5, userId = null) {
     try {
       const targetPost = await PostMessage.findById(postId);
       if (!targetPost) return [];
@@ -272,9 +274,14 @@ class RecommendationService {
       // Limit the number of posts scanned for similarity to improve performance.
       // Sort by recency so we compare against recent posts first.
       const SCAN_LIMIT = 200;
-      const allPosts = await PostMessage.find({
+      const similarFilter = {
         _id: { $ne: postId },
-      })
+      };
+      if (userId) {
+        similarFilter.creator = { $ne: String(userId) };
+      }
+
+      const allPosts = await PostMessage.find(similarFilter)
         .sort({ createdAt: -1 })
         .limit(SCAN_LIMIT)
         .populate("creator", "name");

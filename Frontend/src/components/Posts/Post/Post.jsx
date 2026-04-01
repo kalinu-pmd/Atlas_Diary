@@ -223,7 +223,7 @@ const Post = ({ post, onDeleted }) => {
 	};
 
 	return (
-		<div className="bg-white rounded-2xl shadow-card hover:shadow-card-hover transition-all duration-200 overflow-hidden border border-light-green/60 hover:-translate-y-1">
+		<div className="h-full flex flex-col bg-white rounded-2xl shadow-card hover:shadow-card-hover transition-all duration-200 overflow-hidden border border-light-green/60 hover:-translate-y-1">
 			{/* Header with author info */}
 			<div className="px-4 pt-4 pb-2 flex items-center justify-between bg-white/70 backdrop-blur-sm border-b border-light-green/20">
 				<button

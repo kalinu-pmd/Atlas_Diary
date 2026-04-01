@@ -107,9 +107,9 @@ export default function Profile() {
           {posts.length === 0 ? (
             <p className="text-sm text-text-gray">No posts yet.</p>
           ) : (
-          <div className="columns-1 md:columns-2 gap-4 [column-fill:_balance]">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-stretch">
             {posts.map((post) => (
-            <div key={post._id} className="mb-4 break-inside-avoid">
+            <div key={post._id} className="h-full">
               <Post
                 post={post}
                 onDeleted={(deletedId) =>

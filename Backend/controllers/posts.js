@@ -496,7 +496,8 @@ export const getSimilarPosts = async (req, res) => {
     const { limit = 5 } = req.query;
     const similarPosts = await recommendationService.getSimilarPosts(
       id,
-      parseInt(limit)
+      parseInt(limit),
+      req.userId
     );
 
     res.status(200).json(similarPosts);
