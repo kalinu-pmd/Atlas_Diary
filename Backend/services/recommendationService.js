@@ -221,13 +221,37 @@ class RecommendationService {
     try {
       const userProfile = await this.buildUserProfile(userId);
       const recommendationFilter = { creator: { $ne: String(userId) } };
+      const hasLocation = Boolean(location && location.lng && location.lat);
+      const nearbyLimit = Math.max(limit * 3, limit);
+      const nearbyPosts = hasLocation
+        ? await this.getNearbyPosts(location, radius, nearbyLimit)
+        : [];
+      const nearbyIds = new Set(nearbyPosts.map((post) => post._id.toString()));
 
       if (!userProfile || userProfile.contentProfile.length === 0) {
-        // If no user profile, return popular posts
-        return await PostMessage.find(recommendationFilter)
+        // If no user profile, prefer nearby posts first and then fall back to popular posts.
+        const fallbackPosts = await PostMessage.find({
+          ...recommendationFilter,
+          _id: { $nin: [...nearbyIds] },
+        })
           .sort({ likes: -1, createdAt: -1 })
-          .limit(limit)
+          .limit(Math.max(limit * 3, limit))
           .populate("creator", "name");
+
+        const combined = [...nearbyPosts, ...fallbackPosts]
+          .filter((post, index, self) => {
+            const id = post._id.toString();
+            return index === self.findIndex((item) => item._id.toString() === id);
+          })
+          .slice(0, limit);
+
+        return combined.map((post) => ({
+          ...post.toObject(),
+          recommendationScore: 0,
+          locationScore: 0,
+          distanceMeters: null,
+          isNearby: nearbyIds.has(post._id.toString()),
+        }));
       }
 
       // If we have a location from the caller, attach it to the
@@ -245,13 +269,24 @@ class RecommendationService {
       const SCAN_LIMIT = 300;
       const allPosts = await PostMessage.find({
         ...recommendationFilter,
-        _id: { $nin: userProfile.interactedPostIds },
+        _id: { $nin: [...userProfile.interactedPostIds, ...nearbyIds] },
       })
         .sort({ createdAt: -1 })
         .limit(SCAN_LIMIT)
         .populate("creator", "name");
 
       // Calculate recommendation scores
+      const scoredNearbyPosts = nearbyPosts.map((post) => {
+        const scored = this.calculateRecommendationScore(post, userProfile, radius);
+        return {
+          post,
+          score: scored.score,
+          locationScore: scored.locationScore,
+          locationDistanceMeters: scored.locationDistanceMeters,
+          isNearby: true,
+        };
+      });
+
       const scoredPosts = allPosts.map((post) => {
         const scored = this.calculateRecommendationScore(post, userProfile, radius);
         return {
@@ -266,7 +301,7 @@ class RecommendationService {
       });
 
       // Prioritize nearby posts first, then score.
-      const recommendations = scoredPosts
+      const recommendations = [...scoredNearbyPosts, ...scoredPosts]
         .sort((a, b) => {
           if (a.isNearby !== b.isNearby) {
             return a.isNearby ? -1 : 1;
