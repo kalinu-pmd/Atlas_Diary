@@ -272,12 +272,13 @@ const Recommendations = () => {
 			</h1>
 			{userLocation ? (
 				<p className="text-center text-xs text-text-gray mb-4">
-					Personalized using your activity, interests and how close posts
-					are to your current location.
+					Personalized using your activity, interests and how close
+					places are to your current location.
 				</p>
 			) : (
 				<p className="text-center text-xs text-text-gray mb-4">
-					Personalized using your activity and interests. Allow location in your browser settings to get the best nearby recommendations.
+					Personalized using your activity and interests. Allow location
+					in your browser settings to get the best nearby places.
 				</p>
 			)}
 
@@ -375,7 +376,7 @@ const Recommendations = () => {
 							{/* Match score explanation */}
 							{typeof post.recommendationScore === "number" ? (
 								<p className="text-[#1976d2] font-bold text-xs">
-									Match score (activity + location): {" "}
+									Match score (activity + place proximity): {" "}
 									{(post.recommendationScore * 100).toFixed(0)}%
 								</p>
 							) : (
