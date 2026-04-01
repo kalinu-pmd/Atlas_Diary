@@ -1,4 +1,4 @@
-import { MapContainer, TileLayer, Marker, useMap, useMapEvents } from "react-leaflet";
+import { MapContainer, TileLayer, Marker, Circle, useMap, useMapEvents } from "react-leaflet";
 import { useEffect, useState } from "react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
@@ -15,7 +15,7 @@ L.Icon.Default.mergeOptions({
   shadowUrl: markerShadow,
 });
 
-export default function LocationPicker({ value, onChange }) {
+export default function LocationPicker({ value, onChange, radiusMeters = null, showSearch = true }) {
   const [position, setPosition] = useState(value || { lat: 20.5937, lng: 78.9629 }); // Default: India
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState([]);
@@ -223,49 +223,51 @@ export default function LocationPicker({ value, onChange }) {
 
   return (
     <div className="w-full mb-4">
-      <div className="mb-3 rounded-lg border border-light-green/60 bg-gradient-to-r from-light-green/10 to-off-white p-3">
-        <p className="text-xs font-semibold text-dark-green mb-2">
-          🔎 Search location (recommended)
-        </p>
-        <div className="flex gap-2">
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => {
-              const nextValue = e.target.value;
-              setSearchQuery(nextValue);
-              if (!nextValue.trim()) {
-                setSearchResults([]);
-                setSearchError("");
-              }
-            }}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") {
-                handleSearch(e);
-              }
-            }}
-            placeholder="Search a place (e.g. Pokhara Lakeside)"
-            className="flex-1 bg-white border-2 border-dark-green/30 hover:border-light-green focus:border-dark-green focus:outline-none rounded-md px-3 py-2 text-sm text-text-dark transition-colors"
-          />
-          <button
-            type="button"
-            onClick={handleSearch}
-            disabled={isSearching}
-            className="px-4 py-2 rounded-md bg-dark-green text-off-white text-sm font-semibold hover:bg-dark-green-hover disabled:opacity-70 disabled:cursor-not-allowed shadow-sm"
-          >
-            {isSearching ? "Searching..." : "Search"}
-          </button>
+      {showSearch && (
+        <div className="mb-3 rounded-lg border border-light-green/60 bg-gradient-to-r from-light-green/10 to-off-white p-3">
+          <p className="text-xs font-semibold text-dark-green mb-2">
+            🔎 Search location (recommended)
+          </p>
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => {
+                const nextValue = e.target.value;
+                setSearchQuery(nextValue);
+                if (!nextValue.trim()) {
+                  setSearchResults([]);
+                  setSearchError("");
+                }
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  handleSearch(e);
+                }
+              }}
+              placeholder="Search a place (e.g. Pokhara Lakeside)"
+              className="flex-1 bg-white border-2 border-dark-green/30 hover:border-light-green focus:border-dark-green focus:outline-none rounded-md px-3 py-2 text-sm text-text-dark transition-colors"
+            />
+            <button
+              type="button"
+              onClick={handleSearch}
+              disabled={isSearching}
+              className="px-4 py-2 rounded-md bg-dark-green text-off-white text-sm font-semibold hover:bg-dark-green-hover disabled:opacity-70 disabled:cursor-not-allowed shadow-sm"
+            >
+              {isSearching ? "Searching..." : "Search"}
+            </button>
+          </div>
+          <p className="text-[11px] text-text-gray mt-2">
+            If search does not match exactly, click on the map to fine-tune the pin.
+          </p>
         </div>
-        <p className="text-[11px] text-text-gray mt-2">
-          If search does not match exactly, click on the map to fine-tune the pin.
-        </p>
-      </div>
+      )}
 
       {searchError && (
         <p className="text-xs text-orange mb-2">{searchError}</p>
       )}
 
-      {searchResults.length > 0 && (
+      {showSearch && searchResults.length > 0 && (
         <div className="max-h-44 overflow-y-auto border border-dark-green/20 rounded-md bg-white mb-2 shadow-sm">
           {searchResults.map((result, index) => (
             <button
@@ -288,6 +290,18 @@ export default function LocationPicker({ value, onChange }) {
           />
           <RecenterMap center={position} />
           <LocationMarker />
+          {position && radiusMeters ? (
+            <Circle
+              center={position}
+              radius={radiusMeters}
+              pathOptions={{
+                color: "#2f6b4f",
+                weight: 2,
+                fillColor: "#affa01",
+                fillOpacity: 0.16,
+              }}
+            />
+          ) : null}
         </MapContainer>
       </div>
     </div>

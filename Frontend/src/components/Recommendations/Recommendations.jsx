@@ -145,6 +145,13 @@ const Recommendations = () => {
 		setCurrentImageIndex(0);
 	};
 
+	const handleCardKeyDown = (event, postId) => {
+		if (event.key === "Enter" || event.key === " ") {
+			event.preventDefault();
+			handleViewPost(postId);
+		}
+	};
+
 	if (!user?.token) {
 		return (
 			<div className="p-5 text-center bg-off-white border border-dark-green rounded-[15px] shadow-card">
@@ -157,10 +164,52 @@ const Recommendations = () => {
 
 	if (!hasAttemptedFetch || isLoading) {
 		return (
-			<div className="p-5 text-center bg-off-white border border-dark-green rounded-[15px] shadow-card">
-				<p className="text-lg font-semibold text-text-dark">
-					Loading recommendations...
-				</p>
+			<div className="relative overflow-hidden w-full min-h-[calc(100vh-4rem)] border-2 border-light-green bg-gradient-to-br from-off-white via-[#f7fbf2] to-light-green/20 flex items-center justify-center px-4">
+				<style>{`
+					@keyframes recommendationsShimmer {
+						0% { transform: translateX(-120%); }
+						100% { transform: translateX(120%); }
+					}
+					@keyframes recommendationsPulse {
+						0%, 100% { opacity: 0.55; transform: translateY(0); }
+						50% { opacity: 1; transform: translateY(-3px); }
+					}
+				`}</style>
+
+				<div className="absolute inset-0 pointer-events-none overflow-hidden">
+					<div
+						className="absolute inset-y-0 w-1/3 bg-gradient-to-r from-transparent via-white/45 to-transparent"
+						style={{ animation: "recommendationsShimmer 2.2s linear infinite" }}
+					/>
+				</div>
+
+				<div className="relative z-[1] flex flex-col items-center text-center w-full max-w-4xl">
+					<div className="inline-flex items-end gap-2 mb-4" aria-hidden>
+						<span className="h-2.5 w-2.5 rounded-full bg-dark-green" style={{ animation: "recommendationsPulse 1.2s ease-in-out infinite" }} />
+						<span className="h-3.5 w-3.5 rounded-full bg-light-green" style={{ animation: "recommendationsPulse 1.2s ease-in-out 0.2s infinite" }} />
+						<span className="h-2.5 w-2.5 rounded-full bg-dark-green" style={{ animation: "recommendationsPulse 1.2s ease-in-out 0.4s infinite" }} />
+					</div>
+
+					<p className="text-xl sm:text-2xl font-black text-dark-green tracking-tight">
+						Finding adventures you will love
+					</p>
+					<p className="text-sm text-text-gray mt-1 mb-5">
+						Loading recommendations based on your activity and nearby places.
+					</p>
+
+					<div className="w-full max-w-3xl grid grid-cols-1 sm:grid-cols-3 gap-3" aria-hidden>
+						{[1, 2, 3].map((item) => (
+							<div
+								key={item}
+								className="rounded-xl border border-dark-green/10 bg-white/65 p-3"
+							>
+								<div className="h-20 rounded-lg bg-dark-green/10 mb-3" />
+								<div className="h-3 rounded bg-dark-green/20 mb-2" />
+								<div className="h-3 w-2/3 rounded bg-dark-green/15" />
+							</div>
+						))}
+					</div>
+				</div>
 			</div>
 		);
 	}
@@ -179,6 +228,32 @@ const Recommendations = () => {
 		);
 	}
 
+	const nearbyThresholdMeters = 50000;
+	const sortedRecommendations = [...recommendations].sort((a, b) => {
+		const aNearby =
+			a?.isNearby ||
+			(typeof a?.distanceMeters === "number" &&
+				a.distanceMeters <= nearbyThresholdMeters);
+		const bNearby =
+			b?.isNearby ||
+			(typeof b?.distanceMeters === "number" &&
+				b.distanceMeters <= nearbyThresholdMeters);
+
+		if (aNearby !== bNearby) return aNearby ? -1 : 1;
+
+		const aDistance =
+			typeof a?.distanceMeters === "number"
+				? a.distanceMeters
+				: Number.MAX_SAFE_INTEGER;
+		const bDistance =
+			typeof b?.distanceMeters === "number"
+				? b.distanceMeters
+				: Number.MAX_SAFE_INTEGER;
+		if (aDistance !== bDistance) return aDistance - bDistance;
+
+		return (b?.recommendationScore || 0) - (a?.recommendationScore || 0);
+	});
+
 	return (
 		<div className="mt-14 sm:mt-16 px-4">
 			<h1 className="text-3xl font-bold text-center text-text-dark mb-2">
@@ -196,23 +271,42 @@ const Recommendations = () => {
 			)}
 
 			<div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
-				{recommendations.map((post) => (
+				{sortedRecommendations.map((post) => {
+					const isNearby =
+						post?.isNearby ||
+						(typeof post?.distanceMeters === "number" &&
+							post.distanceMeters <= nearbyThresholdMeters);
+					const distanceKm =
+						typeof post?.distanceMeters === "number"
+							? (post.distanceMeters / 1000).toFixed(1)
+							: null;
+
+					return (
 					<div
 						key={post._id}
-						className="flex flex-col bg-off-white border border-dark-green rounded-[15px] shadow-card hover:-translate-y-1 hover:shadow-card-hover transition-all duration-200 overflow-hidden"
+						onClick={() => handleViewPost(post._id)}
+						onKeyDown={(event) => handleCardKeyDown(event, post._id)}
+						tabIndex={0}
+						role="button"
+						className={`flex flex-col bg-off-white border rounded-[15px] shadow-card hover:-translate-y-1 hover:shadow-card-hover transition-all duration-200 overflow-hidden ${
+							isNearby
+								? "border-light-green ring-2 ring-light-green/35"
+								: "border-dark-green"
+						}`}
 					>
 						{/* Image */}
 						{post.selectedFile && post.selectedFile.length > 0 && (
 							<div
 								className="relative cursor-pointer group"
-								onClick={() =>
+								onClick={(event) => {
+									event.stopPropagation();
 									handleImageClick(
 										Array.isArray(post.selectedFile)
 											? post.selectedFile[0]
 											: post.selectedFile,
 										post.title,
-									)
-								}
+									);
+								}}
 							>
 								<img
 									src={
@@ -234,6 +328,11 @@ const Recommendations = () => {
 											+{post.selectedFile.length - 1} more
 										</div>
 									)}
+								{isNearby && (
+									<div className="absolute top-2 left-2 bg-light-green text-dark-green text-xs font-black px-2.5 py-1 rounded-full z-10 shadow">
+										Nearby
+									</div>
+								)}
 							</div>
 						)}
 
@@ -273,13 +372,21 @@ const Recommendations = () => {
 									Recommended based on your activity and other signals
 								</p>
 							)}
+							{isNearby && distanceKm && (
+								<p className="text-dark-green font-semibold text-xs mt-1">
+									{distanceKm} km far from your current location
+								</p>
+							)}
 						</div>
 
 						{/* Actions */}
 						<div className="flex items-center justify-between px-4 py-3 bg-light-green/10 border-t border-dark-green/10">
 							<div className="flex items-center gap-1">
 								<button
-									onClick={() => handleLike(post._id)}
+									onClick={(event) => {
+										event.stopPropagation();
+										handleLike(post._id);
+									}}
 									className={`flex items-center gap-1 text-sm font-medium px-2 py-1 rounded transition-colors ${
 										post.likes?.includes(user?.result?._id)
 											? "text-accent-green bg-accent-green/10"
@@ -289,13 +396,19 @@ const Recommendations = () => {
 									<MdThumbUp size={16} />
 									{post.likes?.length || 0}
 								</button>
-								<button className="flex items-center gap-1 text-sm font-medium text-text-dark px-2 py-1 rounded hover:bg-light-green/20 transition-colors">
+								<button
+									onClick={(event) => event.stopPropagation()}
+									className="flex items-center gap-1 text-sm font-medium text-text-dark px-2 py-1 rounded hover:bg-light-green/20 transition-colors"
+								>
 									<MdComment size={16} />
 									{post.comments?.length || 0}
 								</button>
 							</div>
 							<button
-								onClick={() => handleViewPost(post._id)}
+								onClick={(event) => {
+									event.stopPropagation();
+									handleViewPost(post._id);
+								}}
 								className="flex items-center gap-1.5 bg-light-green hover:bg-light-green-hover text-text-dark font-bold text-sm px-3 py-1.5 rounded-lg transition-colors"
 							>
 								<MdVisibility size={16} />
@@ -303,7 +416,8 @@ const Recommendations = () => {
 							</button>
 						</div>
 					</div>
-				))}
+					);
+				})}
 			</div>
 
 			{/* Full-screen image dialog */}

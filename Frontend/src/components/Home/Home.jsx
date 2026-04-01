@@ -1,39 +1,48 @@
 import { useState, useEffect, useRef } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { useLocation, useHistory } from "react-router-dom";
-import { MdSearch, MdClose, MdAdd, MdTune } from "react-icons/md";
+import { Link as RouterLink, useLocation, useHistory } from "react-router-dom";
+import { MdSearch, MdClose, MdTune } from "react-icons/md";
 
 import Posts from "../Posts/Posts";
 import Footer from "../Footer/Footer";
 import { getPosts, getPostsBySearch, loadMorePosts } from "../../actions/posts";
+import LocationPicker from "../Form/LocationPicker";
 
 function useQuery() {
 	return new URLSearchParams(useLocation().search);
 }
 
 export default function Home() {
+	const routeLocation = useLocation();
 	const query = useQuery();
 	const searchQuery = query.get("searchQuery");
+	const latQuery = query.get("lat");
+	const lngQuery = query.get("lng");
+	const radiusQuery = query.get("radius");
+	const locationModeQuery = query.get("locationMode");
 
 	const dispatch = useDispatch();
 	const history = useHistory();
-	const user = useSelector((state) => state.auth.authData);
-	const { currentPage, numberOfPages, isLoading } = useSelector(
+	const { posts, currentPage, numberOfPages, isLoading } = useSelector(
 		(state) => state.posts,
 	);
 
 	const [search, setSearch] = useState("");
-	const [tags, setTags] = useState([]);
-	const [tagInput, setTagInput] = useState("");
-	const [showForm, setShowForm] = useState(false);
 	const [showFilters, setShowFilters] = useState(false);
+	const [pinnedLocation, setPinnedLocation] = useState(null);
+	const [searchRadiusKm, setSearchRadiusKm] = useState(50);
 	const [isLoadingMore, setIsLoadingMore] = useState(false);
 	const [hasMore, setHasMore] = useState(true);
 	const loadMoreRef = useRef(null);
 	const [showScrollTop, setShowScrollTop] = useState(false);
 	const [isHidingScrollTop, setIsHidingScrollTop] = useState(false);
 
-	const isSearchActive = search.trim() || tags.length > 0;
+	const isSearchActive =
+		Boolean(search.trim()) || Boolean(pinnedLocation);
+	const isLocationResultMode =
+		locationModeQuery === "1" &&
+		Number.isFinite(Number(latQuery)) &&
+		Number.isFinite(Number(lngQuery));
 
 	// Track scroll position to toggle the floating "scroll to top" button
 	useEffect(() => {
@@ -63,10 +72,95 @@ export default function Home() {
 	}, [showScrollTop, isHidingScrollTop]);
 
 	useEffect(() => {
-		if (searchQuery) {
-			setSearch(decodeURIComponent(searchQuery));
+		if (routeLocation.pathname !== "/posts/search") {
+			setSearch("");
+			setPinnedLocation(null);
+			setSearchRadiusKm(50);
+			return;
 		}
-	}, [searchQuery]);
+
+		if (searchQuery && searchQuery !== "none") {
+			setSearch(decodeURIComponent(searchQuery));
+		} else {
+			setSearch("");
+		}
+
+		const parsedLat = Number(latQuery);
+		const parsedLng = Number(lngQuery);
+		if (Number.isFinite(parsedLat) && Number.isFinite(parsedLng)) {
+			setPinnedLocation({ lat: parsedLat, lng: parsedLng });
+		} else {
+			setPinnedLocation(null);
+		}
+
+		const parsedRadius = Number(radiusQuery);
+		if (Number.isFinite(parsedRadius) && parsedRadius > 0) {
+			setSearchRadiusKm(Math.round(parsedRadius / 1000));
+		} else {
+			setSearchRadiusKm(50);
+		}
+	}, [routeLocation.pathname, searchQuery, latQuery, lngQuery, radiusQuery]);
+
+	useEffect(() => {
+		if (routeLocation.pathname !== "/posts/search") return;
+
+		const hasSearch = searchQuery && searchQuery !== "none";
+		const parsedLat = Number(latQuery);
+		const parsedLng = Number(lngQuery);
+		const hasPinned = Number.isFinite(parsedLat) && Number.isFinite(parsedLng);
+
+		if (!hasSearch && !hasPinned) return;
+
+		const payload = {
+			search: hasSearch ? decodeURIComponent(searchQuery) : "none",
+			tags: "none",
+		};
+
+		if (hasPinned) {
+			const parsedRadius = Number(radiusQuery);
+			payload.location = { lat: parsedLat, lng: parsedLng };
+			payload.radius = Number.isFinite(parsedRadius) && parsedRadius > 0 ? parsedRadius : 50000;
+		}
+
+		dispatch(getPostsBySearch(payload));
+	}, [dispatch, routeLocation.pathname, searchQuery, latQuery, lngQuery, radiusQuery]);
+
+	const performSearch = () => {
+		const hasSearchInput = Boolean(search.trim());
+		const hasPinnedFilter = Boolean(pinnedLocation);
+
+		if (!hasSearchInput && !hasPinnedFilter) {
+			history.push("/posts");
+			dispatch(getPosts(1));
+			return;
+		}
+
+		const radiusMeters = Math.max(5, Number(searchRadiusKm || 50)) * 1000;
+		const searchPayload = {
+			search: search.trim() || "none",
+			tags: "none",
+		};
+
+		if (pinnedLocation) {
+			searchPayload.location = pinnedLocation;
+			searchPayload.radius = radiusMeters;
+		}
+
+		dispatch(getPostsBySearch(searchPayload));
+
+		const params = new URLSearchParams();
+		if (searchPayload.search !== "none") {
+			params.set("searchQuery", searchPayload.search);
+		}
+		if (pinnedLocation) {
+			params.set("lat", String(pinnedLocation.lat));
+			params.set("lng", String(pinnedLocation.lng));
+			params.set("radius", String(radiusMeters));
+			params.set("locationMode", "1");
+		}
+
+		history.push(`/posts/search?${params.toString()}`);
+	};
 
 	// Initial feed load when not in search mode
 	useEffect(() => {
@@ -84,40 +178,39 @@ export default function Home() {
 
 	const handleSearch = (e) => {
 		e.preventDefault();
-		if (!search.trim() && tags.length === 0) return;
-		dispatch(
-			getPostsBySearch({
-				search: search.trim() || "none",
-				tags: tags.join(","),
-			}),
-		);
-		history.push(
-			`/posts/search?searchQuery=${encodeURIComponent(
-				search.trim() || "none",
-			)}&tags=${tags.join(",")}`,
-		);
+		performSearch();
 	};
 
 	const handleClearSearch = () => {
 		setSearch("");
-		setTags([]);
-		setTagInput("");
+		setPinnedLocation(null);
+		setSearchRadiusKm(50);
+		setShowFilters(false);
 		history.push("/posts");
+		dispatch(getPosts(1));
 	};
 
-	const handleAddTag = (e) => {
-		if ((e.key === "Enter" || e.key === ",") && tagInput.trim()) {
-			e.preventDefault();
-			const newTag = tagInput.trim().toLowerCase().replace(/,/g, "");
-			if (!tags.includes(newTag)) {
-				setTags([...tags, newTag]);
+	const handleClearPin = () => {
+		setPinnedLocation(null);
+
+		if (routeLocation.pathname === "/posts/search") {
+			const hasSearchInput = Boolean(search.trim());
+			if (hasSearchInput) {
+				const params = new URLSearchParams();
+				params.set("searchQuery", search.trim());
+				history.push(`/posts/search?${params.toString()}`);
+				dispatch(
+					getPostsBySearch({
+						search: search.trim(),
+						tags: "none",
+					}),
+				);
+				return;
 			}
-			setTagInput("");
-		}
-	};
 
-	const handleRemoveTag = (tag) => {
-		setTags(tags.filter((t) => t !== tag));
+			history.push("/posts");
+			dispatch(getPosts(1));
+		}
 	};
 
 	// Infinite scroll observer for the main feed
@@ -193,29 +286,22 @@ export default function Home() {
 	};
 
 	return (
-		<div className="min-h-screen bg-off-white flex flex-col">
-			{/* ── Page header ─────────────────────────────────────────── */}
-			<div className="bg-gradient-to-b from-dark-green to-[#0a2d26] py-8 px-4">
-				<div className="max-w-6xl mx-auto">
-					<h1 className="text-white font-extrabold text-2xl sm:text-3xl mb-1">
-						Adventure Feed
-					</h1>
-					<p className="text-white/70 text-sm mb-5">
-						Discover stories from explorers around the world
+		<div className="min-h-screen bg-[radial-gradient(circle_at_top_right,_rgba(101,162,122,0.14),_transparent_38%),radial-gradient(circle_at_bottom_left,_rgba(175,250,1,0.08),_transparent_36%),#f7f6f2] flex flex-col">
+			{/* Minimal search header */}
+			<section className="relative overflow-hidden bg-gradient-to-br from-[#0f3d34] via-[#1b4a40] to-[#2f6b4f] px-4 pt-6 pb-6 border-b border-light-green/20">
+				<div className="max-w-5xl mx-auto relative z-[1]">
+					<p className="text-white/75 text-sm mb-3 font-semibold tracking-wide">
+						Search public diaries
 					</p>
 
-					{/* Search bar */}
 					<form onSubmit={handleSearch} className="w-full">
-						<div className="flex items-center gap-2 flex-wrap">
-							<div className="flex-1 flex items-center bg-off-white rounded-xl border-2 border-light-green px-3 py-2 gap-2 min-w-0">
-								<MdSearch
-									size={20}
-									className="text-dark-green shrink-0"
-								/>
+						<div className="flex items-center gap-2.5 flex-wrap p-2 rounded-2xl border border-white/15 bg-white/5 backdrop-blur-sm">
+							<div className="flex-1 flex items-center bg-off-white rounded-xl px-3 py-2.5 gap-2 min-w-0">
+								<MdSearch size={20} className="text-dark-green/80 shrink-0" />
 								<input
 									value={search}
 									onChange={(e) => setSearch(e.target.value)}
-									placeholder="Search adventures, destinations…"
+									placeholder="Search destinations, stories, and tags"
 									className="flex-1 bg-transparent text-text-dark text-sm outline-none placeholder:text-text-gray min-w-0"
 								/>
 								{isSearchActive && (
@@ -229,121 +315,140 @@ export default function Home() {
 								)}
 							</div>
 
-							{/* Tag filter toggle */}
 							<button
 								type="button"
 								onClick={() => setShowFilters((s) => !s)}
-								className={`flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-sm font-semibold border-2 transition-all ${
-									showFilters || tags.length > 0
+								className={`flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-sm font-semibold border transition-all ${
+									showFilters || pinnedLocation
 										? "bg-light-green border-light-green text-text-dark"
-										: "bg-transparent border-off-white/40 text-white hover:border-light-green hover:text-light-green"
+										: "bg-transparent border-white/35 text-white hover:border-light-green hover:text-light-green"
 								}`}
 							>
-								<MdTune size={18} />
-								<span className="hidden sm:inline">Tags</span>
-								{tags.length > 0 && (
+								<MdTune size={17} />
+								<span className="hidden sm:inline">Location Search</span>
+								{pinnedLocation && (
 									<span className="bg-dark-green text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
-										{tags.length}
+										1
 									</span>
 								)}
 							</button>
 
 							<button
 								type="submit"
-								className="bg-light-green hover:bg-light-green-hover text-text-dark font-bold px-5 py-2.5 rounded-xl text-sm transition-colors"
+								className="bg-light-green hover:bg-light-green-hover text-text-dark font-black px-5 py-2.5 rounded-xl text-sm transition-colors"
 							>
 								Search
 							</button>
 						</div>
 
-						{/* Tag panel */}
 						{showFilters && (
-							<div className="mt-3 bg-off-white/10 border border-off-white/20 rounded-xl p-3">
+							<div className="mt-3 rounded-xl border border-white/20 bg-white/10 backdrop-blur-md p-3">
 								<p className="text-white/80 text-xs mb-2 font-medium">
-									Filter by tags — press Enter or comma to add
+									Pin a location and set radius
 								</p>
-								<div className="flex flex-wrap gap-1.5 mb-2">
-									{tags.map((tag) => (
-										<span
-											key={tag}
-											className="flex items-center gap-1 bg-light-green text-text-dark text-xs font-semibold px-2.5 py-1 rounded-full"
+
+								<div className="mt-3 rounded-lg border border-light-green/40 bg-white/90 p-3">
+									<p className="text-xs font-semibold text-dark-green mb-2">
+										Map pin location
+									</p>
+									<LocationPicker
+										value={pinnedLocation || { lat: 27.7172, lng: 85.324 }}
+										onChange={(nextLocation) => setPinnedLocation(nextLocation)}
+										radiusMeters={searchRadiusKm * 1000}
+										showSearch={false}
+									/>
+
+									<label className="text-xs font-semibold text-dark-green block mb-1">
+										Radius: {searchRadiusKm} km
+									</label>
+									<div className="flex items-center justify-between text-[10px] font-semibold text-text-gray mb-1">
+										<span>5 km</span>
+										<span className="text-dark-green text-xs">{searchRadiusKm} km</span>
+										<span>200 km</span>
+									</div>
+									<input
+										type="range"
+										min={5}
+										max={200}
+										step={5}
+										value={searchRadiusKm}
+										onChange={(e) => setSearchRadiusKm(Number(e.target.value))}
+										className="w-full accent-dark-green h-2"
+									/>
+
+									<div className="mt-2 flex justify-end gap-2">
+										<button
+											type="button"
+											onClick={handleClearPin}
+											className="text-xs font-semibold text-orange hover:underline"
 										>
-											#{tag}
-											<button
-												type="button"
-												onClick={() =>
-													handleRemoveTag(tag)
-												}
-												className="hover:text-orange transition-colors"
-											>
-												<MdClose size={12} />
-											</button>
-										</span>
-									))}
+											Clear pin
+										</button>
+										<button
+											type="button"
+											onClick={performSearch}
+											className="text-xs font-bold bg-dark-green text-off-white px-3 py-1.5 rounded-md"
+										>
+											Search
+										</button>
+									</div>
 								</div>
-								<input
-									value={tagInput}
-									onChange={(e) =>
-										setTagInput(e.target.value)
-									}
-									onKeyDown={handleAddTag}
-									placeholder="e.g. hiking, bali, roadtrip…"
-									className="w-full bg-white/90 rounded-lg px-3 py-2 text-sm text-text-dark outline-none border border-light-green focus:border-dark-green placeholder:text-text-gray"
-								/>
 							</div>
 						)}
 					</form>
 				</div>
-			</div>
-
-			{/* Search active banner */}
-			{isSearchActive && (
-				<div className="bg-light-green/20 border-b border-light-green/40 px-4 py-2">
-					<div className="max-w-6xl mx-auto flex items-center justify-between gap-2 flex-wrap">
-						<p className="text-dark-green text-sm font-semibold">
-							Showing results
-							{search.trim() && (
-								<span>
-									{" "}
-									for{" "}
-									<em className="not-italic font-bold">
-										&ldquo;{search}&rdquo;
-									</em>
-								</span>
-							)}
-							{tags.length > 0 && (
-								<span>
-									{" "}
-									tagged{" "}
-									{tags.map((t) => (
-										<span
-											key={t}
-											className="inline-block bg-dark-green text-off-white text-xs px-2 py-0.5 rounded-full mx-0.5"
-										>
-											#{t}
-										</span>
-									))}
-								</span>
-							)}
-						</p>
-						<button
-							onClick={handleClearSearch}
-							className="text-orange text-xs font-bold hover:underline"
-						>
-							Clear search
-						</button>
-					</div>
-				</div>
-			)}
+			</section>
 
 			{/* ── Main content ─────────────────────────────────────────── */}
-		<main className="flex-1 max-w-7xl mx-auto w-full px-4 py-6">
+		<main className="flex-1 max-w-6xl mx-auto w-full px-4 py-7">
 			<div className="flex flex-col lg:flex-row gap-8 justify-center">
 				{/* Posts feed (centered) */}
-				<div className="w-full lg:max-w-2xl">
-					<Posts />
+				<div className="w-full lg:max-w-3xl">
+					{isLocationResultMode ? (
+						<div className="overflow-hidden rounded-xl border border-dark-green/20 bg-off-white shadow-sm">
+							<table className="w-full text-sm">
+								<thead className="bg-dark-green text-off-white">
+									<tr>
+										<th className="text-left px-4 py-3 font-bold">Post Name</th>
+										<th className="text-left px-4 py-3 font-bold">Location</th>
+										<th className="text-left px-4 py-3 font-bold">Distance</th>
+									</tr>
+								</thead>
+								<tbody>
+									{posts.map((post) => (
+										<tr key={post._id} className="border-t border-dark-green/10 hover:bg-light-green/10">
+											<td className="px-4 py-3">
+												<RouterLink to={`/posts/${post._id}`} className="text-dark-green font-semibold hover:underline">
+													{post.title || "Untitled Post"}
+												</RouterLink>
+											</td>
+											<td className="px-4 py-3 text-text-dark">
+												{post.locationName || "Unknown location"}
+											</td>
+											<td className="px-4 py-3 text-text-dark">
+												{typeof post.distanceKm === "number"
+													? `${post.distanceKm.toFixed(2)} km from pinned location`
+													: typeof post.distanceMeters === "number"
+														? `${(post.distanceMeters / 1000).toFixed(2)} km from pinned location`
+														: "-"}
+											</td>
+										</tr>
+									))}
+									{posts.length === 0 && (
+										<tr>
+											<td colSpan={3} className="px-4 py-6 text-center text-text-gray">
+												No posts found for this pinned location and radius.
+											</td>
+										</tr>
+									)}
+								</tbody>
+							</table>
+						</div>
+					) : (
+						<Posts />
+					)}
 					{/* Infinite scroll sentinel & status (only in main feed) */}
-					{!isSearchActive && (
+					{!isSearchActive && !isLocationResultMode && (
 						<div className="mt-8 flex flex-col items-center gap-3 pb-10">
 							<div
 								ref={loadMoreRef}

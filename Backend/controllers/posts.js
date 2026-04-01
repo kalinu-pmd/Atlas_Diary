@@ -75,21 +75,131 @@ export const getPosts = async (req, res) => {
   }
 };
 
+export const getPublicPostStats = async (_req, res) => {
+  try {
+    const [totalPosts, totalUsers] = await Promise.all([
+      PostMessage.countDocuments(),
+      User.countDocuments(),
+    ]);
+
+    const locationNames = await PostMessage.distinct("locationName", {
+      locationName: { $exists: true, $type: "string", $ne: "" },
+    });
+
+    const normalize = (value = "") =>
+      value
+        .toLowerCase()
+        .replace(/\s+/g, " ")
+        .trim();
+
+    const countries = new Set();
+    const places = new Set();
+
+    // Build a canonical country-name set from built-in Intl data (no extra dependency).
+    // This avoids incorrectly treating district/city names as countries.
+    const countryNames = (() => {
+      try {
+        const displayNames = new Intl.DisplayNames(["en"], {
+          type: "region",
+        });
+        const regionCodes = Intl.supportedValuesOf("region");
+        return new Set(
+          regionCodes
+            .map((code) => displayNames.of(code))
+            .filter(Boolean)
+            .map((name) => normalize(name))
+        );
+      } catch (_error) {
+        // Safe fallback for environments that do not support Intl region values.
+        return new Set(["nepal", "india", "china", "united states"]);
+      }
+    })();
+
+    const extractCountry = (locationName) => {
+      const cleaned = String(locationName || "").trim();
+      if (!cleaned) return null;
+
+      // Fast-path for common Nepal representations.
+      const normalizedFull = normalize(cleaned);
+      if (normalizedFull.includes("nepal") || cleaned.includes("नेपाल")) {
+        return "nepal";
+      }
+
+      const parts = cleaned
+        .split(",")
+        .map((part) => part.trim())
+        .filter(Boolean);
+
+      for (let i = parts.length - 1; i >= 0; i -= 1) {
+        const candidate = normalize(parts[i]);
+        if (countryNames.has(candidate)) {
+          return candidate;
+        }
+      }
+
+      return null;
+    };
+
+    locationNames.forEach((rawName) => {
+      const cleaned = String(rawName || "").trim();
+      if (!cleaned) return;
+
+      places.add(normalize(cleaned));
+
+      const country = extractCountry(cleaned);
+      if (country) {
+        countries.add(country);
+      }
+    });
+
+    return res.status(200).json({
+      totalPosts,
+      totalUsers,
+      totalPlaces: places.size,
+      totalCountries: countries.size,
+    });
+  } catch (error) {
+    return res.status(500).json({ message: "Failed to load public stats" });
+  }
+};
+
 
 export const getPostsBySearch = async (req, res) => {
-  const { search, tags } = req.query;
+  const { search, tags, lat, lng, radius } = req.query;
 
   try {
     // Treat "none" or empty as no text search (frontend sends "none" when only tags are used)
     const hasSearch = search && search !== "none";
     // Frontend sends "none" when there is no tag filter, so treat that as empty
     const hasTags = tags && tags.trim().length > 0 && tags !== "none";
+    const parsedLat = Number(lat);
+    const parsedLng = Number(lng);
+    const hasLocationFilter =
+      Number.isFinite(parsedLat) && Number.isFinite(parsedLng);
+    const radiusMeters = Number.isFinite(Number(radius))
+      ? Math.max(1000, Number(radius))
+      : 50000;
 
     // If no filters at all, just return latest posts (defensive fallback)
-    if (!hasSearch && !hasTags) {
+    if (!hasSearch && !hasTags && !hasLocationFilter) {
       const posts = await PostMessage.find().sort({ _id: -1 }).limit(20);
       return res.status(200).json(posts);
     }
+
+    const haversineDistanceMeters = (lat1, lng1, lat2, lng2) => {
+      const toRad = (deg) => (deg * Math.PI) / 180;
+      const R = 6371000;
+      const dLat = toRad(lat2 - lat1);
+      const dLng = toRad(lng2 - lng1);
+      const a =
+        Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+        Math.cos(toRad(lat1)) *
+          Math.cos(toRad(lat2)) *
+          Math.sin(dLng / 2) *
+          Math.sin(dLng / 2);
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+      return R * c;
+    };
 
     const escapeRegExp = (str) => str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
@@ -216,6 +326,40 @@ export const getPostsBySearch = async (req, res) => {
         });
 
       posts = scored.map((entry) => entry.post);
+    }
+
+    if (hasLocationFilter) {
+      const postsWithDistance = posts
+        .map((post) => {
+          const coords = post?.location?.coordinates;
+          if (!Array.isArray(coords) || coords.length < 2) return null;
+
+          const [postLng, postLat] = coords;
+          if (!Number.isFinite(postLat) || !Number.isFinite(postLng)) {
+            return null;
+          }
+
+          const distanceMeters = haversineDistanceMeters(
+            parsedLat,
+            parsedLng,
+            postLat,
+            postLng,
+          );
+
+          if (distanceMeters > radiusMeters) {
+            return null;
+          }
+
+          return {
+            ...post.toObject(),
+            distanceMeters,
+            distanceKm: Number((distanceMeters / 1000).toFixed(2)),
+          };
+        })
+        .filter(Boolean)
+        .sort((a, b) => a.distanceMeters - b.distanceMeters);
+
+      return res.status(200).json(postsWithDistance);
     }
 
     res.status(200).json(posts);
@@ -423,13 +567,125 @@ export const likePost = async (req, res) => {
   }
 };
 
+const parseStoredComment = (rawComment) => {
+  const extractCommentText = (value) => {
+    if (value === null || value === undefined) return "";
+    if (typeof value === "string") return value.trim();
+    if (typeof value === "number" || typeof value === "boolean") {
+      return String(value);
+    }
+
+    if (Array.isArray(value)) {
+      for (const item of value) {
+        const extracted = extractCommentText(item);
+        if (extracted) return extracted;
+      }
+      return "";
+    }
+
+    if (typeof value === "object") {
+      for (const key of ["text", "comment", "body", "message", "value"]) {
+        const extracted = extractCommentText(value[key]);
+        if (extracted) return extracted;
+      }
+    }
+
+    return "";
+  };
+
+  if (typeof rawComment !== "string") {
+    return {
+      userName: "User",
+      userId: "",
+      userAvatar: "",
+      text: extractCommentText(rawComment),
+      createdAt: null,
+      editedAt: null,
+    };
+  }
+
+  const trimmed = rawComment.trim();
+  if (!trimmed) {
+    return {
+      userName: "User",
+      userId: "",
+      userAvatar: "",
+      text: "",
+      createdAt: null,
+      editedAt: null,
+    };
+  }
+
+  if (trimmed.startsWith("{")) {
+    try {
+      const parsed = JSON.parse(trimmed);
+      if (parsed && typeof parsed === "object") {
+        return {
+          userName: String(parsed.userName || "User"),
+          userId: String(parsed.userId || ""),
+          userAvatar: String(parsed.userAvatar || ""),
+          text: extractCommentText(parsed),
+          createdAt: parsed.createdAt || null,
+          editedAt: parsed.editedAt || null,
+        };
+      }
+    } catch (_error) {
+      // fall through to legacy parser
+    }
+  }
+
+  const [userName, ...commentParts] = trimmed.split(": ");
+  return {
+    userName: String(userName || "User"),
+    userId: "",
+    userAvatar: "",
+    text: String(commentParts.join(": ") || ""),
+    createdAt: null,
+    editedAt: null,
+  };
+};
+
+const serializeComment = (commentObject) => JSON.stringify(commentObject);
+
 export const commentPost = async (req, res) => {
   const { id } = req.params;
-  const { comment } = req.body;
+  const { comment, userName, userAvatar } = req.body;
   try {
-    const post = await PostMessage.findById(id);
+    if (!req.userId) {
+      return res.status(401).json({ message: "Unauthenticated" });
+    }
 
-    post.comments.push(comment);
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(404).json({ message: "No post with that id" });
+    }
+
+    const post = await PostMessage.findById(id);
+    if (!post) {
+      return res.status(404).json({ message: "Post not found" });
+    }
+
+    const normalizedInput =
+      typeof comment === "object" && comment !== null ? comment : { comment };
+    const text = parseStoredComment(normalizedInput).text.trim();
+    if (!text) {
+      return res.status(400).json({ message: "Comment cannot be empty" });
+    }
+
+    const commenter = await User.findById(req.userId).select("name profileImage");
+    const normalizedComment = {
+      userName: String(
+        userName || normalizedInput.userName || commenter?.name || "User",
+      ).trim(),
+      userId: String(req.userId),
+      userAvatar: String(
+        userAvatar || normalizedInput.userAvatar || commenter?.profileImage || "",
+      ),
+      text,
+      createdAt: new Date().toISOString(),
+      editedAt: null,
+    };
+
+    post.comments.push(serializeComment(normalizedComment));
     const updatedPost = await PostMessage.findByIdAndUpdate(id, post, {
       new: true,
     });
@@ -461,6 +717,124 @@ export const commentPost = async (req, res) => {
     res.status(200).json(updatedPost);
   } catch (error) {
     res.status(409).json({ message: error });
+  }
+};
+
+export const editComment = async (req, res) => {
+  const { id, commentIndex } = req.params;
+  const { text } = req.body || {};
+
+  try {
+    if (!req.userId) {
+      return res.status(401).json({ message: "Unauthenticated" });
+    }
+
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(404).json({ message: "No post with that id" });
+    }
+
+    const index = Number(commentIndex);
+    if (!Number.isInteger(index) || index < 0) {
+      return res.status(400).json({ message: "Invalid comment index" });
+    }
+
+    const post = await PostMessage.findById(id);
+    if (!post) {
+      return res.status(404).json({ message: "Post not found" });
+    }
+
+    if (!Array.isArray(post.comments) || index >= post.comments.length) {
+      return res.status(404).json({ message: "Comment not found" });
+    }
+
+    const nextText = String(text || "").trim();
+    if (!nextText) {
+      return res.status(400).json({ message: "Comment cannot be empty" });
+    }
+
+    const requester = await User.findById(req.userId).select("isAdmin name");
+    const parsedComment = parseStoredComment(post.comments[index]);
+
+    const isOwnerById =
+      parsedComment.userId &&
+      String(parsedComment.userId) === String(req.userId);
+    const isOwnerByName =
+      !parsedComment.userId &&
+      requester?.name &&
+      String(parsedComment.userName) === String(requester.name);
+    const isAdmin = Boolean(requester?.isAdmin);
+
+    if (!isOwnerById && !isOwnerByName && !isAdmin) {
+      return res.status(403).json({ message: "Unauthorized to edit comment" });
+    }
+
+    const updatedComment = {
+      ...parsedComment,
+      text: nextText,
+      editedAt: new Date().toISOString(),
+    };
+    post.comments[index] = serializeComment(updatedComment);
+
+    const updatedPost = await PostMessage.findByIdAndUpdate(id, post, {
+      new: true,
+    });
+
+    return res.status(200).json(updatedPost);
+  } catch (error) {
+    return res.status(409).json({ message: error.message || String(error) });
+  }
+};
+
+export const deleteComment = async (req, res) => {
+  const { id, commentIndex } = req.params;
+
+  try {
+    if (!req.userId) {
+      return res.status(401).json({ message: "Unauthenticated" });
+    }
+
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(404).json({ message: "No post with that id" });
+    }
+
+    const index = Number(commentIndex);
+    if (!Number.isInteger(index) || index < 0) {
+      return res.status(400).json({ message: "Invalid comment index" });
+    }
+
+    const post = await PostMessage.findById(id);
+    if (!post) {
+      return res.status(404).json({ message: "Post not found" });
+    }
+
+    if (!Array.isArray(post.comments) || index >= post.comments.length) {
+      return res.status(404).json({ message: "Comment not found" });
+    }
+
+    const requester = await User.findById(req.userId).select("isAdmin name");
+    const parsedComment = parseStoredComment(post.comments[index]);
+
+    const isOwnerById =
+      parsedComment.userId &&
+      String(parsedComment.userId) === String(req.userId);
+    const isOwnerByName =
+      !parsedComment.userId &&
+      requester?.name &&
+      String(parsedComment.userName) === String(requester.name);
+    const isAdmin = Boolean(requester?.isAdmin);
+
+    if (!isOwnerById && !isOwnerByName && !isAdmin) {
+      return res.status(403).json({ message: "Unauthorized to delete comment" });
+    }
+
+    post.comments.splice(index, 1);
+    const updatedPost = await PostMessage.findByIdAndUpdate(id, post, {
+      new: true,
+    });
+
+    return res.status(200).json(updatedPost);
+  } catch (error) {
+    return res.status(409).json({ message: error.message || String(error) });
   }
 };
 

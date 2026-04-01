@@ -78,6 +78,7 @@ const Post = ({ post, onDeleted }) => {
 	const [reportDetails, setReportDetails] = useState("");
 	const userId = user?.result?.googleId || user?.result?._id;
 	const hasLiked = userId && likes?.some((like) => like === userId);
+	const commentCount = post.comments?.length || post.commentsCount || 0;
 	const isOwner =
 		user?.result?.googleId === post?.creator ||
 		user?.result?._id === post?.creator;
@@ -191,6 +192,10 @@ const Post = ({ post, onDeleted }) => {
 
 	const avatarUrl = post.authorImage || (isOwner ? currentUserProfileImage : null);
 	const placeLabel = formatLocationName(post.locationName || "");
+	const pinnedDistanceKm =
+		typeof post.distanceMeters === "number"
+			? (post.distanceMeters / 1000).toFixed(2)
+			: null;
 	const postTitle = (post.title || "").trim();
 	// Keep cards visually similar in height by truncating
 	// descriptions a bit earlier and using a See more toggle.
@@ -247,13 +252,11 @@ const Post = ({ post, onDeleted }) => {
 						</div>
 					)}
 					<div className="flex-1 min-w-0">
-						<p className="font-semibold text-text-dark text-sm truncate">
+						<p className="font-semibold text-text-dark text-base truncate">
 							{post.name}
 						</p>
-						<p className="text-xs text-text-gray truncate">
-							{placeLabel
-								? `${post.name || "Someone"} is at ${placeLabel}`
-								: ""}
+						<p className="text-[15px] font-medium text-text-gray truncate">
+							{placeLabel || ""}
 						</p>
 						<p className="text-[11px] text-text-gray mt-0">
 							{moment(post.createdAt).fromNow()}
@@ -309,11 +312,16 @@ const Post = ({ post, onDeleted }) => {
 			{/* Description + hashtags (above image, like Facebook) */}
 			<div className="px-4 pt-2 pb-3 bg-white">
 				{postTitle && (
-					<p className="text-sm font-bold text-text-dark mb-1">
+					<p className="text-base font-bold text-text-dark mb-1">
 						{postTitle}
 					</p>
 				)}
-				<p className="text-sm text-text-dark leading-relaxed">
+				{pinnedDistanceKm && (
+					<p className="text-[0.76rem] text-dark-green font-semibold mb-1.5">
+						{pinnedDistanceKm} km from pinned location
+					</p>
+				)}
+				<p className="text-[15px] text-text-dark leading-relaxed">
 					{visibleMessage}
 					{isLongDescription && (
 						<button
@@ -392,12 +400,10 @@ const Post = ({ post, onDeleted }) => {
 					</span>
 					{likes.length} {likes.length === 1 ? "like" : "likes"}
 				</span>
-				{post.comments?.length > 0 && (
-					<span className="flex items-center gap-1">
-						<MdComment size={14} />
-						{post.comments?.length || post.commentsCount || 0} {(post.comments?.length || post.commentsCount || 0) === 1 ? "comment" : "comments"}
-					</span>
-				)}
+				<span className="flex items-center gap-1">
+					<MdComment size={14} />
+					{commentCount} {commentCount === 1 ? "comment" : "comments"}
+				</span>
 			</div>
 
 			{/* Action buttons */}
@@ -520,6 +526,7 @@ Post.propTypes = {
 		createdAt: PropTypes.string,
 		authorImage: PropTypes.string,
 		locationName: PropTypes.string,
+		distanceMeters: PropTypes.number,
 	}).isRequired,
 	onDeleted: PropTypes.func,
 };

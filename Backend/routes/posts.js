@@ -1,6 +1,7 @@
 import express from "express";
 import {
   getPosts,
+  getPublicPostStats,
   getPostsBySearch,
   createPost,
   updatePost,
@@ -8,6 +9,8 @@ import {
   likePost,
   getPostById,
   commentPost,
+  editComment,
+  deleteComment,
   getRecommendations,
   getSimilarPosts,
   trackPostView,
@@ -25,6 +28,7 @@ const router = express.Router();
 
 // http://localhost:5000/posts
 router.get("/", getPosts);
+router.get("/stats/public", getPublicPostStats);
 router.get("/search", getPostsBySearch);
 router.get("/recommendations", auth, getRecommendations);
 // Admin-only report management (placed before dynamic :id routes)
@@ -42,5 +46,7 @@ router.patch("/:id", auth, updatePost);
 router.delete("/:id", auth, deletePost);
 router.patch("/:id/likePost", auth, likePost);
 router.post("/:id/commentPost", auth, commentPost);
+router.patch("/:id/comments/:commentIndex", auth, editComment);
+router.delete("/:id/comments/:commentIndex", auth, deleteComment);
 
 export default router;

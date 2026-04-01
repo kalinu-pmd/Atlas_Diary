@@ -301,7 +301,17 @@ function Navbar() {
 		<header className="fixed top-0 left-0 right-0 z-[1300] bg-cream shadow-nav border-b border-accent-green/10" style={{ minHeight: 64 }}>
 			<div className="w-full px-5 h-16 flex items-center">
 				{/* Brand */}
-				<Link to="/" aria-label="Atlas Diary" className="flex items-center flex-shrink-0 transition-opacity hover:opacity-90">
+				<Link
+					to="/"
+					aria-label="Atlas Diary"
+					className="flex items-center flex-shrink-0 transition-opacity hover:opacity-90"
+					onClick={() => {
+						window.scrollTo({ top: 0, behavior: "smooth" });
+						setMobileOpen(false);
+						setUserMenuOpen(false);
+						setNotificationsOpen(false);
+					}}
+				>
 					<img src={logo} alt="Atlas Diary" className="h-10 w-auto block" />
 				</Link>
 

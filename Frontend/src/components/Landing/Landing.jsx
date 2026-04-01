@@ -1,4 +1,5 @@
 import { Link as RouterLink } from "react-router-dom";
+import { useEffect, useMemo, useState } from "react";
 import { useSelector } from "react-redux";
 import {
 	MdExplore,
@@ -11,6 +12,7 @@ import {
 } from "react-icons/md";
 import heroImage from "../../Images/heroSection.png";
 import Footer from "../Footer/Footer";
+import { fetchPublicPostStats } from "../../api";
 
 const features = [
 	{
@@ -79,6 +81,54 @@ const testimonials = [
 
 export default function Landing() {
 	const user = useSelector((state) => state.auth.authData);
+	const [heroStats, setHeroStats] = useState({
+		totalPlaces: 0,
+		totalUsers: 0,
+		totalCountries: 0,
+	});
+
+	useEffect(() => {
+		let mounted = true;
+
+		if (typeof window !== "undefined") {
+			window.scrollTo({ top: 0, behavior: "smooth" });
+		}
+
+		const loadStats = async () => {
+			try {
+				const { data } = await fetchPublicPostStats();
+				if (!mounted) return;
+				setHeroStats({
+					totalPlaces: Number(data?.totalPlaces || 0),
+					totalUsers: Number(data?.totalUsers || 0),
+					totalCountries: Number(data?.totalCountries || 0),
+				});
+			} catch (_error) {
+				if (!mounted) return;
+				setHeroStats({ totalPlaces: 0, totalUsers: 0, totalCountries: 0 });
+			}
+		};
+
+		loadStats();
+		const refreshId = setInterval(loadStats, 30000);
+
+		return () => {
+			mounted = false;
+			clearInterval(refreshId);
+		};
+	}, []);
+
+	const stats = useMemo(
+		() => [
+			{ value: heroStats.totalPlaces.toLocaleString(), label: "Total Places" },
+			{ value: heroStats.totalUsers.toLocaleString(), label: "Total Users" },
+			{
+				value: heroStats.totalCountries.toLocaleString(),
+				label: "Total Countries",
+			},
+		],
+		[heroStats],
+	);
 
 	return (
 		<div className="flex flex-col min-h-screen bg-off-white">
@@ -138,11 +188,7 @@ export default function Landing() {
 
 						{/* Stats row */}
 						<div className="flex flex-wrap gap-5 mt-4 mb-7">
-							{[
-								{ value: "10k+", label: "Adventurers" },
-								{ value: "50k+", label: "Posts Shared" },
-								{ value: "120+", label: "Countries" },
-							].map((stat) => (
+							{stats.map((stat) => (
 								<div key={stat.label} className="flex flex-col">
 									<span className="text-light-green font-extrabold text-xl leading-tight">
 										{stat.value}

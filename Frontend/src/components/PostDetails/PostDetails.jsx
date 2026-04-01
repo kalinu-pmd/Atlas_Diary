@@ -143,7 +143,7 @@ function PostDetails() {
 
 	if (isPostLoading) {
 		return (
-			<div className="flex justify-center items-center h-[77vh] bg-gradient-to-br from-off-white to-light-green/10 border-2 border-light-green rounded-[20px] shadow-lg">
+			<div className="flex justify-center items-center w-full min-h-[calc(100vh-4rem)] bg-gradient-to-br from-off-white to-light-green/10 border-2 border-light-green">
 				<div className="flex flex-col items-center gap-4">
 					<div
 						className="w-14 h-14 rounded-full border-4 border-light-green/30 border-t-dark-green animate-spin"

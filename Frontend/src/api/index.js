@@ -20,6 +20,10 @@ export const fetchPosts = (page, options = {}) => {
 	return API.get(url);
 };
 
+export const fetchPublicPostStats = () => {
+	return API.get("/posts/stats/public");
+};
+
 export const createPost = (newPost) => {
 	return API.post("/posts", newPost);
 };
@@ -75,10 +79,19 @@ export const verifyResetOtp = (payload) => {
 };
 
 export const fetchPostsBySearch = (searchQuery) => {
+	const { location, radius } = searchQuery || {};
+	let locationQuery = "";
+	if (location && location.lat != null && location.lng != null) {
+		locationQuery += `&lat=${location.lat}&lng=${location.lng}`;
+		if (radius) {
+			locationQuery += `&radius=${radius}`;
+		}
+	}
+
 	return API.get(
 		`/posts/search?search=${searchQuery.search || "none"}&tags=${
 			searchQuery.tags || "none"
-		}`,
+		}${locationQuery}`,
 	);
 };
 
@@ -88,6 +101,14 @@ export const fetchPostById = (id) => {
 
 export const commentPost = (comment, postId) => {
 	return API.post(`/posts/${postId}/commentPost`, { comment });
+};
+
+export const editComment = (postId, commentIndex, payload) => {
+	return API.patch(`/posts/${postId}/comments/${commentIndex}`, payload);
+};
+
+export const deleteComment = (postId, commentIndex) => {
+	return API.delete(`/posts/${postId}/comments/${commentIndex}`);
 };
 
 // Admin / user management

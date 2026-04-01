@@ -146,7 +146,7 @@ class RecommendationService {
   }
 
   // Calculate recommendation score for a post
-  calculateRecommendationScore(post, userProfile) {
+  calculateRecommendationScore(post, userProfile, locationRadius = 50000) {
     let score = 0;
 
     // Tag similarity score (15% weight)
@@ -182,6 +182,7 @@ class RecommendationService {
     // Location proximity score (25% weight)
     // If userProfile.location and post.location exist, calculate distance and score
     let locationScore = 0;
+    let locationDistanceMeters = null;
     if (userProfile.location && post.location && Array.isArray(post.location.coordinates)) {
       const userLoc = userProfile.location;
       const postLoc = post.location.coordinates;
@@ -197,14 +198,21 @@ class RecommendationService {
         Math.sin(dLon / 2) * Math.sin(dLon / 2);
       const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
       const distance = R * c;
-      // Score: 1 if within 1km, 0 if farther than 10km, linear in between
-      if (distance <= 1000) locationScore = 1;
-      else if (distance >= 10000) locationScore = 0;
-      else locationScore = 1 - (distance - 1000) / 9000;
+      locationDistanceMeters = distance;
+
+      // Score by request radius so posts within 50km still get meaningful boost.
+      const effectiveRadius = Math.max(1000, Number(locationRadius) || 50000);
+      if (distance <= 1000) {
+        locationScore = 1;
+      } else if (distance >= effectiveRadius) {
+        locationScore = 0;
+      } else {
+        locationScore = 1 - (distance - 1000) / (effectiveRadius - 1000);
+      }
     }
     score += locationScore * 0.25;
 
-    return score;
+    return { score, locationScore, locationDistanceMeters };
   }
 
   // Get content-based or location-based recommendations for a user
@@ -244,18 +252,34 @@ class RecommendationService {
         .populate("creator", "name");
 
       // Calculate recommendation scores
-      const scoredPosts = allPosts.map((post) => ({
-        post,
-        score: this.calculateRecommendationScore(post, userProfile),
-      }));
+      const scoredPosts = allPosts.map((post) => {
+        const scored = this.calculateRecommendationScore(post, userProfile, radius);
+        return {
+          post,
+          score: scored.score,
+          locationScore: scored.locationScore,
+          locationDistanceMeters: scored.locationDistanceMeters,
+          isNearby:
+            typeof scored.locationDistanceMeters === "number" &&
+            scored.locationDistanceMeters <= radius,
+        };
+      });
 
-      // Sort by score and return top recommendations
+      // Prioritize nearby posts first, then score.
       const recommendations = scoredPosts
-        .sort((a, b) => b.score - a.score)
+        .sort((a, b) => {
+          if (a.isNearby !== b.isNearby) {
+            return a.isNearby ? -1 : 1;
+          }
+          return b.score - a.score;
+        })
         .slice(0, limit)
         .map((item) => ({
           ...item.post.toObject(),
           recommendationScore: item.score,
+          locationScore: item.locationScore,
+          distanceMeters: item.locationDistanceMeters,
+          isNearby: item.isNearby,
         }));
 
       return recommendations;

@@ -86,7 +86,7 @@ const SimilarPosts = ({ postId }) => {
 						const dist = getDistanceKm(lat1, lng1, lat2, lng2);
 						if (dist !== null && dist < 50) {
 							isNearby = true;
-							nearbyText = `Nearby: ${(dist).toFixed(2)} km`;
+							nearbyText = `Nearby: ${dist.toFixed(2)} km from this post location`;
 						}
 					}
 

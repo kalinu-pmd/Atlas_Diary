@@ -170,6 +170,36 @@ export const commentPost = (comment, postId) => async (dispatch) => {
 	}
 };
 
+export const editComment = (postId, commentIndex, text) => async (dispatch) => {
+	try {
+		const { data } = await api.editComment(postId, commentIndex, { text });
+		dispatch({ type: COMMENT, payload: data });
+		toast.success("Comment updated.");
+		return data.comments;
+	} catch (error) {
+		console.log("Error message : " + error);
+		const errorMessage =
+			error.response?.data?.message ||
+			"Failed to update comment. Please try again.";
+		toast.error(errorMessage);
+	}
+};
+
+export const deleteComment = (postId, commentIndex) => async (dispatch) => {
+	try {
+		const { data } = await api.deleteComment(postId, commentIndex);
+		dispatch({ type: COMMENT, payload: data });
+		toast.success("Comment deleted.");
+		return data.comments;
+	} catch (error) {
+		console.log("Error message : " + error);
+		const errorMessage =
+			error.response?.data?.message ||
+			"Failed to delete comment. Please try again.";
+		toast.error(errorMessage);
+	}
+};
+
 // Recommendation actions
 // options can include { location: { lat, lng }, radius }
 export const getRecommendations =
