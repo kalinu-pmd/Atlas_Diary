@@ -30,11 +30,13 @@ const Recommendations = () => {
 	const [imageDialogOpen, setImageDialogOpen] = useState(false);
 	const [currentImageIndex, setCurrentImageIndex] = useState(0);
 	const [hasAttemptedFetch, setHasAttemptedFetch] = useState(false);
+	const [isFetchingRecommendations, setIsFetchingRecommendations] = useState(false);
 
-	const requestLocation = () => {
+	const requestLocation = async () => {
 		if (!hasAttemptedFetch) {
 			setHasAttemptedFetch(true);
 		}
+		setIsFetchingRecommendations(true);
 
 		// Clear any previous recommendations from Redux so we don't briefly
 		// show stale cards while a new fetch is in flight.
@@ -42,29 +44,38 @@ const Recommendations = () => {
 
 		if (typeof navigator === "undefined" || !navigator.geolocation) {
 			// Fallback: fetch recommendations without location
-			dispatch(getRecommendations(10));
+			try {
+				await dispatch(getRecommendations(10));
+			} finally {
+				setIsFetchingRecommendations(false);
+			}
 			return;
 		}
 
-		navigator.geolocation.getCurrentPosition(
-			(position) => {
-				const { latitude, longitude } = position.coords;
-				const location = { lat: latitude, lng: longitude };
-				setUserLocation(location);
-				dispatch(
-					getRecommendations(10, {
-						location,
-						radius: 50000, // 50km radius in meters
-					}),
-				);
-			},
-			(error) => {
-				console.error("Geolocation error:", error);
-				// If user denies location or it fails, fall back to non-location-based
-				dispatch(getRecommendations(10));
-			},
-			{ enableHighAccuracy: true, timeout: 10000 },
-		);
+		try {
+			const position = await new Promise((resolve, reject) => {
+				navigator.geolocation.getCurrentPosition(resolve, reject, {
+					enableHighAccuracy: true,
+					timeout: 10000,
+				});
+			});
+
+			const { latitude, longitude } = position.coords;
+			const location = { lat: latitude, lng: longitude };
+			setUserLocation(location);
+			await dispatch(
+				getRecommendations(10, {
+					location,
+					radius: 50000, // 50km radius in meters
+				}),
+			);
+		} catch (error) {
+			console.error("Geolocation error:", error);
+			// If user denies location or it fails, fall back to non-location-based
+			await dispatch(getRecommendations(10));
+		} finally {
+			setIsFetchingRecommendations(false);
+		}
 	};
 
 	useEffect(() => {
@@ -162,7 +173,7 @@ const Recommendations = () => {
 		);
 	}
 
-	if (!hasAttemptedFetch || isLoading) {
+	if (!hasAttemptedFetch || isFetchingRecommendations || isLoading) {
 		return (
 			<div className="relative overflow-hidden w-full min-h-[calc(100vh-4rem)] border-2 border-light-green bg-gradient-to-br from-off-white via-[#f7fbf2] to-light-green/20 flex items-center justify-center px-4">
 				<style>{`
