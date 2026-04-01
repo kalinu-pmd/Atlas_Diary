@@ -493,6 +493,11 @@ export const deletePost = async (req, res) => {
     }
 
     // Delete the post
+    try {
+      await Notification.deleteMany({ post: id });
+    } catch (notifyError) {
+      console.error("Failed to clear notifications for deleted post:", notifyError);
+    }
     await PostMessage.findByIdAndDelete(id);
     res.status(200).json({ message: "Post deleted successfully" });
   } catch (error) {
@@ -543,14 +548,13 @@ export const likePost = async (req, res) => {
     } else {
       post.likes = post.likes.filter((id) => id !== String(req.userId));
 
-      // If user unlikes, remove their pending unread like alert for this post.
+      // If user unlikes, remove all like alerts for this post.
       try {
         await Notification.deleteMany({
           user: post.creator,
           fromUser: req.userId,
           post: post._id,
           type: "like",
-          read: false,
         });
       } catch (notifyError) {
         console.error("Failed to clear like notification on unlike:", notifyError);
@@ -828,6 +832,19 @@ export const deleteComment = async (req, res) => {
     }
 
     post.comments.splice(index, 1);
+
+    // Remove the comment alert(s) that were created for this comment author.
+    try {
+      await Notification.deleteMany({
+        user: post.creator,
+        fromUser: parsedComment.userId || req.userId,
+        post: post._id,
+        type: "comment",
+      });
+    } catch (notifyError) {
+      console.error("Failed to clear comment notification on delete:", notifyError);
+    }
+
     const updatedPost = await PostMessage.findByIdAndUpdate(id, post, {
       new: true,
     });
