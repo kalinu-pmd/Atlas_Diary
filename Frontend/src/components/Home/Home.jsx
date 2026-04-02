@@ -43,6 +43,29 @@ export default function Home() {
 		locationModeQuery === "1" &&
 		Number.isFinite(Number(latQuery)) &&
 		Number.isFinite(Number(lngQuery));
+	const isInitialFeedLoading =
+		routeLocation.pathname === "/posts" &&
+		!isSearchActive &&
+		!isLocationResultMode &&
+		isLoading &&
+		posts.length === 0;
+
+	// Prevent users from scrolling down into empty space while the initial
+	// public feed skeleton is loading, then restore normal scrolling after load.
+	useEffect(() => {
+		if (!isInitialFeedLoading) return;
+
+		const previousBodyOverflow = document.body.style.overflow;
+		const previousHtmlOverflow = document.documentElement.style.overflow;
+		window.scrollTo({ top: 0, behavior: "auto" });
+		document.body.style.overflow = "hidden";
+		document.documentElement.style.overflow = "hidden";
+
+		return () => {
+			document.body.style.overflow = previousBodyOverflow;
+			document.documentElement.style.overflow = previousHtmlOverflow;
+		};
+	}, [isInitialFeedLoading]);
 
 	// Track scroll position to toggle the floating "scroll to top" button
 	useEffect(() => {

@@ -1,11 +1,30 @@
+import { useEffect } from "react";
 import { useSelector } from "react-redux";
+import { useLocation } from "react-router-dom";
 import Post from "./Post/Post";
 
 const Posts = () => {
 	const { posts, isLoading } = useSelector((state) => state.posts);
+	const location = useLocation();
 	const user = useSelector((state) => state.auth.authData);
 	const currentUserId =
 		user?.result?.googleId || user?.result?._id || null;
+
+	useEffect(() => {
+		if (!isLoading || !location.pathname.startsWith("/posts")) return;
+
+		const previousBodyOverflow = document.body.style.overflow;
+		const previousHtmlOverflow = document.documentElement.style.overflow;
+		window.scrollTo({ top: 0, behavior: "auto" });
+		document.body.style.overflow = "hidden";
+		document.documentElement.style.overflow = "hidden";
+
+		return () => {
+			document.body.style.overflow = previousBodyOverflow;
+			document.documentElement.style.overflow = previousHtmlOverflow;
+			window.scrollTo({ top: 0, behavior: "auto" });
+		};
+	}, [isLoading, location.pathname]);
 
 	// For the main feed, hide posts created by the logged-in user.
 	// Their own posts are still visible on profile and other views.
