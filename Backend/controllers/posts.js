@@ -60,6 +60,7 @@ export const getPosts = async (req, res) => {
 
       return res.status(200).json({
         data: summarized,
+        total,
         currentPage: pageNumber,
         numberOfPages: Math.ceil(total / LIMIT),
       });
@@ -67,6 +68,7 @@ export const getPosts = async (req, res) => {
 
     res.status(200).json({
       data: posts,
+      total,
       currentPage: pageNumber,
       numberOfPages: Math.ceil(total / LIMIT),
     });
@@ -825,9 +827,10 @@ export const deleteComment = async (req, res) => {
       !parsedComment.userId &&
       requester?.name &&
       String(parsedComment.userName) === String(requester.name);
+    const isPostOwner = String(post.creator) === String(req.userId);
     const isAdmin = Boolean(requester?.isAdmin);
 
-    if (!isOwnerById && !isOwnerByName && !isAdmin) {
+    if (!isOwnerById && !isOwnerByName && !isPostOwner && !isAdmin) {
       return res.status(403).json({ message: "Unauthorized to delete comment" });
     }
 
@@ -1324,7 +1327,7 @@ export const verifyPostLocation = async (req, res) => {
 
   try {
     // First, try a bounded search around the selected pin
-    const boundedUrl = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(
+    const boundedUrl = `https://nominatim.openstreetmap.org/search?format=json&accept-language=en&q=${encodeURIComponent(
       query
     )}&bounded=1&viewbox=${minLng},${maxLat},${maxLng},${minLat}`;
 
@@ -1354,7 +1357,7 @@ export const verifyPostLocation = async (req, res) => {
 
     // If the bounded search didn't find anything, fall back to a global search
     if (!Array.isArray(results) || results.length === 0) {
-      const globalUrl = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(
+      const globalUrl = `https://nominatim.openstreetmap.org/search?format=json&accept-language=en&q=${encodeURIComponent(
         query
       )}`;
 

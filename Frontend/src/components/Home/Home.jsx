@@ -54,16 +54,10 @@ export default function Home() {
 	// public feed skeleton is loading, then restore normal scrolling after load.
 	useEffect(() => {
 		if (!isInitialFeedLoading) return;
-
-		const previousBodyOverflow = document.body.style.overflow;
-		const previousHtmlOverflow = document.documentElement.style.overflow;
 		window.scrollTo({ top: 0, behavior: "auto" });
-		document.body.style.overflow = "hidden";
-		document.documentElement.style.overflow = "hidden";
 
 		return () => {
-			document.body.style.overflow = previousBodyOverflow;
-			document.documentElement.style.overflow = previousHtmlOverflow;
+			window.scrollTo({ top: 0, behavior: "auto" });
 		};
 	}, [isInitialFeedLoading]);
 

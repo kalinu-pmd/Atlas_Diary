@@ -96,6 +96,10 @@ const CommentSection = ({ post }) => {
 	const user = useSelector((state) => state.auth.authData);
 	const hasComments = Array.isArray(comments) && comments.length > 0;
 	const currentUserId = user?.result?.googleId || user?.result?._id || "";
+	const isPostOwner =
+		currentUserId && post?.creator
+			? String(currentUserId) === String(post.creator)
+			: false;
 
 	const handleClick = async () => {
 		const payload = {
@@ -183,9 +187,10 @@ const CommentSection = ({ post }) => {
 					{comments.map((rawComment, i) => {
 						const parsed = parseComment(rawComment);
 						const profilePath = parsed.userId ? `/profile/${parsed.userId}` : null;
-						const isOwner =
+						const isCommentOwner =
 							(currentUserId && parsed.userId && String(currentUserId) === String(parsed.userId)) ||
 							(!parsed.userId && user?.result?.name && parsed.userName === user.result.name);
+						const canDeleteComment = isCommentOwner || isPostOwner;
 						const isEditing = editingIndex === i;
 						return (
 							<div
@@ -254,7 +259,7 @@ const CommentSection = ({ post }) => {
 
 								</div>
 
-								{isOwner && !isEditing && (
+								{canDeleteComment && !isEditing && (
 									<div className="absolute top-2.5 right-2.5">
 										<button
 											type="button"
@@ -271,13 +276,15 @@ const CommentSection = ({ post }) => {
 
 										{openMenuIndex === i && (
 											<div className="absolute right-0 mt-1 w-24 rounded-lg border border-light-green/60 bg-off-white shadow-lg py-1 z-10">
-												<button
-													type="button"
-													onClick={() => startEdit(i, parsed.text)}
-													className="w-full text-left px-3 py-1.5 text-xs font-semibold text-dark-green hover:bg-light-green/20"
-												>
-													Edit
-												</button>
+												{isCommentOwner && (
+													<button
+														type="button"
+														onClick={() => startEdit(i, parsed.text)}
+														className="w-full text-left px-3 py-1.5 text-xs font-semibold text-dark-green hover:bg-light-green/20"
+													>
+														Edit
+													</button>
+												)}
 												<button
 													type="button"
 													onClick={() => handleDelete(i)}

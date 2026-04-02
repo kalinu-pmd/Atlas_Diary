@@ -5,6 +5,7 @@ import "leaflet/dist/leaflet.css";
 import markerIcon2x from "leaflet/dist/images/marker-icon-2x.png";
 import markerIcon from "leaflet/dist/images/marker-icon.png";
 import markerShadow from "leaflet/dist/images/marker-shadow.png";
+import { searchLocations } from "../../utils/locationCountry";
 
 // Ensure Leaflet marker icon works in bundled builds (Vite + Render/Vercel)
 // Reset internal default URL resolver so our imported asset URLs are used
@@ -41,6 +42,49 @@ export default function LocationPicker({ value, onChange, radiusMeters = null, s
     "county",
     "district",
   ]);
+
+  const broadPlaceTypes = new Set([
+    "city",
+    "town",
+    "village",
+    "municipality",
+    "hamlet",
+    "suburb",
+    "locality",
+  ]);
+
+  const narrowPlaceTypes = new Set([
+    "road",
+    "residential",
+    "house",
+    "building",
+    "neighbourhood",
+    "quarter",
+    "highway",
+    "aeroway",
+    "bus_stop",
+  ]);
+
+  const landmarkPlaceTypes = new Set([
+    "place_of_worship",
+    "tourism",
+    "attraction",
+    "museum",
+    "historic",
+    "monument",
+  ]);
+
+  const landmarkTerms = [
+    "stupa",
+    "temple",
+    "monastery",
+    "shrine",
+    "pagoda",
+    "buddha",
+    "boudha",
+    "boudhanath",
+    "bouddha",
+  ];
 
   const normalizeText = (text) => {
     const lower = (text || "").toLowerCase();
@@ -81,6 +125,90 @@ export default function LocationPicker({ value, onChange, radiusMeters = null, s
     });
 
     return Math.round((tokenHits / qParts.length) * 70);
+  };
+
+  const extractPrimaryName = (displayName) => {
+    const firstPart = String(displayName || "").split(",")[0] || "";
+    return normalizeText(firstPart);
+  };
+
+  const rankSearchResult = (query, item) => {
+    const normalizedQuery = normalizeText(query);
+    const display = normalizeText(item.display_name);
+    const primaryName = extractPrimaryName(item.display_name);
+    const resultType = normalizeText(item.type || item.addresstype || "");
+    const resultClass = normalizeText(item.class || "");
+
+    let score = fuzzyScore(normalizedQuery, display);
+
+    // Strongly prioritize exact place-name matches (first label in display_name).
+    if (primaryName && primaryName === normalizedQuery) score += 70;
+    else if (primaryName && primaryName.startsWith(normalizedQuery)) score += 35;
+    else if (primaryName && normalizedQuery.startsWith(primaryName)) score += 25;
+
+    // Prefer broad location entities for short city/village queries.
+    if (broadPlaceTypes.has(resultType)) score += 12;
+
+    // Landmark terms matter a lot for places like Boudha / Boudhanath.
+    if (landmarkPlaceTypes.has(resultType) || landmarkPlaceTypes.has(resultClass)) {
+      score += 18;
+    }
+
+    if (landmarkTerms.some((term) => display.includes(term))) {
+      score += 30;
+    }
+
+    if (landmarkTerms.some((term) => normalizedQuery.includes(term))) {
+      score += 15;
+    }
+
+    if (
+      landmarkTerms.some((term) => display.includes(term)) &&
+      !narrowPlaceTypes.has(resultType)
+    ) {
+      score += 10;
+    }
+
+    // De-prioritize very narrow places (roads/buildings) unless user clearly asks for them.
+    const isSpecificQuery =
+      normalizedQuery.includes("road") ||
+      normalizedQuery.includes("street") ||
+      normalizedQuery.includes("airport") ||
+      normalizedQuery.includes("highway") ||
+      normalizedQuery.includes("bus") ||
+      normalizedQuery.includes("stop");
+    if (!isSpecificQuery && narrowPlaceTypes.has(resultType)) score -= 18;
+
+    const importance = Number(item.importance || 0);
+    score += Math.min(10, Math.round(importance * 10));
+
+    return score;
+  };
+
+  const isSpecificPlaceQuery = (query) => {
+    const normalized = normalizeText(query);
+    if (!normalized) return false;
+
+    const specificTerms = [
+      "road",
+      "street",
+      "airport",
+      "highway",
+      "bus",
+      "stop",
+      "ward",
+      "hospital",
+      "school",
+      "hotel",
+      "temple",
+      "chowk",
+    ];
+
+    if (specificTerms.some((term) => normalized.includes(term))) {
+      return true;
+    }
+
+    return /\d/.test(normalized) || normalized.includes(",");
   };
 
   const isAdministrativeResult = (item, query) => {
@@ -140,30 +268,10 @@ export default function LocationPicker({ value, onChange, radiusMeters = null, s
     setSearchError("");
 
     try {
-      const url = `https://nominatim.openstreetmap.org/search?format=jsonv2&limit=8&q=${encodeURIComponent(query)}`;
-      const response = await fetch(url, {
-        headers: {
-          Accept: "application/json",
-        },
+      const normalized = await searchLocations(query, {
+        limit: 8,
+        language: "en",
       });
-
-      if (!response.ok) {
-        throw new Error("Search failed");
-      }
-
-      const data = await response.json();
-      const normalized = Array.isArray(data)
-        ? data
-            .filter((item) => item?.lat && item?.lon)
-            .map((item) => ({
-              display_name: item.display_name,
-              lat: Number(item.lat),
-              lng: Number(item.lon),
-              class: item.class,
-              type: item.type,
-              addresstype: item.addresstype,
-            }))
-        : [];
 
       const filtered = normalized.filter(
         (item) => !isAdministrativeResult(item, query),
@@ -177,18 +285,76 @@ export default function LocationPicker({ value, onChange, radiusMeters = null, s
       const rankedResults = candidates
         .map((item) => ({
           ...item,
-          _score: fuzzyScore(query, item.display_name),
+          _score: rankSearchResult(query, item),
         }))
-        .sort((a, b) => b._score - a._score)
+        .sort((a, b) => {
+          if (b._score !== a._score) return b._score - a._score;
+          if ((b.importance || 0) !== (a.importance || 0)) {
+            return (b.importance || 0) - (a.importance || 0);
+          }
+          return (a.place_rank || 0) - (b.place_rank || 0);
+        })
         .map(({ _score, ...item }) => item);
 
-      setSearchResults(rankedResults);
+      const normalizedQuery = normalizeText(query);
+      const specificQuery = isSpecificPlaceQuery(query);
 
-      if (!rankedResults.length) {
+        const landmarkMatches = rankedResults.filter((item) => {
+          const display = normalizeText(item.display_name);
+          const resultType = normalizeText(item.type || item.addresstype || "");
+          const resultClass = normalizeText(item.class || "");
+
+          return (
+            landmarkTerms.some((term) => display.includes(term)) ||
+            landmarkPlaceTypes.has(resultType) ||
+            landmarkPlaceTypes.has(resultClass)
+          );
+        });
+
+      let finalResults = rankedResults;
+      if (!specificQuery) {
+        // Prefer exact city/town/village/locality level matches.
+        const exactCityLevelMatches = rankedResults.filter((item) => {
+          const primaryName = extractPrimaryName(item.display_name);
+          return (
+            primaryName === normalizedQuery &&
+            Number(item.place_rank || 99) <= 20
+          );
+        });
+
+        if (exactCityLevelMatches.length > 0) {
+          finalResults = exactCityLevelMatches;
+        } else if (landmarkMatches.length > 0) {
+          finalResults = landmarkMatches;
+        } else {
+          // Otherwise, still suppress very narrow results for generic queries.
+          const broadLevelMatches = rankedResults.filter(
+            (item) => Number(item.place_rank || 99) <= 20,
+          );
+          if (broadLevelMatches.length > 0) {
+            finalResults = broadLevelMatches;
+          }
+        }
+      } else if (landmarkMatches.length > 0) {
+        // For specific queries that still point to a destination area,
+        // keep landmark results near the top so the intended attraction appears.
+        finalResults = [
+          ...landmarkMatches,
+          ...rankedResults.filter((item) => !landmarkMatches.some((match) => match.lat === item.lat && match.lng === item.lng)),
+        ];
+      }
+
+      setSearchResults(finalResults);
+
+      if (!finalResults.length) {
         setSearchError("No places found. Try a more specific search.");
       }
     } catch (err) {
-      setSearchError("Could not search locations right now. Try again.");
+      if (err?.code === "rate_limited") {
+        setSearchError("Location search is busy right now. Please wait a moment and try again.");
+      } else {
+        setSearchError("Could not search locations right now. Try again.");
+      }
       setSearchResults([]);
     } finally {
       setIsSearching(false);

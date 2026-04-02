@@ -12,6 +12,8 @@ import {
 	MdThumbUp,
 	MdRefresh,
 	MdReport,
+	MdVisibility,
+	MdVisibilityOff,
 } from "react-icons/md";
 import * as api from "../../api";
 import "./styles.css";
@@ -351,15 +353,43 @@ function CreateUserModal({ onSave, onClose, loading }) {
 	const [name, setName] = useState("");
 	const [email, setEmail] = useState("");
 	const [password, setPassword] = useState("");
+	const [confirmPassword, setConfirmPassword] = useState("");
 	const [isAdmin, setIsAdmin] = useState(false);
+	const [showPassword, setShowPassword] = useState(false);
+	const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+
+	const isValidEmail = (value) => /^\S+@\S+\.\S+$/.test(value.trim());
+
+	const isStrongPassword = (value) => {
+		const trimmed = value.trim();
+		return trimmed.length >= 8 && /[A-Za-z]/.test(trimmed) && /\d/.test(trimmed);
+	};
 
 	const handleSubmit = (e) => {
 		e.preventDefault();
-		if (!name.trim() || !email.trim() || !password.trim()) {
+		if (!name.trim() || !email.trim() || !password.trim() || !confirmPassword.trim()) {
 			toast.error("All fields are required.");
 			return;
 		}
-		onSave({ name: name.trim(), email: email.trim(), password, isAdmin });
+		if (!isValidEmail(email)) {
+			toast.error("Please enter a valid email address.");
+			return;
+		}
+		if (!isStrongPassword(password)) {
+			toast.error("Password must be at least 8 characters and include letters and numbers.");
+			return;
+		}
+		if (password !== confirmPassword) {
+			toast.error("Passwords do not match.");
+			return;
+		}
+		onSave({
+			name: name.trim(),
+			email: email.trim(),
+			password,
+			confirmPassword,
+			isAdmin,
+		});
 	};
 
 	return (
@@ -392,12 +422,44 @@ function CreateUserModal({ onSave, onClose, loading }) {
 					</label>
 					<label className="block text-sm font-semibold text-text-dark">
 						Password
-						<input
-							type="password"
-							value={password}
-							onChange={(e) => setPassword(e.target.value)}
-							className="mt-1 w-full rounded-lg border border-dark-green/20 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-dark-green/30"
-						/>
+						<div className="mt-1 relative">
+							<input
+								type={showPassword ? "text" : "password"}
+								value={password}
+								onChange={(e) => setPassword(e.target.value)}
+								className="w-full rounded-lg border border-dark-green/20 px-3 py-2 pr-11 focus:outline-none focus:ring-2 focus:ring-dark-green/30"
+							/>
+							<button
+								type="button"
+								onClick={() => setShowPassword((value) => !value)}
+								className="absolute inset-y-0 right-0 flex items-center px-3 text-text-gray hover:text-dark-green transition-colors"
+								aria-label={showPassword ? "Hide password" : "Show password"}
+							>
+								{showPassword ? <MdVisibilityOff size={18} /> : <MdVisibility size={18} />}
+							</button>
+						</div>
+						<p className="mt-1 text-[11px] text-text-gray">
+							Use at least 8 characters with letters and numbers.
+						</p>
+					</label>
+					<label className="block text-sm font-semibold text-text-dark">
+						Confirm Password
+						<div className="mt-1 relative">
+							<input
+								type={showConfirmPassword ? "text" : "password"}
+								value={confirmPassword}
+								onChange={(e) => setConfirmPassword(e.target.value)}
+								className="w-full rounded-lg border border-dark-green/20 px-3 py-2 pr-11 focus:outline-none focus:ring-2 focus:ring-dark-green/30"
+							/>
+							<button
+								type="button"
+								onClick={() => setShowConfirmPassword((value) => !value)}
+								className="absolute inset-y-0 right-0 flex items-center px-3 text-text-gray hover:text-dark-green transition-colors"
+								aria-label={showConfirmPassword ? "Hide confirm password" : "Show confirm password"}
+							>
+								{showConfirmPassword ? <MdVisibilityOff size={18} /> : <MdVisibility size={18} />}
+							</button>
+						</div>
 					</label>
 					<label className="inline-flex items-center gap-2 text-sm font-semibold text-text-dark">
 						<input
@@ -509,6 +571,7 @@ function Dashboard() {
 	const [reviewReports, setReviewReports] = useState([]);
 	const [postsPage, setPostsPage] = useState(1);
 	const [postsTotalPages, setPostsTotalPages] = useState(1);
+	const [postsTotalCount, setPostsTotalCount] = useState(0);
 	const [activeTab, setActiveTab] = useState("posts");
 	const [loading, setLoading] = useState(true);
 	const [actionLoading, setActionLoading] = useState(false);
@@ -536,6 +599,7 @@ function Dashboard() {
 				const reportList = reportsRes?.data?.reports || reportsRes?.data || [];
 				const currentPage = postsRes?.data?.currentPage || page;
 				const totalPages = postsRes?.data?.numberOfPages || 1;
+				const totalPosts = Number(postsRes?.data?.total);
 
 				setPosts(Array.isArray(postsList) ? postsList : []);
 				setUsers(Array.isArray(usersList) ? usersList : []);
@@ -543,6 +607,7 @@ function Dashboard() {
 				setReviewReports(Array.isArray(reportList) ? reportList.filter((r) => r.status === "under_review") : []);
 				setPostsPage(currentPage);
 				setPostsTotalPages(totalPages);
+				setPostsTotalCount(Number.isFinite(totalPosts) ? totalPosts : 0);
 			} catch (error) {
 				console.error("Failed to load dashboard data:", error);
 				toast.error("Failed to load dashboard data.");
@@ -804,7 +869,7 @@ function Dashboard() {
 							{[
 								{
 									label: "Total Posts",
-									value: posts.length,
+									value: postsTotalCount,
 									icon: <MdAutoStories size={20} className="text-light-green" />,
 								},
 								{
@@ -844,7 +909,7 @@ function Dashboard() {
 							}`}
 						>
 							<MdAutoStories size={16} />
-							Posts ({posts.length})
+							Posts ({postsTotalCount})
 						</button>
 						<button
 							onClick={() => setActiveTab("users")}
