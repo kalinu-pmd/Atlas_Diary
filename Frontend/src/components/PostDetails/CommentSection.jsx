@@ -87,6 +87,7 @@ const CommentSection = ({ post }) => {
 	const [comments, setComments] = useState(post?.comments);
 	const commentRef = useRef();
 	const [comment, setComment] = useState("");
+	const [isCommentSubmitting, setIsCommentSubmitting] = useState(false);
 	const [editingIndex, setEditingIndex] = useState(null);
 	const [editingText, setEditingText] = useState("");
 	const [openMenuIndex, setOpenMenuIndex] = useState(null);
@@ -102,21 +103,37 @@ const CommentSection = ({ post }) => {
 			: false;
 
 	const handleClick = async () => {
+		const trimmedComment = comment.trim();
+		if (!trimmedComment || isCommentSubmitting) return;
+
+		setIsCommentSubmitting(true);
 		const payload = {
-			comment,
+			comment: trimmedComment,
 			userName: user?.result?.name,
 			userAvatar: user?.result?.profileImage || user?.result?.imageUrl || "",
 		};
-		const newComment = await dispatch(commentPost(payload, post._id));
-		setComments(newComment);
-		setComment("");
-		commentRef.current.scrollIntoView({ behavior: "smooth" });
+
+		try {
+			const newComment = await dispatch(commentPost(payload, post._id));
+			if (newComment) {
+				setComments(newComment);
+				setComment("");
+				commentRef.current?.scrollIntoView({ behavior: "smooth" });
+			}
+		} finally {
+			setIsCommentSubmitting(false);
+		}
+	};
+
+	const handleSubmit = async (event) => {
+		event.preventDefault();
+		await handleClick();
 	};
 
 	const handleCommentKeyDown = (event) => {
 		if (event.key !== "Enter" || event.shiftKey || event.isComposing) return;
 		event.preventDefault();
-		handleClick();
+		handleSubmit(event);
 	};
 
 	const startEdit = (index, text) => {
@@ -161,6 +178,8 @@ const CommentSection = ({ post }) => {
 	const cancelDelete = () => {
 		setDeleteIndex(null);
 	};
+
+	const canSubmitComment = comment.trim() && !isCommentSubmitting;
 
 	return (
 		<div className="bg-gradient-to-br from-light-green/10 via-off-white to-light-green/5 p-5 rounded-[18px] border-2 border-light-green/50 shadow-lg">
@@ -306,7 +325,7 @@ const CommentSection = ({ post }) => {
 
 			{/* Comment form - integrated inside */}
 			{user?.result?.name ? (
-				<div className="flex flex-col gap-3">
+				<form className="flex flex-col gap-3" onSubmit={handleSubmit}>
 					<div className="relative">
 						<label className="text-xs font-bold text-dark-green mb-2 block">Your comment</label>
 						<textarea
@@ -314,19 +333,20 @@ const CommentSection = ({ post }) => {
 							value={comment}
 							onChange={(e) => setComment(e.target.value)}
 							onKeyDown={handleCommentKeyDown}
+							disabled={isCommentSubmitting}
 							placeholder="Share your thoughts about this amazing place..."
-							className="w-full bg-white border-2 border-light-green/50 hover:border-light-green focus:border-dark-green focus:outline-none rounded-[12px] text-sm px-4 py-3 text-text-dark resize-none transition-all duration-300 shadow-sm focus:shadow-md focus:ring-2 focus:ring-light-green/30"
+							className="w-full bg-white border-2 border-light-green/50 hover:border-light-green focus:border-dark-green focus:outline-none rounded-[12px] text-sm px-4 py-3 text-text-dark resize-none transition-all duration-300 shadow-sm focus:shadow-md focus:ring-2 focus:ring-light-green/30 disabled:bg-gray-100 disabled:text-text-gray disabled:cursor-not-allowed"
 						/>
 					</div>
 
 					<button
-						onClick={handleClick}
-						disabled={!comment.trim()}
+						type="submit"
+						disabled={!canSubmitComment}
 						className="w-full text-sm bg-gradient-to-r from-dark-green to-dark-green/80 hover:from-light-green hover:to-light-green/80 disabled:from-gray-300 disabled:to-gray-300 text-off-white hover:text-text-dark disabled:text-gray-500 font-bold py-2.5 px-4 rounded-[12px] transition-all duration-300 disabled:cursor-not-allowed shadow-md hover:shadow-lg hover:translate-y-0.5 border border-light-green/30"
 					>
-						✓ Post Comment
+						{isCommentSubmitting ? "Commenting..." : "✓ Post Comment"}
 					</button>
-				</div>
+				</form>
 			) : (
 				<div
 					className="bg-gradient-to-br from-dark-green/5 via-light-green/10 to-dark-green/5 p-6 rounded-[15px] border-2 border-dashed border-light-green shadow-md flex flex-col items-center justify-center gap-3 backdrop-blur-sm"
