@@ -43,17 +43,23 @@ import { verifyPostLocation, sendPostForReview } from "../../api";
 	const selectedPost = useSelector((state) => state.selectedPost);
 	const { posts, post: detailedPost } = useSelector((state) => state.posts);
 	const user = useSelector((state) => state.auth.authData);
+	const selectedPostId =
+		typeof selectedPost === "string"
+			? selectedPost
+			: selectedPost?._id || "";
+	const selectedPostData =
+		selectedPost && typeof selectedPost === "object" ? selectedPost : null;
 
 	useEffect(() => {
 		if (!selectedPost) return;
 
 		// Prefer the detailed post (from PostDetails view) when available,
 		// otherwise fall back to the list entry.
-		let sourcePost = null;
-		if (detailedPost && detailedPost._id === selectedPost) {
+		let sourcePost = selectedPostData;
+		if (!sourcePost && detailedPost && detailedPost._id === selectedPostId) {
 			sourcePost = detailedPost;
-		} else if (Array.isArray(posts)) {
-			sourcePost = posts.find((p) => p._id === selectedPost) || null;
+		} else if (!sourcePost && Array.isArray(posts)) {
+			sourcePost = posts.find((p) => p._id === selectedPostId) || null;
 		}
 
 		if (!sourcePost) return;
@@ -94,7 +100,7 @@ import { verifyPostLocation, sendPostForReview } from "../../api";
 			location: normalizedLocation,
 			selectedFile: normalizedSelectedFile,
 		});
-	}, [selectedPost, posts, detailedPost]);
+	}, [selectedPost, selectedPostData, selectedPostId, posts, detailedPost]);
 
 	const validateForm = () => {
 		const titleCharCount = postData.title.length;
@@ -385,7 +391,8 @@ import { verifyPostLocation, sendPostForReview } from "../../api";
 			return;
 		}
 
-		const isNewPost = !selectedPost;
+		const isEditing = Boolean(selectedPostId);
+		const isNewPost = !isEditing;
 
 		// For new posts, require at least one photo
 		if (isNewPost) {
@@ -429,9 +436,9 @@ import { verifyPostLocation, sendPostForReview } from "../../api";
 
 		setIsSubmitting(true);
 		try {
-			if (selectedPost) {
+			if (isEditing) {
 				await dispatch(
-					updatePost(selectedPost, {
+					updatePost(selectedPostId, {
 						...finalPostData,
 						name: user?.result?.name,
 					}),
@@ -439,7 +446,7 @@ import { verifyPostLocation, sendPostForReview } from "../../api";
 
 				if (sendForReviewAfterUpdate) {
 					try {
-						await sendPostForReview(selectedPost, reportId ? { reportId } : {});
+						await sendPostForReview(selectedPostId, reportId ? { reportId } : {});
 						toast.success(
 							"Your updated post has been sent to the admins for review.",
 						);

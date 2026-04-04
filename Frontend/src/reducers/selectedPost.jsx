@@ -1,4 +1,4 @@
-import {SELECTED_POST} from '../constants/actionTypes';
+import { SELECTED_POST } from '../constants/actionTypes';
 
 const reducer = (selectedPost = '' , action) =>{
     switch (action.type) {

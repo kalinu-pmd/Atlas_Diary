@@ -32,6 +32,27 @@ const getStoredAuthData = () => {
 	}
 };
 
+const getCompactLocationLabel = (locationName, country) => {
+	const cleaned = String(locationName || "").trim();
+	if (!cleaned) return "Unknown location";
+
+	const parts = cleaned
+		.split(",")
+		.map((part) => part.trim())
+		.filter(Boolean);
+
+	if (parts.length <= 3) {
+		return cleaned;
+	}
+
+	let compact = parts.slice(0, 3).join(", ");
+	if (country && !compact.toLowerCase().includes(country.toLowerCase())) {
+		compact = `${compact}, ${country}`;
+	}
+
+	return compact;
+};
+
 const Recommendations = () => {
 	const dispatch = useDispatch();
 	const history = useHistory();
@@ -399,6 +420,10 @@ const Recommendations = () => {
 					const postCountry =
 						postCountries[String(post._id)] ||
 						extractCountryFromLocationName(post.locationName);
+					const compactLocation = getCompactLocationLabel(
+						post.locationName,
+						postCountry,
+					);
 					const isOutsideCurrentCountry =
 						Boolean(currentCountry && postCountry) &&
 						!areSameCountry(currentCountry, postCountry);
@@ -474,8 +499,11 @@ const Recommendations = () => {
 								By {post.name} &bull;{" "}
 								{moment(post.createdAt).fromNow()}
 							</p>
-							<p className="text-text-dark text-xs mb-3 font-semibold">
-								{post.locationName || "Unknown location"}
+							<p
+								title={post.locationName || compactLocation}
+								className="text-text-dark text-xs mb-3 font-semibold"
+							>
+								{compactLocation}
 							</p>
 							{postCountry && (
 								<p className="text-dark-green text-[11px] font-bold mb-3">

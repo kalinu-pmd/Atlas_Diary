@@ -11,6 +11,10 @@ import {
 	MdTune,
 	MdExplore,
 } from "react-icons/md";
+import {
+	extractCountryFromLocationName,
+	getLocationInfoFromCoordinates,
+} from "../../utils/locationCountry";
 
 import { getPosts, getPostsBySearch } from "../../actions/posts";
 import Paginate from "../Pagination/Pagination";
@@ -49,6 +53,7 @@ export default function PublicDiaries() {
 	const [activeTags, setActiveTags] = useState([]);
 	const [showFilters, setShowFilters] = useState(false);
 	const [isSearchMode, setIsSearchMode] = useState(false);
+	const [postCountries, setPostCountries] = useState({});
 
 	// Fetch posts when page changes (only when not in search mode)
 	useEffect(() => {
@@ -63,6 +68,55 @@ export default function PublicDiaries() {
 			dispatch(getPosts(1));
 		}
 	}, [isSearchMode, dispatch]);
+
+	useEffect(() => {
+		let isCancelled = false;
+
+		const resolveCountries = async () => {
+			if (!Array.isArray(posts) || posts.length === 0) return;
+
+			const updates = {};
+
+			for (const post of posts) {
+				const postId = String(post?._id || "");
+				if (!postId || postCountries[postId]) continue;
+
+				const fromLocationText = extractCountryFromLocationName(post?.locationName);
+				if (fromLocationText) {
+					updates[postId] = fromLocationText;
+					continue;
+				}
+
+				const coordinates = post?.location?.coordinates;
+				if (!Array.isArray(coordinates) || coordinates.length < 2) continue;
+
+				const [lng, lat] = coordinates;
+				if (!Number.isFinite(Number(lat)) || !Number.isFinite(Number(lng))) continue;
+
+				try {
+					const locationInfo = await getLocationInfoFromCoordinates({
+						lat: Number(lat),
+						lng: Number(lng),
+					});
+					if (locationInfo?.country) {
+						updates[postId] = locationInfo.country;
+					}
+				} catch (_error) {
+					// Ignore per-card reverse lookup failures.
+				}
+			}
+
+			if (!isCancelled && Object.keys(updates).length > 0) {
+				setPostCountries((prev) => ({ ...prev, ...updates }));
+			}
+		};
+
+		resolveCountries();
+
+		return () => {
+			isCancelled = true;
+		};
+	}, [posts, postCountries]);
 
 	const handleSearch = (e) => {
 		e.preventDefault();
@@ -310,6 +364,11 @@ export default function PublicDiaries() {
 						{/* Grid */}
 						<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
 							{posts.map((post) => (
+								(() => {
+									const postCountry =
+										postCountries[String(post._id)] ||
+										extractCountryFromLocationName(post.locationName);
+									return (
 								<article
 									key={post._id}
 									onClick={() => openPost(post._id)}
@@ -410,6 +469,11 @@ export default function PublicDiaries() {
 										<p className="text-text-gray text-sm leading-relaxed line-clamp-3 flex-1 mb-3">
 											{post.message}
 										</p>
+										{postCountry && (
+											<p className="text-dark-green text-[11px] font-semibold mb-3">
+												Country: {postCountry}
+											</p>
+										)}
 
 										{/* Footer */}
 										<div className="flex items-center justify-between pt-2 border-t border-dark-green/8">
@@ -436,7 +500,9 @@ export default function PublicDiaries() {
 										</div>
 									</div>
 								</article>
-							))}
+									);
+								})()
+							)}
 						</div>
 
 						{/* Pagination */}

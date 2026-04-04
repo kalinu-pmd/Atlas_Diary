@@ -5,6 +5,10 @@ import { useHistory } from "react-router-dom";
 import { getSimilarPosts, trackPostView } from "../../actions/posts";
 import moment from "moment";
 import PropTypes from "prop-types";
+import {
+	extractCountryFromLocationName,
+	getLocationInfoFromCoordinates,
+} from "../../utils/locationCountry";
 
 // Haversine formula to calculate distance between two lat/lng points in km
 function getDistanceKm(lat1, lng1, lat2, lng2) {
@@ -36,12 +40,62 @@ const SimilarPosts = ({ postId }) => {
 	const [user] = useState(
 		JSON.parse(localStorage.getItem("traveller-profile")),
 	);
+	const [postCountries, setPostCountries] = useState({});
 
 	useEffect(() => {
 		if (postId) {
 			dispatch(getSimilarPosts(postId, 5));
 		}
 	}, [dispatch, postId]);
+
+	useEffect(() => {
+		let isCancelled = false;
+
+		const resolveCountries = async () => {
+			if (!Array.isArray(similarPosts) || similarPosts.length === 0) return;
+
+			const updates = {};
+
+			for (const simPost of similarPosts) {
+				const simPostId = String(simPost?._id || "");
+				if (!simPostId || postCountries[simPostId]) continue;
+
+				const fromLocationText = extractCountryFromLocationName(simPost?.locationName);
+				if (fromLocationText) {
+					updates[simPostId] = fromLocationText;
+					continue;
+				}
+
+				const coordinates = simPost?.location?.coordinates;
+				if (!Array.isArray(coordinates) || coordinates.length < 2) continue;
+
+				const [lng, lat] = coordinates;
+				if (!Number.isFinite(Number(lat)) || !Number.isFinite(Number(lng))) continue;
+
+				try {
+					const locationInfo = await getLocationInfoFromCoordinates({
+						lat: Number(lat),
+						lng: Number(lng),
+					});
+					if (locationInfo?.country) {
+						updates[simPostId] = locationInfo.country;
+					}
+				} catch (_error) {
+					// Ignore per-card reverse lookup failures.
+				}
+			}
+
+			if (!isCancelled && Object.keys(updates).length > 0) {
+				setPostCountries((prev) => ({ ...prev, ...updates }));
+			}
+		};
+
+		resolveCountries();
+
+		return () => {
+			isCancelled = true;
+		};
+	}, [similarPosts, postCountries]);
 
 	const handleViewPost = (similarPostId) => {
 		if (user?.token) {
@@ -69,6 +123,9 @@ const SimilarPosts = ({ postId }) => {
 			{/* Grid layout for better visual management */}
 			<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 				{similarPosts.map((simPost, idx) => {
+					const simPostCountry =
+						postCountries[String(simPost._id)] ||
+						extractCountryFromLocationName(simPost.locationName);
 					// Calculate distance if both posts have location
 					let nearbyText = null;
 					let isNearby = false;
@@ -150,6 +207,11 @@ const SimilarPosts = ({ postId }) => {
 								<p className="text-text-gray text-xs mb-2.5 line-clamp-2 leading-relaxed">
 									{simPost.message.substring(0, 85)}...
 								</p>
+								{simPostCountry && (
+									<p className="text-dark-green text-[11px] font-semibold mb-2">
+										Country: {simPostCountry}
+									</p>
+								)}
 
 								{/* Tags */}
 								<div className="flex flex-wrap gap-1.5 mb-2.5">

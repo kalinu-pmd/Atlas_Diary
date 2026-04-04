@@ -15,6 +15,10 @@ import {
 import * as api from "../../api";
 import CommentSection from "./CommentSection";
 import SimilarPosts from "../SimilarPosts/SimilarPosts";
+import {
+	extractCountryFromLocationName,
+	getLocationInfoFromCoordinates,
+} from "../../utils/locationCountry";
 
 function PostDetails() {
 	const { post, posts } = useSelector((state) => state.posts);
@@ -30,6 +34,7 @@ function PostDetails() {
 	const [latestReportStatus, setLatestReportStatus] = useState(null);
 	const [isPostLoading, setIsPostLoading] = useState(true);
 	const [likes, setLikes] = useState([]);
+	const [postCountry, setPostCountry] = useState("");
 	const [showScrollButton, setShowScrollButton] = useState(true);
 	const similarPostsRef = useRef(null);
 
@@ -81,6 +86,53 @@ function PostDetails() {
 			);
 		}
 	}, [dispatch, post, id]);
+
+	useEffect(() => {
+		let isCancelled = false;
+
+		const resolvePostCountry = async () => {
+			if (!post) {
+				if (!isCancelled) setPostCountry("");
+				return;
+			}
+
+			const fromLocationText = extractCountryFromLocationName(post.locationName);
+			if (fromLocationText) {
+				if (!isCancelled) setPostCountry(fromLocationText);
+				return;
+			}
+
+			const coordinates = post?.location?.coordinates;
+			if (!Array.isArray(coordinates) || coordinates.length < 2) {
+				if (!isCancelled) setPostCountry("");
+				return;
+			}
+
+			const [lng, lat] = coordinates;
+			if (!Number.isFinite(Number(lat)) || !Number.isFinite(Number(lng))) {
+				if (!isCancelled) setPostCountry("");
+				return;
+			}
+
+			try {
+				const locationInfo = await getLocationInfoFromCoordinates({
+					lat: Number(lat),
+					lng: Number(lng),
+				});
+				if (!isCancelled) {
+					setPostCountry(locationInfo?.country || "");
+				}
+			} catch (_error) {
+				if (!isCancelled) setPostCountry("");
+			}
+		};
+
+		resolvePostCountry();
+
+		return () => {
+			isCancelled = true;
+		};
+	}, [post]);
 
 	const recommendedPosts = posts.filter(
 		(recommendedPost) => recommendedPost?._id !== post?._id,
@@ -388,6 +440,12 @@ function PostDetails() {
 									<span className="w-2.5 h-2.5 rounded-full bg-orange animate-pulse" />
 									<span>Changes needed - please edit</span>
 								</div>
+							)}
+
+							{postCountry && (
+								<p className="mb-4 text-xs font-semibold text-dark-green/90">
+									Country: {postCountry}
+								</p>
 							)}
 
 						{/* Message + hashtags with improved styling */}
