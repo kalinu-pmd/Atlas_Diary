@@ -153,6 +153,9 @@ export const editUser = async (req, res, next) => {
 		currentPassword,
 	} = req.body;
 
+	const previousName = String(user.name || "").trim();
+	const nextName = String(name || "").trim();
+
 	// Determine whether the requester is editing their own account
 	const isSelfUpdate = req.userId && String(req.userId) === String(id);
 
@@ -240,6 +243,96 @@ export const editUser = async (req, res, next) => {
 
 	if (!updatedUser) {
 		return res.status(500).json({ msg: "Failed to update user" });
+	}
+
+	const escapeRegExp = (value = "") =>
+		String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+	const didNameChange = Boolean(nextName) && nextName !== previousName;
+	if (didNameChange) {
+		// Keep author name in previously created posts in sync with profile updates.
+		await PostMessage.updateMany(
+			{ creator: String(id) },
+			{ $set: { name: nextName } },
+		);
+
+		// Update historical comments authored by this user.
+		const commentSelectors = [
+			{ comments: { $elemMatch: { $regex: `\\"userId\\":\\"${escapeRegExp(String(id))}\\"` } } },
+		];
+
+		if (previousName) {
+			commentSelectors.push({
+				comments: { $elemMatch: { $regex: `^${escapeRegExp(previousName)}: ` } },
+			});
+		}
+
+		const postsToUpdate = await PostMessage.find({
+			$or: commentSelectors,
+		})
+			.select("_id comments")
+			.lean();
+
+		const bulkUpdates = [];
+
+		for (const post of postsToUpdate) {
+			const existingComments = Array.isArray(post.comments) ? post.comments : [];
+			let changed = false;
+
+			const updatedComments = existingComments.map((rawComment) => {
+				if (typeof rawComment !== "string") {
+					return rawComment;
+				}
+
+				const trimmed = rawComment.trim();
+				if (!trimmed) {
+					return rawComment;
+				}
+
+				if (trimmed.startsWith("{")) {
+					try {
+						const parsed = JSON.parse(trimmed);
+						if (
+							parsed &&
+							typeof parsed === "object" &&
+							String(parsed.userId || "") === String(id)
+						) {
+							const updatedComment = {
+								...parsed,
+								userName: nextName,
+							};
+							changed = true;
+							return JSON.stringify(updatedComment);
+						}
+					} catch (_error) {
+						// fall through to legacy format handling
+					}
+				}
+
+				if (previousName) {
+					const legacyPrefix = `${previousName}: `;
+					if (rawComment.startsWith(legacyPrefix)) {
+						changed = true;
+						return `${nextName}: ${rawComment.slice(legacyPrefix.length)}`;
+					}
+				}
+
+				return rawComment;
+			});
+
+			if (changed) {
+				bulkUpdates.push({
+					updateOne: {
+						filter: { _id: post._id },
+						update: { $set: { comments: updatedComments } },
+					},
+				});
+			}
+		}
+
+		if (bulkUpdates.length > 0) {
+			await PostMessage.bulkWrite(bulkUpdates);
+		}
 	}
 
 	return res.status(200).json({ msg: "User updated", user: updatedUser });

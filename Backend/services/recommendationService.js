@@ -300,14 +300,46 @@ class RecommendationService {
         };
       });
 
-      // Prioritize nearby posts first, then score.
-      const recommendations = [...scoredNearbyPosts, ...scoredPosts]
+      // Ordering rule:
+      // 1) High match posts (50% to 100%) in descending score
+      // 2) Remaining nearby posts by closest distance first
+      // 3) Remaining non-nearby posts in descending score
+      const HIGH_MATCH_THRESHOLD = 0.5;
+      const combinedScored = [...scoredNearbyPosts, ...scoredPosts];
+
+      const highMatchPosts = combinedScored
+        .filter((item) => item.score >= HIGH_MATCH_THRESHOLD)
+        .sort((a, b) => b.score - a.score);
+
+      const remainingPosts = combinedScored.filter(
+        (item) => item.score < HIGH_MATCH_THRESHOLD,
+      );
+
+      const nearbyRemainingPosts = remainingPosts
+        .filter((item) => item.isNearby)
         .sort((a, b) => {
-          if (a.isNearby !== b.isNearby) {
-            return a.isNearby ? -1 : 1;
-          }
+          const aDistance =
+            typeof a.locationDistanceMeters === "number"
+              ? a.locationDistanceMeters
+              : Number.MAX_SAFE_INTEGER;
+          const bDistance =
+            typeof b.locationDistanceMeters === "number"
+              ? b.locationDistanceMeters
+              : Number.MAX_SAFE_INTEGER;
+
+          if (aDistance !== bDistance) return aDistance - bDistance;
           return b.score - a.score;
-        })
+        });
+
+      const otherRemainingPosts = remainingPosts
+        .filter((item) => !item.isNearby)
+        .sort((a, b) => b.score - a.score);
+
+      const recommendations = [
+        ...highMatchPosts,
+        ...nearbyRemainingPosts,
+        ...otherRemainingPosts,
+      ]
         .slice(0, limit)
         .map((item) => ({
           ...item.post.toObject(),

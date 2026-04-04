@@ -1,5 +1,5 @@
 import React, { useRef, useState } from "react";
-import { useSelector } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import { useHistory } from "react-router-dom";
 import { toast } from "react-toastify";
 import {
@@ -10,8 +10,10 @@ import {
   MdClose,
 } from "react-icons/md";
 import * as api from "../../api";
+import { AUTH } from "../../constants/actionTypes";
 
 export default function Settings() {
+  const dispatch = useDispatch();
   const user = useSelector((state) => state.auth.authData);
   const history = useHistory();
   const [name, setName] = useState(user?.result?.name || "");
@@ -118,13 +120,23 @@ export default function Settings() {
     setLoading(true);
     try {
       if (settingsView === "profile") {
-        await api.editUser(user.result._id, {
+        const { data } = await api.editUser(user.result._id, {
           name: name.trim(),
           email: email.trim(),
           bio: bio.trim(),
           location: location.trim(),
           profileImage,
         });
+
+        if (data?.user) {
+          dispatch({
+            type: AUTH,
+            payload: {
+              ...user,
+              result: data.user,
+            },
+          });
+        }
         toast.success("Profile updated");
       } else {
         await api.editUser(user.result._id, {

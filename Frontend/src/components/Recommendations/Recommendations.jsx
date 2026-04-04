@@ -23,13 +23,20 @@ import {
 } from "../../utils/locationCountry";
 import moment from "moment";
 
+const getStoredAuthData = () => {
+	try {
+		const raw = localStorage.getItem("traveller-profile");
+		return raw ? JSON.parse(raw) : null;
+	} catch (_error) {
+		return null;
+	}
+};
+
 const Recommendations = () => {
 	const dispatch = useDispatch();
 	const history = useHistory();
 	const { recommendations, isLoading } = useSelector((state) => state.posts);
-	const [user] = useState(
-		JSON.parse(localStorage.getItem("traveller-profile")),
-	);
+	const [user] = useState(getStoredAuthData);
 	const [userLocation, setUserLocation] = useState(null);
 	const [fullScreenImage, setFullScreenImage] = useState(null);
 	const [imageDialogOpen, setImageDialogOpen] = useState(false);
@@ -38,6 +45,7 @@ const Recommendations = () => {
 	const [isFetchingRecommendations, setIsFetchingRecommendations] = useState(false);
 	const [currentCountry, setCurrentCountry] = useState("");
 	const [currentLocationName, setCurrentLocationName] = useState("");
+	const [postCountries, setPostCountries] = useState({});
 
 	const requestLocation = async () => {
 		if (!hasAttemptedFetch) {
@@ -187,6 +195,65 @@ const Recommendations = () => {
 		}
 	};
 
+	useEffect(() => {
+		let isCancelled = false;
+
+		const resolveCountriesFromCoordinates = async () => {
+			if (!Array.isArray(recommendations) || recommendations.length === 0) {
+				return;
+			}
+
+			const updates = {};
+
+			for (const post of recommendations) {
+				const postId = String(post?._id || "");
+				if (!postId || postCountries[postId]) {
+					continue;
+				}
+
+				const fromLocationText = extractCountryFromLocationName(
+					post?.locationName,
+				);
+				if (fromLocationText) {
+					updates[postId] = fromLocationText;
+					continue;
+				}
+
+				const coordinates = post?.location?.coordinates;
+				if (!Array.isArray(coordinates) || coordinates.length < 2) {
+					continue;
+				}
+
+				const [lng, lat] = coordinates;
+				if (!Number.isFinite(Number(lat)) || !Number.isFinite(Number(lng))) {
+					continue;
+				}
+
+				try {
+					const locationInfo = await getLocationInfoFromCoordinates({
+						lat: Number(lat),
+						lng: Number(lng),
+					});
+					if (locationInfo?.country) {
+						updates[postId] = locationInfo.country;
+					}
+				} catch (_error) {
+					// Ignore reverse-lookup failures per card.
+				}
+			}
+
+			if (!isCancelled && Object.keys(updates).length > 0) {
+				setPostCountries((prev) => ({ ...prev, ...updates }));
+			}
+		};
+
+		resolveCountriesFromCoordinates();
+
+		return () => {
+			isCancelled = true;
+		};
+	}, [recommendations, postCountries]);
+
 	if (!user?.token) {
 		return (
 			<div className="p-5 text-center bg-off-white border border-dark-green rounded-[15px] shadow-card">
@@ -317,11 +384,21 @@ const Recommendations = () => {
 
 			<div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6 mt-8 sm:mt-8">
 				{sortedRecommendations.map((post) => {
+					const postMessage =
+						typeof post?.message === "string" ? post.message : "";
+					const postTags = Array.isArray(post?.tags) ? post.tags : [];
+					const selectedFiles = Array.isArray(post?.selectedFile)
+						? post.selectedFile
+						: post?.selectedFile
+							? [post.selectedFile]
+							: [];
 					const isNearby =
 						post?.isNearby ||
 						(typeof post?.distanceMeters === "number" &&
 							post.distanceMeters <= nearbyThresholdMeters);
-					const postCountry = extractCountryFromLocationName(post.locationName);
+					const postCountry =
+						postCountries[String(post._id)] ||
+						extractCountryFromLocationName(post.locationName);
 					const isOutsideCurrentCountry =
 						Boolean(currentCountry && postCountry) &&
 						!areSameCountry(currentCountry, postCountry);
@@ -346,25 +423,19 @@ const Recommendations = () => {
 						}`}
 					>
 						{/* Image */}
-						{post.selectedFile && post.selectedFile.length > 0 && (
+						{selectedFiles.length > 0 && (
 							<div
 								className="relative cursor-pointer group"
 								onClick={(event) => {
 									event.stopPropagation();
 									handleImageClick(
-										Array.isArray(post.selectedFile)
-											? post.selectedFile[0]
-											: post.selectedFile,
+										selectedFiles[0],
 										post.title,
 									);
 								}}
 							>
 								<img
-									src={
-										Array.isArray(post.selectedFile)
-											? post.selectedFile[0]
-											: post.selectedFile
-									}
+									src={selectedFiles[0]}
 									alt={post.title}
 									className="w-full h-[200px] object-cover"
 								/>
@@ -373,10 +444,9 @@ const Recommendations = () => {
 									<MdZoomIn className="text-white text-5xl" />
 								</div>
 								{/* Multi-image badge */} 
-								{Array.isArray(post.selectedFile) &&
-									post.selectedFile.length > 1 && (
+								{selectedFiles.length > 1 && (
 										<div className="absolute top-2 right-2 bg-black/80 text-white text-xs font-bold px-2.5 py-1 rounded-full z-10 backdrop-blur-sm shadow">
-											+{post.selectedFile.length - 1} more
+											+{selectedFiles.length - 1} more
 										</div>
 									)}
 								{isNearby && (
@@ -385,7 +455,7 @@ const Recommendations = () => {
 									</div>
 								)}
 								{isOutsideCurrentCountry && postCountry && (
-									<div className="absolute top-2 left-2 bg-orange text-off-white text-xs font-black px-2.5 py-1 rounded-full z-10 shadow">
+									<div className="absolute top-2 right-2 bg-orange text-off-white text-xs font-black px-2.5 py-1 rounded-full z-10 shadow">
 										{postCountry}
 									</div>
 								)}
@@ -398,7 +468,7 @@ const Recommendations = () => {
 								{post.title}
 							</h3>
 							<p className="text-text-dark text-sm mb-2 line-clamp-3">
-								{post.message.substring(0, 100)}...
+								{postMessage.substring(0, 100)}...
 							</p>
 							<p className="text-text-gray text-xs mb-3">
 								By {post.name} &bull;{" "}
@@ -407,10 +477,15 @@ const Recommendations = () => {
 							<p className="text-text-dark text-xs mb-3 font-semibold">
 								{post.locationName || "Unknown location"}
 							</p>
+							{postCountry && (
+								<p className="text-dark-green text-[11px] font-bold mb-3">
+									Country: {postCountry}
+								</p>
+							)}
 
 							{/* Tags */}
 							<div className="flex flex-wrap gap-1 mb-3">
-								{post.tags.map((tag, index) => (
+								{postTags.map((tag, index) => (
 									<span
 										key={index}
 										className="border border-dark-green text-dark-green text-[0.7rem] px-2 py-0.5 rounded-full"
