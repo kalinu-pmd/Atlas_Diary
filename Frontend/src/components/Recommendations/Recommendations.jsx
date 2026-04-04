@@ -468,19 +468,23 @@ const Recommendations = () => {
 								<div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
 									<MdZoomIn className="text-white text-5xl" />
 								</div>
-								{/* Multi-image badge */} 
-								{selectedFiles.length > 1 && (
-										<div className="absolute top-2 right-2 bg-black/80 text-white text-xs font-bold px-2.5 py-1 rounded-full z-10 backdrop-blur-sm shadow">
+								<div className="absolute top-2 right-2 z-10 flex items-center justify-end gap-1">
+									{/* Multi-image badge */}
+									{selectedFiles.length > 1 && (
+										<div className="bg-black/80 text-white text-xs font-bold px-2.5 py-1 rounded-full backdrop-blur-sm shadow">
 											+{selectedFiles.length - 1} more
 										</div>
 									)}
+								</div>
 								{isNearby && (
 									<div className="absolute top-2 left-2 bg-light-green text-dark-green text-xs font-black px-2.5 py-1 rounded-full z-10 shadow">
 										Nearby
 									</div>
 								)}
 								{isOutsideCurrentCountry && postCountry && (
-									<div className="absolute top-2 right-2 bg-orange text-off-white text-xs font-black px-2.5 py-1 rounded-full z-10 shadow">
+									<div
+										className={`absolute left-2 ${isNearby ? "top-10" : "top-2"} bg-orange text-off-white text-xs font-black px-2.5 py-1 rounded-full z-10 shadow`}
+									>
 										{postCountry}
 									</div>
 								)}

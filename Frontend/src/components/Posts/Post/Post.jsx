@@ -15,7 +15,6 @@ import {
 } from "react-icons/md";
 
 import { deletePost, likePost, reportPost } from "../../../actions/posts";
-import { extractCountryFromLocationName } from "../../../utils/locationCountry";
 
 // Calm, subtle "like" sound (soft chime)
 const playLikeSound = () => {
@@ -193,7 +192,6 @@ const Post = ({ post, onDeleted }) => {
 
 	const avatarUrl = post.authorImage || (isOwner ? currentUserProfileImage : null);
 	const placeLabel = formatLocationName(post.locationName || "");
-	const postCountry = extractCountryFromLocationName(post.locationName || "");
 	const pinnedDistanceKm =
 		typeof post.distanceMeters === "number"
 			? (post.distanceMeters / 1000).toFixed(2)
@@ -260,11 +258,6 @@ const Post = ({ post, onDeleted }) => {
 						<p className="text-[15px] font-medium text-text-gray truncate">
 							{placeLabel || ""}
 						</p>
-						{postCountry && (
-							<p className="text-[11px] font-semibold text-dark-green/90 truncate">
-								Country: {postCountry}
-							</p>
-						)}
 						<p className="text-[11px] text-text-gray mt-0">
 							{moment(post.createdAt).fromNow()}
 						</p>
