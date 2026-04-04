@@ -16,6 +16,11 @@ import {
 	likePost,
 } from "../../actions/posts";
 import { FETCH_RECOMMENDATIONS } from "../../constants/actionTypes";
+import {
+	areSameCountry,
+	extractCountryFromLocationName,
+	getLocationInfoFromCoordinates,
+} from "../../utils/locationCountry";
 import moment from "moment";
 
 const Recommendations = () => {
@@ -31,18 +36,24 @@ const Recommendations = () => {
 	const [currentImageIndex, setCurrentImageIndex] = useState(0);
 	const [hasAttemptedFetch, setHasAttemptedFetch] = useState(false);
 	const [isFetchingRecommendations, setIsFetchingRecommendations] = useState(false);
+	const [currentCountry, setCurrentCountry] = useState("");
+	const [currentLocationName, setCurrentLocationName] = useState("");
 
 	const requestLocation = async () => {
 		if (!hasAttemptedFetch) {
 			setHasAttemptedFetch(true);
 		}
 		setIsFetchingRecommendations(true);
+		setCurrentCountry("");
+		setCurrentLocationName("");
 
 		// Clear any previous recommendations from Redux so we don't briefly
 		// show stale cards while a new fetch is in flight.
 		dispatch({ type: FETCH_RECOMMENDATIONS, payload: [] });
 
 		if (typeof navigator === "undefined" || !navigator.geolocation) {
+			setCurrentCountry("");
+			setCurrentLocationName("");
 			// Fallback: fetch recommendations without location
 			try {
 				await dispatch(getRecommendations(10));
@@ -63,6 +74,17 @@ const Recommendations = () => {
 			const { latitude, longitude } = position.coords;
 			const location = { lat: latitude, lng: longitude };
 			setUserLocation(location);
+
+			try {
+				const locationInfo = await getLocationInfoFromCoordinates(location);
+				setCurrentCountry(locationInfo.country || "");
+				setCurrentLocationName(locationInfo.label || "");
+			} catch (countryError) {
+				console.error("Country lookup error:", countryError);
+				setCurrentCountry("");
+				setCurrentLocationName("");
+			}
+
 			await dispatch(
 				getRecommendations(10, {
 					location,
@@ -71,6 +93,8 @@ const Recommendations = () => {
 			);
 		} catch (error) {
 			console.error("Geolocation error:", error);
+			setCurrentCountry("");
+			setCurrentLocationName("");
 			// If user denies location or it fails, fall back to non-location-based
 			await dispatch(getRecommendations(10));
 		} finally {
@@ -266,28 +290,41 @@ const Recommendations = () => {
 	});
 
 	return (
-		<div className="mt-14 sm:mt-16 px-4">
-			<h1 className="text-3xl font-bold text-center text-text-dark mb-2">
-				Recommended for You
-			</h1>
-			{userLocation ? (
-				<p className="text-center text-xs text-text-gray mb-4">
-					Personalized using your activity, interests and how close
-					places are to your current location.
-				</p>
-			) : (
-				<p className="text-center text-xs text-text-gray mb-4">
-					Personalized using your activity and interests. Allow location
-					in your browser settings to get the best nearby places.
-				</p>
-			)}
+		<div className="mt-8 sm:mt-10 px-4">
+			<div className="mx-auto mb-8 max-w-4xl overflow-hidden rounded-3xl border border-dark-green/10 bg-gradient-to-r from-off-white via-light-green/10 to-off-white shadow-[0_10px_30px_rgba(12,52,44,0.08)]">
+				<div className="h-1 bg-gradient-to-r from-dark-green via-light-green to-amber-400" />
+				<div className="px-5 py-5 sm:px-8 sm:py-6 text-center">
+					<h1 className="text-2xl sm:text-3xl font-black tracking-tight text-text-dark mb-2">
+						Recomended Posts
+					</h1>
+					<p className="text-sm sm:text-[15px] font-medium text-text-dark leading-relaxed max-w-3xl mx-auto">
+						{userLocation
+							? "A blend of your activity, interests, and nearby places."
+							: "A blend of your activity and interests. Allow location in your browser settings to improve nearby recommendations."}
+					</p>
+					{currentCountry && (
+						<div className="mt-3 inline-flex items-center gap-2 rounded-full border border-dark-green/10 bg-white/70 px-3 py-1.5 shadow-sm">
+							<span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-text-gray">
+								Current location
+							</span>
+							<span className="inline-flex items-center rounded-full bg-light-green px-2.5 py-1 text-xs font-bold text-dark-green shadow-sm border border-dark-green/10">
+								{currentLocationName || currentCountry}
+							</span>
+						</div>
+					)}
+				</div>
+			</div>
 
-			<div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
+			<div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6 mt-8 sm:mt-8">
 				{sortedRecommendations.map((post) => {
 					const isNearby =
 						post?.isNearby ||
 						(typeof post?.distanceMeters === "number" &&
 							post.distanceMeters <= nearbyThresholdMeters);
+					const postCountry = extractCountryFromLocationName(post.locationName);
+					const isOutsideCurrentCountry =
+						Boolean(currentCountry && postCountry) &&
+						!areSameCountry(currentCountry, postCountry);
 					const distanceKm =
 						typeof post?.distanceMeters === "number"
 							? (post.distanceMeters / 1000).toFixed(1)
@@ -303,7 +340,9 @@ const Recommendations = () => {
 						className={`flex flex-col bg-off-white border rounded-[15px] shadow-card hover:-translate-y-1 hover:shadow-card-hover transition-all duration-200 overflow-hidden ${
 							isNearby
 								? "border-light-green ring-2 ring-light-green/35"
-								: "border-dark-green"
+								: isOutsideCurrentCountry
+									? "border-amber-500 ring-2 ring-amber-300/60 bg-amber-50/70"
+									: "border-dark-green"
 						}`}
 					>
 						{/* Image */}
@@ -345,6 +384,11 @@ const Recommendations = () => {
 										Nearby
 									</div>
 								)}
+								{isOutsideCurrentCountry && postCountry && (
+									<div className="absolute top-2 left-2 bg-orange text-off-white text-xs font-black px-2.5 py-1 rounded-full z-10 shadow">
+										{postCountry}
+									</div>
+								)}
 							</div>
 						)}
 
@@ -359,6 +403,9 @@ const Recommendations = () => {
 							<p className="text-text-gray text-xs mb-3">
 								By {post.name} &bull;{" "}
 								{moment(post.createdAt).fromNow()}
+							</p>
+							<p className="text-text-dark text-xs mb-3 font-semibold">
+								{post.locationName || "Unknown location"}
 							</p>
 
 							{/* Tags */}

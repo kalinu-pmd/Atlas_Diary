@@ -145,6 +145,7 @@ export default function Home() {
 	const performSearch = () => {
 		const hasSearchInput = Boolean(search.trim());
 		const hasPinnedFilter = Boolean(pinnedLocation);
+		const useLocationSearch = !hasSearchInput && hasPinnedFilter;
 
 		if (!hasSearchInput && !hasPinnedFilter) {
 			history.push("/posts");
@@ -158,9 +159,13 @@ export default function Home() {
 			tags: "none",
 		};
 
-		if (pinnedLocation) {
+		if (useLocationSearch) {
 			searchPayload.location = pinnedLocation;
 			searchPayload.radius = radiusMeters;
+		} else if (hasSearchInput) {
+			// A plain name search should not keep the previous location filter active.
+			setPinnedLocation(null);
+			setShowFilters(false);
 		}
 
 		dispatch(getPostsBySearch(searchPayload));
@@ -169,7 +174,7 @@ export default function Home() {
 		if (searchPayload.search !== "none") {
 			params.set("searchQuery", searchPayload.search);
 		}
-		if (pinnedLocation) {
+		if (useLocationSearch) {
 			params.set("lat", String(pinnedLocation.lat));
 			params.set("lng", String(pinnedLocation.lng));
 			params.set("radius", String(radiusMeters));
@@ -336,14 +341,14 @@ export default function Home() {
 								type="button"
 								onClick={() => setShowFilters((s) => !s)}
 								className={`flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-sm font-semibold border transition-all ${
-									showFilters || pinnedLocation
+									showFilters || (pinnedLocation && !search.trim())
 										? "bg-light-green border-light-green text-text-dark"
 										: "bg-transparent border-white/35 text-white hover:border-light-green hover:text-light-green"
 								}`}
 							>
 								<MdTune size={17} />
 								<span className="hidden sm:inline">Location Search</span>
-								{pinnedLocation && (
+								{pinnedLocation && !search.trim() && (
 									<span className="bg-dark-green text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
 										1
 									</span>

@@ -34,6 +34,8 @@ import { verifyPostLocation, sendPostForReview } from "../../api";
 	const [autoVerifyAfterSearch, setAutoVerifyAfterSearch] = useState(false);
 	const MAX_TOTAL_IMAGE_BYTES = 12 * 1024 * 1024; // Keep safely below Mongo 16MB doc limit
 	const fileInputRef = useRef(null);
+	const MAX_TITLE_CHARS = 50;
+	const MAX_MESSAGE_CHARS = 400;
 
 	const dispatch = useDispatch();
 	const history = useHistory();
@@ -95,11 +97,24 @@ import { verifyPostLocation, sendPostForReview } from "../../api";
 	}, [selectedPost, posts, detailedPost]);
 
 	const validateForm = () => {
+		const titleCharCount = postData.title.length;
+		const messageCharCount = postData.message.length;
+
 		if (!postData.title || !postData.locationName || !postData.message || !postData.tags) {
 			setError("Title, location name, message, and tags are required.");
 			toast.error(
 				"Please fill in all required fields (Title, Location name, Message, and Tags).",
 			);
+			return false;
+		}
+		if (titleCharCount > MAX_TITLE_CHARS) {
+			setError(`Title must be ${MAX_TITLE_CHARS} characters or less.`);
+			toast.error(`Title must be ${MAX_TITLE_CHARS} characters or less.`);
+			return false;
+		}
+		if (messageCharCount > MAX_MESSAGE_CHARS) {
+			setError(`Description must be ${MAX_MESSAGE_CHARS} characters or less.`);
+			toast.error(`Description must be ${MAX_MESSAGE_CHARS} characters or less.`);
 			return false;
 		}
 		setError("");
@@ -505,12 +520,19 @@ import { verifyPostLocation, sendPostForReview } from "../../api";
 						id="title"
 						name="title"
 						value={postData.title}
+						maxLength={MAX_TITLE_CHARS}
 						onChange={(e) =>
-							setPostData({ ...postData, title: e.target.value })
+							setPostData({
+								...postData,
+								title: e.target.value,
+							})
 						}
 						placeholder="e.g. Sunset walk at Lakeside"
 						className="w-full bg-off-white border border-dark-green hover:border-light-green focus:border-dark-green focus:outline-none rounded-md px-3 py-2 text-sm text-text-dark transition-colors"
 					/>
+					<p className="text-[11px] text-text-gray text-right">
+						{postData.title.length}/{MAX_TITLE_CHARS}
+					</p>
 				</div>
 
 				{/* Message */}
@@ -526,6 +548,7 @@ import { verifyPostLocation, sendPostForReview } from "../../api";
 						name="message"
 						rows={4}
 						value={postData.message}
+						maxLength={MAX_MESSAGE_CHARS}
 						onChange={(e) =>
 							setPostData({
 								...postData,
@@ -535,6 +558,9 @@ import { verifyPostLocation, sendPostForReview } from "../../api";
 						placeholder="What's on your mind?"
 						className="w-full bg-off-white border border-dark-green hover:border-light-green focus:border-dark-green focus:outline-none rounded-md px-3 py-2 text-sm text-text-dark transition-colors resize-y"
 					/>
+					<p className="text-[11px] text-text-gray text-right">
+						{postData.message.length}/{MAX_MESSAGE_CHARS}
+					</p>
 				</div>
 
 				{/* Tags */}
@@ -827,8 +853,7 @@ import { verifyPostLocation, sendPostForReview } from "../../api";
 						)}
 					</div>
 					<p className="text-text-gray text-xs italic mt-2">
-						You can upload multiple images to enhance your post.
-						 Use arrows or "1st" to rearrange display order.
+						Max file size: 12 MB. Use arrows or "1st" to rearrange display order.
 						Supported formats: JPG, PNG, GIF
 					</p>
 				</div>
