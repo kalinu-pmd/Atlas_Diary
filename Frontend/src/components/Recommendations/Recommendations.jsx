@@ -5,6 +5,8 @@ import {
 	MdThumbUp,
 	MdComment,
 	MdVisibility,
+	MdRefresh,
+	MdKeyboardArrowUp,
 } from "react-icons/md";
 import {
 	getRecommendations,
@@ -101,6 +103,10 @@ const Recommendations = () => {
 	);
 	const [isFetchingRecommendations, setIsFetchingRecommendations] = useState(false);
 	const [isManualRefreshing, setIsManualRefreshing] = useState(false);
+	const [showScrollTop, setShowScrollTop] = useState(false);
+	const [cacheUpdatedAt, setCacheUpdatedAt] = useState(
+		cachedRecommendationsSnapshot?.updatedAt || null,
+	);
 	const [currentCountry, setCurrentCountry] = useState(
 		cachedRecommendationsSnapshot?.currentCountry || "",
 	);
@@ -130,14 +136,16 @@ const Recommendations = () => {
 			try {
 				const recommendationsPayload = await dispatch(getRecommendations(10));
 				if (Array.isArray(recommendationsPayload)) {
+					const updatedAt = Date.now();
 					setRecommendationsCache(userId, user?.token, {
 						fetched: true,
 						recommendations: recommendationsPayload,
 						userLocation: null,
 						currentCountry: "",
 						currentLocationName: "",
-						updatedAt: Date.now(),
+						updatedAt,
 					});
+					setCacheUpdatedAt(updatedAt);
 				}
 			} finally {
 				setIsFetchingRecommendations(false);
@@ -179,14 +187,16 @@ const Recommendations = () => {
 			);
 
 			if (Array.isArray(recommendationsPayload)) {
+				const updatedAt = Date.now();
 				setRecommendationsCache(userId, user?.token, {
 					fetched: true,
 					recommendations: recommendationsPayload,
 					userLocation: location,
 					currentCountry: resolvedCountry,
 					currentLocationName: resolvedLocationName,
-					updatedAt: Date.now(),
+					updatedAt,
 				});
+				setCacheUpdatedAt(updatedAt);
 			}
 		} catch (error) {
 			console.error("Geolocation error:", error);
@@ -195,14 +205,16 @@ const Recommendations = () => {
 			// If user denies location or it fails, fall back to non-location-based
 			const recommendationsPayload = await dispatch(getRecommendations(10));
 			if (Array.isArray(recommendationsPayload)) {
+				const updatedAt = Date.now();
 				setRecommendationsCache(userId, user?.token, {
 					fetched: true,
 					recommendations: recommendationsPayload,
 					userLocation: null,
 					currentCountry: "",
 					currentLocationName: "",
-					updatedAt: Date.now(),
+					updatedAt,
 				});
+				setCacheUpdatedAt(updatedAt);
 			}
 		} finally {
 			setIsFetchingRecommendations(false);
@@ -215,6 +227,12 @@ const Recommendations = () => {
 		clearRecommendationsCache(userId, user?.token);
 		await requestLocation();
 		setIsManualRefreshing(false);
+	};
+
+	const handleScrollToTop = () => {
+		if (typeof window !== "undefined") {
+			window.scrollTo({ top: 0, behavior: "smooth" });
+		}
 	};
 
 	useEffect(() => {
@@ -230,6 +248,7 @@ const Recommendations = () => {
 			setUserLocation(cached.userLocation || null);
 			setCurrentCountry(cached.currentCountry || "");
 			setCurrentLocationName(cached.currentLocationName || "");
+			setCacheUpdatedAt(cached.updatedAt || null);
 			setHasAttemptedFetch(true);
 			setIsFetchingRecommendations(false);
 			return;
@@ -237,6 +256,26 @@ const Recommendations = () => {
 
 		requestLocation();
 	}, [user, userId]);
+
+	useEffect(() => {
+		const updateScrollVisibility = () => {
+			setShowScrollTop(window.scrollY > 340);
+		};
+
+		updateScrollVisibility();
+		window.addEventListener("scroll", updateScrollVisibility, {
+			passive: true,
+		});
+
+		return () => {
+			window.removeEventListener("scroll", updateScrollVisibility);
+		};
+	}, []);
+
+	useEffect(() => {
+		// Scroll to top when component mounts or user navigates to this page
+		window.scrollTo({ top: 0, behavior: "auto" });
+	}, []);
 
 	const handleViewPost = (postId) => {
 		if (user?.token) {
@@ -432,17 +471,26 @@ const Recommendations = () => {
 							? "A blend of your activity, interests, and nearby places."
 							: "A blend of your activity and interests. Allow location in your browser settings to improve nearby recommendations."}
 					</p>
-					<div className="mt-4">
+					<div className="mt-4 flex flex-wrap items-center justify-center gap-3">
 						<button
 							type="button"
 							onClick={handleManualRefresh}
 							disabled={isManualRefreshing || isFetchingRecommendations}
-							className="inline-flex items-center rounded-lg border border-dark-green/20 bg-white px-3 py-1.5 text-xs font-bold text-dark-green shadow-sm transition-colors hover:bg-light-green/20 disabled:cursor-not-allowed disabled:opacity-60"
+							className="inline-flex items-center gap-1.5 rounded-full border border-dark-green/20 bg-white/90 px-4 py-2 text-xs font-extrabold uppercase tracking-wide text-dark-green shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:bg-light-green/30 hover:shadow disabled:cursor-not-allowed disabled:opacity-60"
 						>
+							<MdRefresh
+								size={16}
+								className={isManualRefreshing || isFetchingRecommendations ? "animate-spin" : ""}
+							/>
 							{isManualRefreshing || isFetchingRecommendations
 								? "Refreshing..."
-								: "Refresh recommendations"}
+								: "Refresh feed"}
 						</button>
+						{cacheUpdatedAt && (
+							<span className="inline-flex items-center rounded-full border border-dark-green/10 bg-off-white px-3 py-1 text-[11px] font-semibold text-text-gray">
+								Updated {moment(cacheUpdatedAt).fromNow()}
+							</span>
+						)}
 					</div>
 					{currentCountry && (
 						<div className="mt-3 inline-flex items-center gap-2 rounded-full border border-dark-green/10 bg-white/70 px-3 py-1.5 shadow-sm">
@@ -626,6 +674,19 @@ const Recommendations = () => {
 					);
 				})}
 			</div>
+
+			<button
+				type="button"
+				onClick={handleScrollToTop}
+				aria-label="Scroll to top"
+				className={`fixed bottom-6 right-5 sm:right-7 z-[1200] inline-flex h-12 w-12 items-center justify-center rounded-full border border-dark-green/20 bg-dark-green text-off-white shadow-[0_8px_22px_rgba(12,52,44,0.35)] transition-all duration-300 ease-out hover:-translate-y-1 hover:bg-[#0b4237] ${
+					showScrollTop
+						? "opacity-100 translate-y-0 scale-100"
+						: "opacity-0 translate-y-3 scale-90 pointer-events-none"
+				}`}
+			>
+				<MdKeyboardArrowUp size={24} />
+			</button>
 		</div>
 	);
 };

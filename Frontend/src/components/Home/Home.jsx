@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { Link as RouterLink, useLocation, useHistory } from "react-router-dom";
-import { MdSearch, MdClose, MdTune } from "react-icons/md";
+import { MdSearch, MdClose, MdTune, MdKeyboardArrowUp } from "react-icons/md";
 
 import Posts from "../Posts/Posts";
 import Footer from "../Footer/Footer";
@@ -35,7 +35,6 @@ export default function Home() {
 	const [hasMore, setHasMore] = useState(true);
 	const loadMoreRef = useRef(null);
 	const [showScrollTop, setShowScrollTop] = useState(false);
-	const [isHidingScrollTop, setIsHidingScrollTop] = useState(false);
 
 	const isSearchActive =
 		Boolean(search.trim()) || Boolean(pinnedLocation);
@@ -65,19 +64,7 @@ export default function Home() {
 	useEffect(() => {
 		const handleScroll = () => {
 			const y = window.scrollY || window.pageYOffset || 0;
-			const shouldShow = y > 400;
-
-			if (shouldShow) {
-				setShowScrollTop(true);
-				setIsHidingScrollTop(false);
-			} else if (!shouldShow && showScrollTop && !isHidingScrollTop) {
-				// Smoothly hide when user scrolls near the top
-				setIsHidingScrollTop(true);
-				setTimeout(() => {
-					setShowScrollTop(false);
-					setIsHidingScrollTop(false);
-				}, 250);
-			}
+			setShowScrollTop(y > 340);
 		};
 
 		window.addEventListener("scroll", handleScroll, { passive: true });
@@ -86,7 +73,7 @@ export default function Home() {
 		return () => {
 			window.removeEventListener("scroll", handleScroll);
 		};
-	}, [showScrollTop, isHidingScrollTop]);
+	}, []);
 
 	useEffect(() => {
 		if (routeLocation.pathname !== "/posts/search") {
@@ -279,32 +266,7 @@ export default function Home() {
 	]);
 
 	const handleScrollToTop = () => {
-		if (!showScrollTop) return;
-		setIsHidingScrollTop(true);
-
-		// Easing-based scroll: fast at start, slows near the top
-		const startY = window.scrollY || window.pageYOffset || 0;
-		const duration = 550; // ms
-		const startTime = performance.now();
-
-		const easeOutCubic = (t) => 1 - Math.pow(1 - t, 3);
-
-		const step = (now) => {
-			const elapsed = now - startTime;
-			const t = Math.min(1, elapsed / duration);
-			const eased = easeOutCubic(t);
-			const nextY = startY * (1 - eased);
-			window.scrollTo(0, nextY);
-
-			if (t < 1) {
-				requestAnimationFrame(step);
-			} else {
-				setShowScrollTop(false);
-				setIsHidingScrollTop(false);
-			}
-		};
-
-		requestAnimationFrame(step);
+		window.scrollTo({ top: 0, behavior: "smooth" });
 	};
 
 	return (
@@ -506,20 +468,18 @@ export default function Home() {
 			</main>
 
 		{/* Floating scroll-to-top button */}
-		{showScrollTop && (
-			<button
-				type="button"
-				onClick={handleScrollToTop}
-				className={`fixed right-4 bottom-5 z-[1100] inline-flex items-center justify-center rounded-full bg-dark-green text-off-white shadow-[0_10px_25px_rgba(12,52,44,0.35)] transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-light-green/70 ${
-					isHidingScrollTop
-						? "opacity-0 translate-y-3 scale-90 pointer-events-none"
-						: "opacity-100 translate-y-0 scale-100"
-				}`}
-				aria-label="Scroll back to top"
-			>
-				<span className="px-3 py-3 text-lg leading-none">↑</span>
-			</button>
-		)}
+		<button
+			type="button"
+			onClick={handleScrollToTop}
+			aria-label="Scroll to top"
+			className={`fixed bottom-6 right-5 sm:right-7 z-[1200] inline-flex h-12 w-12 items-center justify-center rounded-full border border-dark-green/20 bg-dark-green text-off-white shadow-[0_8px_22px_rgba(12,52,44,0.35)] transition-all duration-300 ease-out hover:-translate-y-1 hover:bg-[#0b4237] ${
+				showScrollTop
+					? "opacity-100 translate-y-0 scale-100"
+					: "opacity-0 translate-y-3 scale-90 pointer-events-none"
+			}`}
+		>
+			<MdKeyboardArrowUp size={24} />
+		</button>
 
 			<Footer />
 		</div>
