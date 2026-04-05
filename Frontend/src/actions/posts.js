@@ -211,12 +211,14 @@ export const getRecommendations =
 
 			dispatch({ type: FETCH_RECOMMENDATIONS, payload: data });
 			dispatch({ type: END_LOADING });
+			return data;
 		} catch (error) {
 			console.log("Error fetching recommendations:", error);
 			dispatch({ type: END_LOADING });
 			toast.error(
 				"Failed to load recommendations. Please try again later.",
 			);
+			return null;
 		}
 	};
 

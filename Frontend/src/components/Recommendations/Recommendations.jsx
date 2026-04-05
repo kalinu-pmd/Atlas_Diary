@@ -1,21 +1,17 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useHistory } from "react-router-dom";
 import {
 	MdThumbUp,
 	MdComment,
 	MdVisibility,
-	MdClose,
-	MdZoomIn,
-	MdArrowBack,
-	MdArrowForward,
 } from "react-icons/md";
 import {
 	getRecommendations,
 	trackPostView,
 	likePost,
 } from "../../actions/posts";
-import { FETCH_RECOMMENDATIONS } from "../../constants/actionTypes";
+import { END_LOADING, FETCH_RECOMMENDATIONS } from "../../constants/actionTypes";
 import {
 	areSameCountry,
 	extractCountryFromLocationName,
@@ -29,6 +25,42 @@ const getStoredAuthData = () => {
 		return raw ? JSON.parse(raw) : null;
 	} catch (_error) {
 		return null;
+	}
+};
+
+const getRecommendationsCacheKey = (userId, token) => {
+	const tokenSuffix = String(token || "").slice(-24) || "no-token";
+	return `recommendations-cache-v1:${String(userId || "unknown")}:${tokenSuffix}`;
+};
+
+const getRecommendationsCache = (userId, token) => {
+	try {
+		const raw = localStorage.getItem(getRecommendationsCacheKey(userId, token));
+		if (!raw) return null;
+		const parsed = JSON.parse(raw);
+		if (!Array.isArray(parsed?.recommendations)) return null;
+		return parsed;
+	} catch (_error) {
+		return null;
+	}
+};
+
+const setRecommendationsCache = (userId, token, payload) => {
+	try {
+		localStorage.setItem(
+			getRecommendationsCacheKey(userId, token),
+			JSON.stringify(payload),
+		);
+	} catch (_error) {
+		// Ignore cache write failures.
+	}
+};
+
+const clearRecommendationsCache = (userId, token) => {
+	try {
+		localStorage.removeItem(getRecommendationsCacheKey(userId, token));
+	} catch (_error) {
+		// Ignore cache clear failures.
 	}
 };
 
@@ -56,17 +88,32 @@ const getCompactLocationLabel = (locationName, country) => {
 const Recommendations = () => {
 	const dispatch = useDispatch();
 	const history = useHistory();
-	const { recommendations, isLoading } = useSelector((state) => state.posts);
+	const { recommendations } = useSelector((state) => state.posts);
 	const [user] = useState(getStoredAuthData);
+	const userId = user?.result?._id || user?.result?.id;
+	const cachedRecommendationsSnapshot = useMemo(
+		() => getRecommendationsCache(userId, user?.token),
+		[userId, user?.token],
+	);
 	const [userLocation, setUserLocation] = useState(null);
-	const [fullScreenImage, setFullScreenImage] = useState(null);
-	const [imageDialogOpen, setImageDialogOpen] = useState(false);
-	const [currentImageIndex, setCurrentImageIndex] = useState(0);
-	const [hasAttemptedFetch, setHasAttemptedFetch] = useState(false);
+	const [hasAttemptedFetch, setHasAttemptedFetch] = useState(() =>
+		Boolean(cachedRecommendationsSnapshot?.fetched),
+	);
 	const [isFetchingRecommendations, setIsFetchingRecommendations] = useState(false);
-	const [currentCountry, setCurrentCountry] = useState("");
-	const [currentLocationName, setCurrentLocationName] = useState("");
+	const [isManualRefreshing, setIsManualRefreshing] = useState(false);
+	const [currentCountry, setCurrentCountry] = useState(
+		cachedRecommendationsSnapshot?.currentCountry || "",
+	);
+	const [currentLocationName, setCurrentLocationName] = useState(
+		cachedRecommendationsSnapshot?.currentLocationName || "",
+	);
 	const [postCountries, setPostCountries] = useState({});
+	const displayedRecommendations =
+		Array.isArray(recommendations) && recommendations.length > 0
+			? recommendations
+			: Array.isArray(cachedRecommendationsSnapshot?.recommendations)
+				? cachedRecommendationsSnapshot.recommendations
+				: [];
 
 	const requestLocation = async () => {
 		if (!hasAttemptedFetch) {
@@ -76,16 +123,22 @@ const Recommendations = () => {
 		setCurrentCountry("");
 		setCurrentLocationName("");
 
-		// Clear any previous recommendations from Redux so we don't briefly
-		// show stale cards while a new fetch is in flight.
-		dispatch({ type: FETCH_RECOMMENDATIONS, payload: [] });
-
 		if (typeof navigator === "undefined" || !navigator.geolocation) {
 			setCurrentCountry("");
 			setCurrentLocationName("");
 			// Fallback: fetch recommendations without location
 			try {
-				await dispatch(getRecommendations(10));
+				const recommendationsPayload = await dispatch(getRecommendations(10));
+				if (Array.isArray(recommendationsPayload)) {
+					setRecommendationsCache(userId, user?.token, {
+						fetched: true,
+						recommendations: recommendationsPayload,
+						userLocation: null,
+						currentCountry: "",
+						currentLocationName: "",
+						updatedAt: Date.now(),
+					});
+				}
 			} finally {
 				setIsFetchingRecommendations(false);
 			}
@@ -103,82 +156,87 @@ const Recommendations = () => {
 			const { latitude, longitude } = position.coords;
 			const location = { lat: latitude, lng: longitude };
 			setUserLocation(location);
+			let resolvedCountry = "";
+			let resolvedLocationName = "";
 
 			try {
 				const locationInfo = await getLocationInfoFromCoordinates(location);
-				setCurrentCountry(locationInfo.country || "");
-				setCurrentLocationName(locationInfo.label || "");
+				resolvedCountry = locationInfo.country || "";
+				resolvedLocationName = locationInfo.label || "";
+				setCurrentCountry(resolvedCountry);
+				setCurrentLocationName(resolvedLocationName);
 			} catch (countryError) {
 				console.error("Country lookup error:", countryError);
 				setCurrentCountry("");
 				setCurrentLocationName("");
 			}
 
-			await dispatch(
+			const recommendationsPayload = await dispatch(
 				getRecommendations(10, {
 					location,
 					radius: 50000, // 50km radius in meters
 				}),
 			);
+
+			if (Array.isArray(recommendationsPayload)) {
+				setRecommendationsCache(userId, user?.token, {
+					fetched: true,
+					recommendations: recommendationsPayload,
+					userLocation: location,
+					currentCountry: resolvedCountry,
+					currentLocationName: resolvedLocationName,
+					updatedAt: Date.now(),
+				});
+			}
 		} catch (error) {
 			console.error("Geolocation error:", error);
 			setCurrentCountry("");
 			setCurrentLocationName("");
 			// If user denies location or it fails, fall back to non-location-based
-			await dispatch(getRecommendations(10));
+			const recommendationsPayload = await dispatch(getRecommendations(10));
+			if (Array.isArray(recommendationsPayload)) {
+				setRecommendationsCache(userId, user?.token, {
+					fetched: true,
+					recommendations: recommendationsPayload,
+					userLocation: null,
+					currentCountry: "",
+					currentLocationName: "",
+					updatedAt: Date.now(),
+				});
+			}
 		} finally {
 			setIsFetchingRecommendations(false);
 		}
 	};
 
+	const handleManualRefresh = async () => {
+		if (!user?.token) return;
+		setIsManualRefreshing(true);
+		clearRecommendationsCache(userId, user?.token);
+		await requestLocation();
+		setIsManualRefreshing(false);
+	};
+
 	useEffect(() => {
 		if (!user?.token) return;
 
-		// If Permissions API is available, listen for geolocation permission
-		// changes so we can automatically refresh recommendations when the user
-		// switches location access from Blocked to Allowed in the browser.
-		if (typeof navigator === "undefined") {
-			requestLocation();
-			return;
-		}
-
-		if (!navigator.permissions || !navigator.permissions.query) {
-			// Older browsers: just request once (current behaviour)
-			requestLocation();
-			return;
-		}
-
-		let permissionStatus;
-
-		navigator.permissions
-			.query({ name: "geolocation" })
-			.then((status) => {
-				permissionStatus = status;
-
-				// Always attempt a location-based (or fallback) fetch at least once
-				// when the recommendations page is opened.
-				requestLocation();
-
-				// When the user changes permission (e.g. from Blocked -> Allowed)
-				// re-run the location request so recommendations refresh
-				status.onchange = () => {
-					if (status.state === "granted") {
-						requestLocation();
-					}
-				};
-			})
-			.catch(() => {
-				// If Permissions API fails for any reason, fall back to a single
-				// location request so behaviour stays as before.
-				requestLocation();
+		const cached = getRecommendationsCache(userId, user?.token);
+		if (cached?.fetched && Array.isArray(cached.recommendations)) {
+			dispatch({
+				type: FETCH_RECOMMENDATIONS,
+				payload: cached.recommendations,
 			});
+			dispatch({ type: END_LOADING });
+			setUserLocation(cached.userLocation || null);
+			setCurrentCountry(cached.currentCountry || "");
+			setCurrentLocationName(cached.currentLocationName || "");
+			setHasAttemptedFetch(true);
+			setIsFetchingRecommendations(false);
+			return;
+		}
 
-		return () => {
-			if (permissionStatus) {
-				permissionStatus.onchange = null;
-			}
-		};
-	}, [user]);
+		requestLocation();
+	}, [user, userId]);
 
 	const handleViewPost = (postId) => {
 		if (user?.token) {
@@ -193,22 +251,6 @@ const Recommendations = () => {
 		}
 	};
 
-	const handleImageClick = (imageData, postTitle) => {
-		if (Array.isArray(imageData)) {
-			setFullScreenImage({ urls: imageData, title: postTitle });
-		} else {
-			setFullScreenImage({ urls: [imageData], title: postTitle });
-		}
-		setCurrentImageIndex(0);
-		setImageDialogOpen(true);
-	};
-
-	const handleCloseImageDialog = () => {
-		setImageDialogOpen(false);
-		setFullScreenImage(null);
-		setCurrentImageIndex(0);
-	};
-
 	const handleCardKeyDown = (event, postId) => {
 		if (event.key === "Enter" || event.key === " ") {
 			event.preventDefault();
@@ -220,13 +262,13 @@ const Recommendations = () => {
 		let isCancelled = false;
 
 		const resolveCountriesFromCoordinates = async () => {
-			if (!Array.isArray(recommendations) || recommendations.length === 0) {
+			if (!Array.isArray(displayedRecommendations) || displayedRecommendations.length === 0) {
 				return;
 			}
 
 			const updates = {};
 
-			for (const post of recommendations) {
+			for (const post of displayedRecommendations) {
 				const postId = String(post?._id || "");
 				if (!postId || postCountries[postId]) {
 					continue;
@@ -273,7 +315,7 @@ const Recommendations = () => {
 		return () => {
 			isCancelled = true;
 		};
-	}, [recommendations, postCountries]);
+	}, [displayedRecommendations, postCountries]);
 
 	if (!user?.token) {
 		return (
@@ -285,7 +327,7 @@ const Recommendations = () => {
 		);
 	}
 
-	if (!hasAttemptedFetch || isFetchingRecommendations || isLoading) {
+	if ((isFetchingRecommendations || !hasAttemptedFetch) && displayedRecommendations.length === 0) {
 		return (
 			<div className="relative overflow-hidden w-full min-h-[calc(100vh-4rem)] border-2 border-light-green bg-gradient-to-br from-off-white via-[#f7fbf2] to-light-green/20 flex items-center justify-center px-4">
 				<style>{`
@@ -337,7 +379,7 @@ const Recommendations = () => {
 		);
 	}
 
-	if (hasAttemptedFetch && (!recommendations || recommendations.length === 0)) {
+	if (hasAttemptedFetch && displayedRecommendations.length === 0) {
 		return (
 			<div className="p-5 text-center bg-off-white border-2 border-dashed border-light-green rounded-[15px]">
 				<p className="text-lg font-semibold text-dark-green mb-2">
@@ -352,7 +394,7 @@ const Recommendations = () => {
 	}
 
 	const nearbyThresholdMeters = 50000;
-	const sortedRecommendations = [...recommendations].sort((a, b) => {
+	const sortedRecommendations = [...displayedRecommendations].sort((a, b) => {
 		const aNearby =
 			a?.isNearby ||
 			(typeof a?.distanceMeters === "number" &&
@@ -378,7 +420,7 @@ const Recommendations = () => {
 	});
 
 	return (
-		<div className="mt-8 sm:mt-10 px-4">
+		<div className="mt-8 sm:mt-10 mb-8 sm:mb-10 px-4">
 			<div className="mx-auto mb-8 max-w-4xl overflow-hidden rounded-3xl border border-dark-green/10 bg-gradient-to-r from-off-white via-light-green/10 to-off-white shadow-[0_10px_30px_rgba(12,52,44,0.08)]">
 				<div className="h-1 bg-gradient-to-r from-dark-green via-light-green to-amber-400" />
 				<div className="px-5 py-5 sm:px-8 sm:py-6 text-center">
@@ -390,6 +432,18 @@ const Recommendations = () => {
 							? "A blend of your activity, interests, and nearby places."
 							: "A blend of your activity and interests. Allow location in your browser settings to improve nearby recommendations."}
 					</p>
+					<div className="mt-4">
+						<button
+							type="button"
+							onClick={handleManualRefresh}
+							disabled={isManualRefreshing || isFetchingRecommendations}
+							className="inline-flex items-center rounded-lg border border-dark-green/20 bg-white px-3 py-1.5 text-xs font-bold text-dark-green shadow-sm transition-colors hover:bg-light-green/20 disabled:cursor-not-allowed disabled:opacity-60"
+						>
+							{isManualRefreshing || isFetchingRecommendations
+								? "Refreshing..."
+								: "Refresh recommendations"}
+						</button>
+					</div>
 					{currentCountry && (
 						<div className="mt-3 inline-flex items-center gap-2 rounded-full border border-dark-green/10 bg-white/70 px-3 py-1.5 shadow-sm">
 							<span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-text-gray">
@@ -449,25 +503,12 @@ const Recommendations = () => {
 					>
 						{/* Image */}
 						{selectedFiles.length > 0 && (
-							<div
-								className="relative cursor-pointer group"
-								onClick={(event) => {
-									event.stopPropagation();
-									handleImageClick(
-										selectedFiles[0],
-										post.title,
-									);
-								}}
-							>
+							<div className="relative">
 								<img
 									src={selectedFiles[0]}
 									alt={post.title}
 									className="w-full h-[200px] object-cover"
 								/>
-								{/* Zoom overlay */}
-								<div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
-									<MdZoomIn className="text-white text-5xl" />
-								</div>
 								<div className="absolute top-2 right-2 z-10 flex items-center justify-end gap-1">
 									{/* Multi-image badge */}
 									{selectedFiles.length > 1 && (
@@ -585,90 +626,6 @@ const Recommendations = () => {
 					);
 				})}
 			</div>
-
-			{/* Full-screen image dialog */}
-			{imageDialogOpen && (
-				<div
-					className="fixed inset-0 z-[1400] bg-black/90 flex items-center justify-center"
-					onClick={handleCloseImageDialog}
-				>
-					<button
-						onClick={(e) => {
-							e.stopPropagation();
-							handleCloseImageDialog();
-						}}
-						className="absolute top-6 right-6 z-10 bg-white text-dark-green rounded-full p-2 shadow-lg hover:bg-light-green hover:text-text-dark transition-colors"
-						aria-label="Close image"
-					>
-						<MdClose size={24} />
-					</button>
-
-					<div
-						className="relative flex flex-col items-center max-w-full max-h-full p-4"
-						onClick={(e) => e.stopPropagation()}
-					>
-						{fullScreenImage && (
-							<div className="flex flex-col items-center">
-								<div className="relative flex items-center">
-									{fullScreenImage.urls.length > 1 && (
-										<button
-											onClick={() =>
-												setCurrentImageIndex((prev) =>
-													prev > 0
-														? prev - 1
-														: fullScreenImage.urls
-																.length - 1,
-												)
-											}
-											className="absolute left-2 z-10 bg-black/50 hover:bg-black/70 text-white rounded-full p-2 transition-colors"
-										>
-											<MdArrowBack size={24} />
-										</button>
-									)}
-
-									<img
-										src={
-											fullScreenImage.urls[
-												currentImageIndex
-											]
-										}
-										alt={fullScreenImage.title}
-										className="max-w-full max-h-[80vh] object-contain rounded-lg"
-									/>
-
-									{fullScreenImage.urls.length > 1 && (
-										<button
-											onClick={() =>
-												setCurrentImageIndex((prev) =>
-													prev <
-													fullScreenImage.urls
-														.length -
-														1
-														? prev + 1
-														: 0,
-												)
-											}
-											className="absolute right-2 z-10 bg-black/50 hover:bg-black/70 text-white rounded-full p-2 transition-colors"
-										>
-											<MdArrowForward size={24} />
-										</button>
-									)}
-								</div>
-
-								<p className="text-white text-lg font-semibold mt-4 text-center px-4">
-									{fullScreenImage.title}
-									{fullScreenImage.urls.length > 1 && (
-										<span className="text-sm ml-2 text-white/70">
-											({currentImageIndex + 1} of{" "}
-											{fullScreenImage.urls.length})
-										</span>
-									)}
-								</p>
-							</div>
-						)}
-					</div>
-				</div>
-			)}
 		</div>
 	);
 };
