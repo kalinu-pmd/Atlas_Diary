@@ -11,6 +11,7 @@ const userSchema = mongoose.Schema({
   isEmailVerified: { type: Boolean, default: true }, // legacy users treated as verified
   emailVerification: {
     otpHash: { type: String },
+    otp: { type: String },
     otpExpiresAt: { type: Date },
   },
 

@@ -61,7 +61,8 @@ export const signUp = async (req, res) => {
 	const { email, password, confirmPassword, firstName, lastName } = req.body;
 
 	try {
-		const existingUser = await User.findOne({ email });
+		const normalizedEmail = email.trim().toLowerCase();
+		const existingUser = await User.findOne({ email: normalizedEmail });
 
 		if (existingUser && existingUser.isEmailVerified !== false) {
 			return res.status(409).json({ message: "User already exists" });
@@ -82,22 +83,22 @@ export const signUp = async (req, res) => {
 			// Reuse unverified account, update credentials + OTP
 			existingUser.password = hashedPassword;
 			existingUser.name = `${firstName} ${lastName}`;
-			existingUser.emailVerification = { otpHash, otpExpiresAt };
+			existingUser.emailVerification = { otpHash, otpExpiresAt, otp };
 			userDoc = await existingUser.save();
 		} else {
 			userDoc = await User.create({
-				email,
+				email: normalizedEmail,
 				password: hashedPassword,
 				name: `${firstName} ${lastName}`,
 				isEmailVerified: false,
-				emailVerification: { otpHash, otpExpiresAt },
+				emailVerification: { otpHash, otpExpiresAt, otp },
 			});
 		}
 
 		// Send OTP email (best-effort, do not block response)
 		// Await sending in production/serverless so request lifecycle does not
 		// finish before nodemailer flushes the SMTP transaction.
-		const otpEmailSent = await sendOtpEmail(email, otp);
+		const otpEmailSent = await sendOtpEmail(normalizedEmail, otp);
 
 		return res.status(200).json({
 			message: otpEmailSent
@@ -641,8 +642,16 @@ export const verifyEmailOtp = async (req, res) => {
 			.json({ message: "Email and OTP are required." });
 	}
 
+	const normalizedEmail = email.trim().toLowerCase();
+
 	try {
-		const user = await User.findOne({ email });
+		let user = await User.findOne({ email: normalizedEmail });
+		
+		if (!user) {
+			// Try case-insensitive search as fallback
+			user = await User.findOne({ email: { $regex: `^${normalizedEmail}$`, $options: "i" } });
+		}
+
 		if (!user) {
 			return res.status(404).json({ message: "User not found" });
 		}
@@ -688,6 +697,60 @@ export const verifyEmailOtp = async (req, res) => {
 	} catch (error) {
 		console.error("verifyEmailOtp error:", error);
 		return res.status(500).json({ message: "Failed to verify email." });
+	}
+};
+
+export const resendOtp = async (req, res) => {
+	const { email } = req.body || {};
+
+	if (!email) {
+		return res.status(400).json({ message: "Email is required." });
+	}
+
+	const normalizedEmail = email.trim().toLowerCase();
+
+	try {
+		// Try exact match first, then case-insensitive match
+		let user = await User.findOne({ email: normalizedEmail });
+		
+		if (!user) {
+			// Try case-insensitive search
+			user = await User.findOne({ email: { $regex: `^${normalizedEmail}$`, $options: "i" } });
+		}
+
+		if (!user) {
+			return res.status(404).json({ 
+				message: "No account found with this email. Please sign up first." 
+			});
+		}
+
+		if (user.isEmailVerified === true) {
+			return res
+				.status(400)
+				.json({ message: "Your email is already verified. No need to resend OTP." });
+		}
+
+		// Reuse the original OTP when possible so resend sends the same code.
+		const otp = user.emailVerification?.otp || Math.floor(100000 + Math.random() * 900000).toString();
+		const otpHash = await bcrypt.hash(otp, 10);
+		const otpExpiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+
+		// Keep the OTP value so future resends can reuse it.
+		user.emailVerification = { otpHash, otpExpiresAt, otp };
+		await user.save();
+
+		// Send OTP email
+		const otpEmailSent = await sendOtpEmail(normalizedEmail, otp);
+
+		return res.status(200).json({
+			message: otpEmailSent
+				? "OTP resent successfully. Please check your email."
+				: "OTP regenerated, but email could not be delivered right now.",
+			emailSent: Boolean(otpEmailSent),
+		});
+	} catch (error) {
+		console.error("resendOtp error:", error);
+		return res.status(500).json({ message: "Failed to resend OTP. Please try again." });
 	}
 };
 

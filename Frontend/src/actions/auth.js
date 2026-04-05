@@ -59,6 +59,38 @@ export const verifyOtp = (formData, history) => async (dispatch) => {
   }
 };
 
+export const resendOtp = (email) => async (dispatch) => {
+  try {
+    const { data } = await api.resendOtp({ email });
+    
+    // Show success message whether email was delivered or just regenerated
+    const message = data?.message || "OTP sent successfully.";
+    toast.success(message);
+    
+    return true;
+  } catch (error) {
+    console.log("resendOtp error:", error);
+    
+    // Provide helpful error messages based on the response
+    let errorMessage = "Failed to resend OTP. Please try again.";
+    
+    if (error.response?.status === 404) {
+      errorMessage = "User account not found.";
+    } else if (error.response?.status === 400) {
+      errorMessage = error.response?.data?.message || "Cannot resend OTP. Please check your email or try signing up again.";
+    } else if (error.response?.status === 500) {
+      errorMessage = "Server error. Please try again in a moment.";
+    } else if (error.message === "Network Error") {
+      errorMessage = "Network error. Please check your connection and try again.";
+    } else {
+      errorMessage = error.response?.data?.message || "Failed to resend OTP. Please try again.";
+    }
+    
+    toast.error(errorMessage);
+    return false;
+  }
+};
+
 export const requestPasswordReset = (formData) => async () => {
   try {
     const { data } = await api.requestPasswordReset(formData);

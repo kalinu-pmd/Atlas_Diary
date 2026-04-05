@@ -65,6 +65,10 @@ export const verifyOtp = (payload) => {
 	return API.post("/users/verify-otp", payload);
 };
 
+export const resendOtp = (payload) => {
+	return API.post("/users/resend-otp", payload);
+};
+
 // Password reset (user-facing)
 export const requestPasswordReset = (payload) => {
 	return API.post("/users/request-password-reset", payload);

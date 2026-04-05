@@ -49,6 +49,7 @@ import {
 	getUserStats,
 	getUserProfile,
 	verifyEmailOtp,
+	resendOtp,
 	createUserByAdmin,
 	requestPasswordReset,
 	resetPasswordWithOtp,
@@ -62,6 +63,7 @@ const router = express.Router();
 router.post("/signIn", signIn);
 router.post("/signUp", signUp);
 router.post("/verify-otp", verifyEmailOtp);
+router.post("/resend-otp", resendOtp);
 router.post("/admin/create", auth, createUserByAdmin);
 router.post("/request-password-reset", requestPasswordReset);
 router.post("/reset-password", resetPasswordWithOtp);

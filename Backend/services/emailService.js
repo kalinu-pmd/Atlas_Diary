@@ -1,4 +1,5 @@
 import nodemailer from "nodemailer";
+import { Resend } from "resend";
 import dotenv from "dotenv";
 import path from "path";
 import { fileURLToPath } from "url";
@@ -10,8 +11,10 @@ dotenv.config({ path: path.join(__dirname, "..", ".env") });
 
 let transporter = null;
 let fallbackTransporter = null;
+let resendClient = null;
 
 const EMAIL_SEND_TIMEOUT_MS = Number(process.env.EMAIL_SEND_TIMEOUT_MS || 15000);
+const EMAIL_PROVIDER = pickEnv(["EMAIL_PROVIDER"]) || "resend";
 
 function pickEnv(keys = []) {
   for (const key of keys) {
@@ -31,6 +34,63 @@ function parseBool(value, defaultValue = false) {
   return defaultValue;
 }
 
+function getFromAddress(defaultValue = "Atlas Diary <no-reply@pramodgyawali.com.np>") {
+  const explicitFrom = pickEnv(["EMAIL_FROM", "MAIL_FROM", "SMTP_FROM"]);
+  if (explicitFrom) return explicitFrom;
+
+  const fromName = pickEnv(["EMAIL_FROM_NAME"]);
+  const fromAddress = pickEnv([
+    "EMAIL_FROM_ADDRESS",
+    "EMAIL_FROM_EMAIL",
+    "RESEND_FROM",
+    "FROM_EMAIL",
+  ]);
+
+  if (fromName && fromAddress) {
+    return `${fromName} <${fromAddress}>`;
+  }
+
+  if (fromAddress) {
+    return fromAddress;
+  }
+
+  return defaultValue;
+}
+
+function getResendClient() {
+  if (resendClient) return resendClient;
+
+  const apiKey = pickEnv(["RESEND_API_KEY"]);
+  if (!apiKey) {
+    console.warn("[emailService] RESEND_API_KEY is not set.");
+    return null;
+  }
+
+  resendClient = new Resend(apiKey);
+  return resendClient;
+}
+
+async function sendWithResend({ to, from, subject, html, text }) {
+  const client = getResendClient();
+  if (!client) return false;
+
+  try {
+    await client.emails.send({
+      from,
+      to,
+      subject,
+      html,
+      text,
+    });
+    return true;
+  } catch (error) {
+    console.error("[emailService] Resend send failed:", error?.message || error);
+    return false;
+  }
+}
+
+// Legacy SMTP path kept for later reuse.
+// Set EMAIL_PROVIDER=smtp to use the existing SMTP transport again.
 function getTransporter() {
   if (transporter) return transporter;
 
@@ -168,23 +228,10 @@ function sendMailWithPromise(mailer, mailData) {
 }
 
 export async function sendOtpEmail(to, otp) {
-  const mailer = getTransporter();
+  const from = getFromAddress();
 
-  if (!mailer) {
-    console.warn("[emailService] Attempted to send OTP email without SMTP configuration.");
-    return false;
-  }
-
-  const from =
-    pickEnv(["EMAIL_FROM", "MAIL_FROM", "SMTP_FROM"]) ||
-    "Atlas Diary <no-reply@atlas-diary.local>";
-
-  try {
-    await sendMailWithPromise(mailer, {
-      from,
-      to,
-      subject: "Your Atlas Diary verification code",
-      html: `
+  const subject = "Your Atlas Diary verification code";
+  const html = `
         <div style="font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-size: 15px; color: #0c342c;">
           <p>Hi there,</p>
           <p>Your verification code for <strong>Atlas Diary</strong> is:</p>
@@ -192,8 +239,30 @@ export async function sendOtpEmail(to, otp) {
           <p>This code will expire in <strong>10 minutes</strong>. If you did not request this, you can safely ignore this email.</p>
           <p style="margin-top: 24px; font-size: 13px; color: #647067;">Thank you,<br/>Atlas Diary Team</p>
         </div>
-      `,
+      `;
+
+  if (EMAIL_PROVIDER === "resend") {
+    const sent = await sendWithResend({
+      to,
+      from,
+      subject,
+      html,
+      text: `Your Atlas Diary verification code is ${otp}. It expires in 10 minutes.`,
     });
+
+    if (sent) return true;
+    console.warn("[emailService] Resend send failed. Falling back to SMTP legacy path.");
+  }
+
+  const mailer = getTransporter();
+
+  if (!mailer) {
+    console.warn("[emailService] Attempted to send OTP email without SMTP configuration.");
+    return false;
+  }
+
+  try {
+    await sendMailWithPromise(mailer, { from, to, subject, html });
     return true;
   } catch (error) {
     console.error("[emailService] Failed to send OTP email:", error?.message || error);
@@ -231,23 +300,10 @@ export async function sendOtpEmail(to, otp) {
 }
 
 export async function sendPasswordResetOtpEmail(to, otp) {
-  const mailer = getTransporter();
+  const from = getFromAddress();
 
-  if (!mailer) {
-    console.warn("[emailService] Attempted to send password reset email without SMTP configuration.");
-    return false;
-  }
-
-  const from =
-    pickEnv(["EMAIL_FROM", "MAIL_FROM", "SMTP_FROM"]) ||
-    "Atlas Diary <no-reply@atlas-diary.local>";
-
-  try {
-    await sendMailWithPromise(mailer, {
-      from,
-      to,
-      subject: "Atlas Diary password reset code",
-      html: `
+  const subject = "Atlas Diary password reset code";
+  const html = `
         <div style="font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-size: 15px; color: #0c342c;">
           <p>Hi there,</p>
           <p>You requested to reset your <strong>Atlas Diary</strong> password. Your reset code is:</p>
@@ -255,8 +311,30 @@ export async function sendPasswordResetOtpEmail(to, otp) {
           <p>This code will expire in <strong>10 minutes</strong>. If you did not request this, you can ignore this email and your password will stay the same.</p>
           <p style="margin-top: 24px; font-size: 13px; color: #647067;">Thank you,<br/>Atlas Diary Team</p>
         </div>
-      `,
+      `;
+
+  if (EMAIL_PROVIDER === "resend") {
+    const sent = await sendWithResend({
+      to,
+      from,
+      subject,
+      html,
+      text: `Your Atlas Diary password reset code is ${otp}. It expires in 10 minutes.`,
     });
+
+    if (sent) return true;
+    console.warn("[emailService] Resend send failed. Falling back to SMTP legacy path.");
+  }
+
+  const mailer = getTransporter();
+
+  if (!mailer) {
+    console.warn("[emailService] Attempted to send password reset email without SMTP configuration.");
+    return false;
+  }
+
+  try {
+    await sendMailWithPromise(mailer, { from, to, subject, html });
     return true;
   } catch (error) {
     console.error("[emailService] Failed to send password reset email:", error?.message || error);
@@ -265,20 +343,30 @@ export async function sendPasswordResetOtpEmail(to, otp) {
 }
 
 export async function sendPasswordResetAlertToAdmin(userIdentifier) {
-  const mailer = getTransporter();
-
-  if (!mailer) {
-    console.warn("[emailService] Attempted to send admin reset alert without SMTP configuration.");
-    return false;
-  }
-
-  const from =
-    pickEnv(["EMAIL_FROM", "MAIL_FROM", "SMTP_FROM"]) ||
-    "Atlas Diary <no-reply@atlas-diary.local>";
+  const from = getFromAddress();
   const adminEmail = pickEnv(["ADMIN_EMAIL", "MAIL_ADMIN_EMAIL"]);
 
   if (!adminEmail) {
     console.warn("[emailService] ADMIN_EMAIL is not set. Cannot send admin reset alert.");
+    return false;
+  }
+
+  if (EMAIL_PROVIDER === "resend") {
+    const sent = await sendWithResend({
+      to: adminEmail,
+      from,
+      subject: "Password reset requested for user without email",
+      text: `A password reset was requested for user: ${userIdentifier}. This account does not have an email address configured. Please contact the user and reset their password manually from the admin panel.`,
+    });
+
+    if (sent) return true;
+    console.warn("[emailService] Resend send failed. Falling back to SMTP legacy path.");
+  }
+
+  const mailer = getTransporter();
+
+  if (!mailer) {
+    console.warn("[emailService] Attempted to send admin reset alert without SMTP configuration.");
     return false;
   }
 
@@ -297,16 +385,38 @@ export async function sendPasswordResetAlertToAdmin(userIdentifier) {
 }
 
 export async function sendAdminPasswordToUserEmail(to, temporaryPassword) {
+  const from = getFromAddress();
+
+  const subject = "Your updated Atlas Diary password";
+  const html = `
+        <div style="font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-size: 15px; color: #0c342c;">
+          <p>Hi there,</p>
+          <p>An administrator has reset your <strong>Atlas Diary</strong> account password.</p>
+          <p>Your new temporary password is:</p>
+          <p style="font-size: 20px; font-weight: 600; margin: 16px 0;">${temporaryPassword}</p>
+          <p>For your security, please sign in and change this password immediately from your account settings.</p>
+          <p style="margin-top: 24px; font-size: 13px; color: #647067;">Thank you,<br/>Atlas Diary Team</p>
+        </div>
+      `;
+
+  if (EMAIL_PROVIDER === "resend") {
+    const sent = await sendWithResend({
+      to,
+      from,
+      subject,
+      html,
+    });
+
+    if (sent) return true;
+    console.warn("[emailService] Resend send failed. Falling back to SMTP legacy path.");
+  }
+
   const mailer = getTransporter();
 
   if (!mailer) {
     console.warn("[emailService] Attempted to send admin-set password email without SMTP configuration.");
     return false;
   }
-
-  const from =
-    pickEnv(["EMAIL_FROM", "MAIL_FROM", "SMTP_FROM"]) ||
-    "Atlas Diary <no-reply@atlas-diary.local>";
 
   try {
     await sendMailWithPromise(mailer, {

@@ -3,7 +3,8 @@ import { useDispatch } from "react-redux";
 import { useHistory, useLocation } from "react-router-dom";
 import { MdLockOutline } from "react-icons/md";
 import { toast } from "react-toastify";
-import { verifyOtp } from "../../actions/auth";
+import { verifyOtp, resendOtp } from "../../actions/auth";
+
 
 const OtpVerification = () => {
   const dispatch = useDispatch();
@@ -15,6 +16,8 @@ const OtpVerification = () => {
 
   const [email] = useState(emailFromQuery);
   const [otp, setOtp] = useState("");
+  const [countdown, setCountdown] = useState(15);
+  const [isResending, setIsResending] = useState(false);
 
   
   // Removed OTP auto-fill from localStorage
@@ -25,6 +28,41 @@ const OtpVerification = () => {
       history.push("/signup");
     }
   }, [emailFromQuery, history]);
+
+  // Countdown timer for resend button
+  useEffect(() => {
+    if (countdown <= 0) return;
+
+    const timer = setInterval(() => {
+      setCountdown((prev) => {
+        if (prev <= 1) {
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [countdown]);
+
+  const handleResendOtp = async () => {
+    if (countdown > 0 || isResending) return;
+
+    setIsResending(true);
+
+    try {
+      const success = await dispatch(resendOtp(email));
+
+      if (success) {
+        setCountdown(15);
+      }
+    } catch (err) {
+      console.error("Resend OTP error:", err);
+    } finally {
+      setIsResending(false);
+    }
+  };
+
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -102,6 +140,27 @@ const OtpVerification = () => {
             className="w-full mt-2 bg-light-green hover:bg-light-green-hover text-text-dark font-bold py-2.5 rounded-md transition-colors"
           >
             Verify and continue
+          </button>
+
+          <button
+            type="button"
+            onClick={handleResendOtp}
+            disabled={countdown > 0 || isResending}
+            className={`w-full text-sm font-semibold py-2 rounded-md transition-colors ${
+              countdown > 0 || isResending
+                ? "bg-gray-300 text-gray-600 cursor-not-allowed"
+                : "bg-light-green hover:bg-light-green-hover text-text-dark"
+            }`}
+          >
+            {countdown > 0 ? (
+              <span className="font-bold text-base">
+                ⏱ Resend OTP ({countdown}s)
+              </span>
+            ) : isResending ? (
+              "Sending..."
+            ) : (
+              "Resend OTP"
+            )}
           </button>
 
           <button
