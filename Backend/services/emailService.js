@@ -9,6 +9,7 @@ const __dirname = path.dirname(__filename);
 dotenv.config({ path: path.join(__dirname, "..", ".env") });
 
 let transporter = null;
+let fallbackTransporter = null;
 
 const EMAIL_SEND_TIMEOUT_MS = Number(process.env.EMAIL_SEND_TIMEOUT_MS || 15000);
 
@@ -84,6 +85,12 @@ function getTransporter() {
     connectionTimeout: EMAIL_SEND_TIMEOUT_MS,
     greetingTimeout: EMAIL_SEND_TIMEOUT_MS,
     socketTimeout: EMAIL_SEND_TIMEOUT_MS,
+    requireTLS: !secure,
+    tls: secure
+      ? undefined
+      : {
+          minVersion: "TLSv1.2",
+        },
     auth: {
       user,
       pass,
@@ -91,6 +98,48 @@ function getTransporter() {
   });
 
   return transporter;
+}
+
+function getFallbackTransporter() {
+  if (fallbackTransporter) return fallbackTransporter;
+
+  const host = pickEnv(["SMTP_HOST", "MAIL_HOST", "EMAIL_HOST"]) || "smtp.gmail.com";
+  const user = pickEnv([
+    "SMTP_USER",
+    "SMTP_USERNAME",
+    "MAIL_USER",
+    "EMAIL_USER",
+    "GMAIL_USER",
+    "NEXT_PUBLIC_GMAIL_EMAIL",
+  ]);
+  const pass = pickEnv([
+    "SMTP_PASS",
+    "SMTP_PASSWORD",
+    "MAIL_PASS",
+    "EMAIL_PASSWORD",
+    "GMAIL_APP_PASSWORD",
+    "GMAIL_PASSWORD",
+    "NEXT_PUBLIC_GMAIL_PASSWORD",
+  ]);
+
+  if (!user || !pass) {
+    return null;
+  }
+
+  fallbackTransporter = nodemailer.createTransport({
+    host,
+    port: 465,
+    secure: true,
+    connectionTimeout: EMAIL_SEND_TIMEOUT_MS,
+    greetingTimeout: EMAIL_SEND_TIMEOUT_MS,
+    socketTimeout: EMAIL_SEND_TIMEOUT_MS,
+    auth: {
+      user,
+      pass,
+    },
+  });
+
+  return fallbackTransporter;
 }
 
 function sendMailWithPromise(mailer, mailData) {
@@ -148,7 +197,36 @@ export async function sendOtpEmail(to, otp) {
     return true;
   } catch (error) {
     console.error("[emailService] Failed to send OTP email:", error?.message || error);
-    return false;
+
+    const fallbackMailer = getFallbackTransporter();
+    if (!fallbackMailer || fallbackMailer === mailer) {
+      return false;
+    }
+
+    try {
+      console.warn("[emailService] Retrying OTP email with Gmail SSL fallback on port 465.");
+      await sendMailWithPromise(fallbackMailer, {
+        from,
+        to,
+        subject: "Your Atlas Diary verification code",
+        html: `
+          <div style="font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-size: 15px; color: #0c342c;">
+            <p>Hi there,</p>
+            <p>Your verification code for <strong>Atlas Diary</strong> is:</p>
+            <p style="font-size: 24px; font-weight: 700; letter-spacing: 4px; margin: 16px 0;">${otp}</p>
+            <p>This code will expire in <strong>10 minutes</strong>. If you did not request this, you can safely ignore this email.</p>
+            <p style="margin-top: 24px; font-size: 13px; color: #647067;">Thank you,<br/>Atlas Diary Team</p>
+          </div>
+        `,
+      });
+      return true;
+    } catch (fallbackError) {
+      console.error(
+        "[emailService] Gmail SSL fallback also failed:",
+        fallbackError?.message || fallbackError,
+      );
+      return false;
+    }
   }
 }
 

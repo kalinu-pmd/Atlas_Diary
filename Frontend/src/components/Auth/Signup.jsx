@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useDispatch } from "react-redux";
-import { useHistory } from "react-router-dom";
+import { useHistory, useLocation } from "react-router-dom";
 import { MdLockOutline } from "react-icons/md";
 import { toast } from "react-toastify";
 
@@ -11,6 +11,8 @@ import { signUp } from "../../actions/auth";
 const Signup = ({ onSwitchToSignIn }) => {
 	const dispatch = useDispatch();
 	const history = useHistory();
+	const location = useLocation();
+	const restoredFormData = location.state?.formData;
 
 	const initialFormData = {
 		firstName: "",
@@ -20,7 +22,9 @@ const Signup = ({ onSwitchToSignIn }) => {
 		confirmPassword: "",
 	};
 
-	const [formData, setFormData] = useState(initialFormData);
+	const [formData, setFormData] = useState(
+		restoredFormData ? { ...initialFormData, ...restoredFormData } : initialFormData,
+	);
 	const [showPassword, setShowPassword] = useState(false);
 	const [errors, setErrors] = useState({});
 	const [passwordsMatch, setPasswordsMatch] = useState(false);

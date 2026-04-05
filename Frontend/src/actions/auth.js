@@ -28,6 +28,7 @@ export const signUp = (formData, history) => async (dispatch) => {
       `/verify-email?email=${encodeURIComponent(
         data?.email || formData.email,
       )}`,
+      { formData },
     );
     return true;
   } catch (error) {

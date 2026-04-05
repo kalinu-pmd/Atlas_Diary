@@ -2,6 +2,7 @@ import { useState } from "react";
 import PropTypes from "prop-types";
 import { useDispatch, useSelector } from "react-redux";
 import { useHistory, useLocation } from "react-router-dom";
+import { createPortal } from "react-dom";
 import moment from "moment";
 import { toast } from "react-toastify";
 import {
@@ -74,6 +75,7 @@ const Post = ({ post, onDeleted }) => {
 	const [isExpanded, setIsExpanded] = useState(false);
 	const [currentImageIndex, setCurrentImageIndex] = useState(0);
 	const [reportModalOpen, setReportModalOpen] = useState(false);
+	const [authPromptOpen, setAuthPromptOpen] = useState(false);
 	const [reportReason, setReportReason] = useState("not_real_place");
 	const [reportDetails, setReportDetails] = useState("");
 	const userId = user?.result?.googleId || user?.result?._id;
@@ -142,7 +144,7 @@ const Post = ({ post, onDeleted }) => {
 
 	const handleLike = () => {
 		if (!user?.result) {
-			toast.info("Please sign in to like posts.");
+			setAuthPromptOpen(true);
 			return;
 		}
 
@@ -225,6 +227,22 @@ const Post = ({ post, onDeleted }) => {
 		e.stopPropagation();
 		if (!hasNextImage) return;
 		setCurrentImageIndex((prev) => prev + 1);
+	};
+
+	const portalTarget = typeof document !== "undefined" ? document.body : null;
+	const renderModal = (content) => {
+		if (!portalTarget) return null;
+		return createPortal(content, portalTarget);
+	};
+
+	const closeAuthPrompt = () => setAuthPromptOpen(false);
+	const goToSignIn = () => {
+		setAuthPromptOpen(false);
+		history.push("/auth");
+	};
+	const goToSignUp = () => {
+		setAuthPromptOpen(false);
+		history.push("/signup");
 	};
 
 	return (
@@ -447,63 +465,98 @@ const Post = ({ post, onDeleted }) => {
 				)}
 			</div>
 
-			{/* Report post modal */}
-			{reportModalOpen && (
-				<div className="fixed inset-0 z-[2100] flex items-center justify-center bg-black/50 backdrop-blur-sm px-4">
-					<div className="bg-off-white rounded-2xl shadow-[0_16px_48px_rgba(12,52,44,0.3)] border border-light-green p-5 w-full max-w-sm">
-						<h3 className="text-text-dark font-extrabold text-lg mb-1">
-							Report this place
-						</h3>
-						<p className="text-xs text-text-gray mb-4">
-							Help us keep Atlas Diary safe by telling us what&apos;s wrong with this post.
-						</p>
-						<form onSubmit={handleSubmitReport} className="flex flex-col gap-3 text-sm">
-							<div className="flex flex-col gap-1">
-								<span className="text-xs font-semibold text-dark-green">
-									Reason
-								</span>
-								<select
-									value={reportReason}
-									onChange={(e) => setReportReason(e.target.value)}
-									className="w-full bg-off-white border border-dark-green hover:border-light-green focus:border-dark-green focus:outline-none rounded-lg px-3 py-2.5 text-sm text-text-dark transition-colors"
-								>
-									<option value="not_real_place">Not a real place</option>
-									<option value="description_mismatch">Description does not match the location</option>
-									<option value="photo_mismatch">Photos do not match the location</option>
-									<option value="spam_or_advertisement">Spam / advertisement</option>
-									<option value="other">Something else</option>
-								</select>
-							</div>
-							<div className="flex flex-col gap-1">
-								<label className="text-xs font-semibold text-dark-green">
-									Additional details <span className="text-text-gray font-normal">(optional)</span>
-								</label>
-								<textarea
-									rows={3}
-									value={reportDetails}
-									onChange={(e) => setReportDetails(e.target.value)}
-									placeholder="Tell us briefly why this place looks fake or misleading."
-									className="w-full bg-off-white border border-dark-green hover:border-light-green focus:border-dark-green focus:outline-none rounded-lg px-3 py-2.5 text-sm text-text-dark resize-y transition-colors"
-								/>
-							</div>
-							<div className="flex justify-end gap-2 mt-2">
+			{renderModal(
+				reportModalOpen ? (
+					<div className="fixed inset-0 z-[2100] flex items-center justify-center bg-black/50 backdrop-blur-sm px-4">
+						<div className="bg-off-white rounded-2xl shadow-[0_16px_48px_rgba(12,52,44,0.3)] border border-light-green p-5 w-full max-w-sm">
+							<h3 className="text-text-dark font-extrabold text-lg mb-1">
+								Report this place
+							</h3>
+							<p className="text-xs text-text-gray mb-4">
+								Help us keep Atlas Diary safe by telling us what&apos;s wrong with this post.
+							</p>
+							<form onSubmit={handleSubmitReport} className="flex flex-col gap-3 text-sm">
+								<div className="flex flex-col gap-1">
+									<span className="text-xs font-semibold text-dark-green">
+										Reason
+									</span>
+									<select
+										value={reportReason}
+										onChange={(e) => setReportReason(e.target.value)}
+										className="w-full bg-off-white border border-dark-green hover:border-light-green focus:border-dark-green focus:outline-none rounded-lg px-3 py-2.5 text-sm text-text-dark transition-colors"
+									>
+										<option value="not_real_place">Not a real place</option>
+										<option value="description_mismatch">Description does not match the location</option>
+										<option value="photo_mismatch">Photos do not match the location</option>
+										<option value="spam_or_advertisement">Spam / advertisement</option>
+										<option value="other">Something else</option>
+									</select>
+								</div>
+								<div className="flex flex-col gap-1">
+									<label className="text-xs font-semibold text-dark-green">
+										Additional details <span className="text-text-gray font-normal">(optional)</span>
+									</label>
+									<textarea
+										rows={3}
+										value={reportDetails}
+										onChange={(e) => setReportDetails(e.target.value)}
+										placeholder="Tell us briefly why this place looks fake or misleading."
+										className="w-full bg-off-white border border-dark-green hover:border-light-green focus:border-dark-green focus:outline-none rounded-lg px-3 py-2.5 text-sm text-text-dark resize-y transition-colors"
+									/>
+								</div>
+								<div className="flex justify-end gap-2 mt-2">
+									<button
+										type="button"
+										onClick={() => setReportModalOpen(false)}
+										className="px-4 py-2 rounded-lg border border-dark-green/20 text-dark-green font-semibold text-xs hover:bg-dark-green/5 transition-colors"
+									>
+										Cancel
+									</button>
+									<button
+										type="submit"
+										className="px-4 py-2 rounded-lg bg-orange hover:bg-orange-hover text-white font-bold text-xs transition-colors"
+									>
+										Submit report
+									</button>
+								</div>
+							</form>
+						</div>
+					</div>
+				) : authPromptOpen ? (
+					<div className="fixed inset-0 z-[2100] flex items-center justify-center bg-black/50 backdrop-blur-sm px-4">
+						<div className="bg-off-white rounded-2xl shadow-[0_16px_48px_rgba(12,52,44,0.3)] border border-light-green p-5 w-full max-w-sm">
+							<h3 className="text-text-dark font-extrabold text-lg mb-1">
+								Join Atlas Diary to like posts
+							</h3>
+							<p className="text-xs text-text-gray mb-4">
+								Sign in to like posts, save your preferences, and interact with the community.
+							</p>
+							<div className="flex flex-col gap-2">
 								<button
 									type="button"
-									onClick={() => setReportModalOpen(false)}
-									className="px-4 py-2 rounded-lg border border-dark-green/20 text-dark-green font-semibold text-xs hover:bg-dark-green/5 transition-colors"
+									onClick={goToSignIn}
+									className="w-full px-4 py-2.5 rounded-lg bg-light-green hover:bg-light-green-hover text-text-dark font-bold text-sm transition-colors"
 								>
-									Cancel
+									Sign In
 								</button>
 								<button
-									type="submit"
-									className="px-4 py-2 rounded-lg bg-orange hover:bg-orange-hover text-white font-bold text-xs transition-colors"
+									type="button"
+									onClick={goToSignUp}
+									className="w-full px-4 py-2.5 rounded-lg border border-dark-green/20 text-dark-green font-semibold text-sm hover:bg-dark-green/5 transition-colors"
 								>
-									Submit report
+									Create Account
+								</button>
+								<button
+									type="button"
+									onClick={closeAuthPrompt}
+									className="w-full px-4 py-2 text-xs text-text-gray hover:text-text-dark transition-colors"
+								>
+									Not now
 								</button>
 							</div>
-						</form>
+						</div>
 					</div>
-				</div>
+				) : null,
 			)}
 		</div>
 	);

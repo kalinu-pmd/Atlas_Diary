@@ -42,6 +42,14 @@ const OtpVerification = () => {
     dispatch(verifyOtp({ email, otp }, history));
   };
 
+  const handleGoBack = () => {
+    history.push("/signup", {
+      formData: location.state?.formData || {
+        email,
+      },
+    });
+  };
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-off-white px-4 py-12">
       <div className="w-full max-w-sm bg-off-white border border-dark-green rounded-[15px] shadow-form p-6 flex flex-col items-center">
@@ -98,7 +106,7 @@ const OtpVerification = () => {
 
           <button
             type="button"
-            onClick={() => history.push("/signup")}
+            onClick={handleGoBack}
             className="w-full text-sm text-dark-green font-semibold py-2 hover:underline transition-colors"
           >
             Go back and edit details
