@@ -12,25 +12,75 @@ let transporter = null;
 
 const EMAIL_SEND_TIMEOUT_MS = Number(process.env.EMAIL_SEND_TIMEOUT_MS || 15000);
 
+function pickEnv(keys = []) {
+  for (const key of keys) {
+    const value = process.env[key];
+    if (typeof value === "string" && value.trim()) {
+      return value.trim();
+    }
+  }
+  return "";
+}
+
+function parseBool(value, defaultValue = false) {
+  if (typeof value !== "string") return defaultValue;
+  const normalized = value.trim().toLowerCase();
+  if (["1", "true", "yes", "on"].includes(normalized)) return true;
+  if (["0", "false", "no", "off"].includes(normalized)) return false;
+  return defaultValue;
+}
+
 function getTransporter() {
   if (transporter) return transporter;
 
-  const host = process.env.SMTP_HOST;
-  const port = process.env.SMTP_PORT;
-  const user = process.env.SMTP_USER;
-  const pass = process.env.SMTP_PASS;
+  const smtpUrl = pickEnv(["SMTP_URL", "SMTP_URI", "MAIL_URL"]);
+  const host = pickEnv(["SMTP_HOST", "MAIL_HOST", "EMAIL_HOST"]);
+  const port = pickEnv(["SMTP_PORT", "MAIL_PORT", "EMAIL_PORT"]);
+  const user = pickEnv([
+    "SMTP_USER",
+    "SMTP_USERNAME",
+    "MAIL_USER",
+    "EMAIL_USER",
+    "GMAIL_USER",
+    "NEXT_PUBLIC_GMAIL_EMAIL",
+  ]);
+  const pass = pickEnv([
+    "SMTP_PASS",
+    "SMTP_PASSWORD",
+    "MAIL_PASS",
+    "EMAIL_PASSWORD",
+    "GMAIL_APP_PASSWORD",
+    "GMAIL_PASSWORD",
+    "NEXT_PUBLIC_GMAIL_PASSWORD",
+  ]);
 
-  if (!host || !port || !user || !pass) {
+  if (!smtpUrl && (!host || !port || !user || !pass)) {
+    const missing = [];
+    if (!host) missing.push("host");
+    if (!port) missing.push("port");
+    if (!user) missing.push("user");
+    if (!pass) missing.push("pass");
+
     console.warn(
-      "[emailService] SMTP_HOST/SMTP_PORT/SMTP_USER/SMTP_PASS are not fully set. Email sending will be disabled."
+      `[emailService] SMTP config missing (${missing.join(", ")}). Set SMTP_URL or SMTP_HOST/SMTP_PORT/SMTP_USER/SMTP_PASS in production env.`
     );
     return null;
   }
 
+  if (smtpUrl) {
+    transporter = nodemailer.createTransport(smtpUrl, {
+      connectionTimeout: EMAIL_SEND_TIMEOUT_MS,
+      greetingTimeout: EMAIL_SEND_TIMEOUT_MS,
+      socketTimeout: EMAIL_SEND_TIMEOUT_MS,
+    });
+    return transporter;
+  }
+
+  const secure = parseBool(process.env.SMTP_SECURE, Number(port) === 465);
   transporter = nodemailer.createTransport({
     host,
     port: Number(port),
-    secure: Number(port) === 465, // true for 465, false for other ports
+    secure, // true for 465 unless overridden by SMTP_SECURE
     connectionTimeout: EMAIL_SEND_TIMEOUT_MS,
     greetingTimeout: EMAIL_SEND_TIMEOUT_MS,
     socketTimeout: EMAIL_SEND_TIMEOUT_MS,
@@ -77,7 +127,8 @@ export async function sendOtpEmail(to, otp) {
   }
 
   const from =
-    process.env.EMAIL_FROM || "Atlas Diary <no-reply@atlas-diary.local>";
+    pickEnv(["EMAIL_FROM", "MAIL_FROM", "SMTP_FROM"]) ||
+    "Atlas Diary <no-reply@atlas-diary.local>";
 
   try {
     await sendMailWithPromise(mailer, {
@@ -110,7 +161,8 @@ export async function sendPasswordResetOtpEmail(to, otp) {
   }
 
   const from =
-    process.env.EMAIL_FROM || "Atlas Diary <no-reply@atlas-diary.local>";
+    pickEnv(["EMAIL_FROM", "MAIL_FROM", "SMTP_FROM"]) ||
+    "Atlas Diary <no-reply@atlas-diary.local>";
 
   try {
     await sendMailWithPromise(mailer, {
@@ -143,8 +195,9 @@ export async function sendPasswordResetAlertToAdmin(userIdentifier) {
   }
 
   const from =
-    process.env.EMAIL_FROM || "Atlas Diary <no-reply@atlas-diary.local>";
-  const adminEmail = process.env.ADMIN_EMAIL;
+    pickEnv(["EMAIL_FROM", "MAIL_FROM", "SMTP_FROM"]) ||
+    "Atlas Diary <no-reply@atlas-diary.local>";
+  const adminEmail = pickEnv(["ADMIN_EMAIL", "MAIL_ADMIN_EMAIL"]);
 
   if (!adminEmail) {
     console.warn("[emailService] ADMIN_EMAIL is not set. Cannot send admin reset alert.");
@@ -174,7 +227,8 @@ export async function sendAdminPasswordToUserEmail(to, temporaryPassword) {
   }
 
   const from =
-    process.env.EMAIL_FROM || "Atlas Diary <no-reply@atlas-diary.local>";
+    pickEnv(["EMAIL_FROM", "MAIL_FROM", "SMTP_FROM"]) ||
+    "Atlas Diary <no-reply@atlas-diary.local>";
 
   try {
     await sendMailWithPromise(mailer, {
