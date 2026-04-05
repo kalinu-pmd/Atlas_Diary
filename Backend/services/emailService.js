@@ -10,6 +10,8 @@ dotenv.config({ path: path.join(__dirname, "..", ".env") });
 
 let transporter = null;
 
+const EMAIL_SEND_TIMEOUT_MS = Number(process.env.EMAIL_SEND_TIMEOUT_MS || 15000);
+
 function getTransporter() {
   if (transporter) return transporter;
 
@@ -29,6 +31,9 @@ function getTransporter() {
     host,
     port: Number(port),
     secure: Number(port) === 465, // true for 465, false for other ports
+    connectionTimeout: EMAIL_SEND_TIMEOUT_MS,
+    greetingTimeout: EMAIL_SEND_TIMEOUT_MS,
+    socketTimeout: EMAIL_SEND_TIMEOUT_MS,
     auth: {
       user,
       pass,
@@ -38,19 +43,44 @@ function getTransporter() {
   return transporter;
 }
 
+function sendMailWithPromise(mailer, mailData) {
+  return new Promise((resolve, reject) => {
+    let settled = false;
+
+    const timeout = setTimeout(() => {
+      if (settled) return;
+      settled = true;
+      reject(new Error(`Email send timed out after ${EMAIL_SEND_TIMEOUT_MS}ms`));
+    }, EMAIL_SEND_TIMEOUT_MS);
+
+    mailer.sendMail(mailData, (error, info) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timeout);
+
+      if (error) {
+        reject(error);
+        return;
+      }
+
+      resolve(info);
+    });
+  });
+}
+
 export async function sendOtpEmail(to, otp) {
   const mailer = getTransporter();
 
   if (!mailer) {
     console.warn("[emailService] Attempted to send OTP email without SMTP configuration.");
-    return;
+    return false;
   }
 
   const from =
     process.env.EMAIL_FROM || "Atlas Diary <no-reply@atlas-diary.local>";
 
   try {
-    await mailer.sendMail({
+    await sendMailWithPromise(mailer, {
       from,
       to,
       subject: "Your Atlas Diary verification code",
@@ -64,9 +94,10 @@ export async function sendOtpEmail(to, otp) {
         </div>
       `,
     });
+    return true;
   } catch (error) {
     console.error("[emailService] Failed to send OTP email:", error?.message || error);
-    // Swallow error so signup flow can still respond; client can retry.
+    return false;
   }
 }
 
@@ -75,14 +106,14 @@ export async function sendPasswordResetOtpEmail(to, otp) {
 
   if (!mailer) {
     console.warn("[emailService] Attempted to send password reset email without SMTP configuration.");
-    return;
+    return false;
   }
 
   const from =
     process.env.EMAIL_FROM || "Atlas Diary <no-reply@atlas-diary.local>";
 
   try {
-    await mailer.sendMail({
+    await sendMailWithPromise(mailer, {
       from,
       to,
       subject: "Atlas Diary password reset code",
@@ -96,8 +127,10 @@ export async function sendPasswordResetOtpEmail(to, otp) {
         </div>
       `,
     });
+    return true;
   } catch (error) {
     console.error("[emailService] Failed to send password reset email:", error?.message || error);
+    return false;
   }
 }
 
@@ -106,7 +139,7 @@ export async function sendPasswordResetAlertToAdmin(userIdentifier) {
 
   if (!mailer) {
     console.warn("[emailService] Attempted to send admin reset alert without SMTP configuration.");
-    return;
+    return false;
   }
 
   const from =
@@ -115,18 +148,20 @@ export async function sendPasswordResetAlertToAdmin(userIdentifier) {
 
   if (!adminEmail) {
     console.warn("[emailService] ADMIN_EMAIL is not set. Cannot send admin reset alert.");
-    return;
+    return false;
   }
 
   try {
-    await mailer.sendMail({
+    await sendMailWithPromise(mailer, {
       from,
       to: adminEmail,
       subject: "Password reset requested for user without email",
       text: `A password reset was requested for user: ${userIdentifier}. This account does not have an email address configured. Please contact the user and reset their password manually from the admin panel.`,
     });
+    return true;
   } catch (error) {
     console.error("[emailService] Failed to send admin password reset alert:", error?.message || error);
+    return false;
   }
 }
 
@@ -135,14 +170,14 @@ export async function sendAdminPasswordToUserEmail(to, temporaryPassword) {
 
   if (!mailer) {
     console.warn("[emailService] Attempted to send admin-set password email without SMTP configuration.");
-    return;
+    return false;
   }
 
   const from =
     process.env.EMAIL_FROM || "Atlas Diary <no-reply@atlas-diary.local>";
 
   try {
-    await mailer.sendMail({
+    await sendMailWithPromise(mailer, {
       from,
       to,
       subject: "Your updated Atlas Diary password",
@@ -157,7 +192,9 @@ export async function sendAdminPasswordToUserEmail(to, temporaryPassword) {
         </div>
       `,
     });
+    return true;
   } catch (error) {
     console.error("[emailService] Failed to send admin password email:", error?.message || error);
+    return false;
   }
 }

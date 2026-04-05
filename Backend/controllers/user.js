@@ -95,26 +95,17 @@ export const signUp = async (req, res) => {
 		}
 
 		// Send OTP email (best-effort, do not block response)
-		// Fire-and-forget so slow SMTP or network issues don't make
-		// the signup request appear "stuck" for the user.
-		sendOtpEmail(email, otp);
-		console.log("[signUp] Generated OTP for", email, "is", otp);
-		// TEMP / DEMO: control whether we expose the raw OTP
-		// in the API response so the frontend can auto-fill it
-		// when SMTP email delivery is unavailable.
-		//
-		// By default, we expose it in non-production environments.
-		// In production-like hosting, you can still enable it by
-		// setting EXPOSE_DEBUG_OTP=true.
-		const exposeDebugOtp =
-			process.env.EXPOSE_DEBUG_OTP === "true" ||
-			process.env.NODE_ENV !== "production";
+		// Await sending in production/serverless so request lifecycle does not
+		// finish before nodemailer flushes the SMTP transaction.
+		const otpEmailSent = await sendOtpEmail(email, otp);
 
 		return res.status(200).json({
-			message: "OTP sent. Please check your email to verify your account.",
+			message: otpEmailSent
+				? "OTP sent. Please check your email to verify your account."
+				: "Account created, but OTP email could not be delivered right now. Please request OTP again.",
+			emailSent: Boolean(otpEmailSent),
 			userId: userDoc._id,
 			email: userDoc.email,
-			...(exposeDebugOtp ? { debugOtp: otp } : {}),
 		});
 	} catch (error) {
 		console.error("signUp error:", error);

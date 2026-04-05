@@ -16,33 +16,8 @@ const OtpVerification = () => {
   const [email] = useState(emailFromQuery);
   const [otp, setOtp] = useState("");
 
-  // TEMPORARY: if backend returns a debugOtp (because SMTP
-  // is blocked), the signup flow stores it in localStorage.
-  // Here we auto-fill the OTP field for the matching email.
-  // Safe to remove this block once real email delivery works.
-  useEffect(() => {
-    try {
-      const raw = localStorage.getItem("debug-signup-otp");
-      if (!raw) return;
-      const parsed = JSON.parse(raw);
-      if (!parsed?.email || !parsed?.otp) return;
-
-      // Ensure the stored OTP is for this email
-      if (parsed.email !== emailFromQuery) return;
-
-      // Respect the same 10 minute expiry window as backend
-      if (
-        typeof parsed.createdAt === "number" &&
-        Date.now() - parsed.createdAt > 10 * 60 * 1000
-      ) {
-        return;
-      }
-
-      setOtp(String(parsed.otp));
-    } catch {
-      // ignore parse errors
-    }
-  }, [emailFromQuery]);
+  
+  // Removed OTP auto-fill from localStorage
 
   useEffect(() => {
     if (!emailFromQuery) {
