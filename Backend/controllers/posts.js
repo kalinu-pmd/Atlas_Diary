@@ -7,6 +7,53 @@ import recommendationService from "../services/recommendationService.js";
 import fetch from "node-fetch";
 import stringSimilarity from "string-similarity";
 
+const SEARCH_SCAN_LIMIT_MAX = 500;
+const SEARCH_SCAN_LIMIT_DEFAULT = 200;
+const MAX_POST_IMAGE_SIZE_MB = Number(process.env.MAX_POST_IMAGE_SIZE_MB || 12);
+const MAX_POST_IMAGE_SIZE_BYTES = MAX_POST_IMAGE_SIZE_MB * 1024 * 1024;
+
+const SEARCH_FIELDS = {
+  _id: 1,
+  title: 1,
+  message: 1,
+  name: 1,
+  creator: 1,
+  tags: 1,
+  selectedFile: 1,
+  likes: 1,
+  comments: 1,
+  createdAt: 1,
+  authorImage: 1,
+  locationName: 1,
+  location: 1,
+};
+
+const estimateImageBytes = (value) => {
+  if (!value || typeof value !== "string") return 0;
+
+  const trimmed = value.trim();
+  if (!trimmed) return 0;
+
+  // Accept both raw base64 and data URI formats.
+  const base64 = trimmed.includes(",") ? trimmed.split(",").pop() : trimmed;
+  if (!base64) return 0;
+
+  const sanitized = base64.replace(/\s/g, "");
+  const padding = sanitized.endsWith("==") ? 2 : sanitized.endsWith("=") ? 1 : 0;
+  return Math.max(0, Math.floor((sanitized.length * 3) / 4) - padding);
+};
+
+const getImageArrayFromPayload = (selectedFile) => {
+  if (Array.isArray(selectedFile)) return selectedFile;
+  if (!selectedFile) return [];
+  return [selectedFile];
+};
+
+const findOversizedImage = (selectedFile) => {
+  const files = getImageArrayFromPayload(selectedFile);
+  return files.find((file) => estimateImageBytes(file) > MAX_POST_IMAGE_SIZE_BYTES);
+};
+
 export const getPosts = async (req, res) => {
   const { page, summary } = req.query;
 
@@ -18,53 +65,53 @@ export const getPosts = async (req, res) => {
     // Use estimated count for faster count when no filter is applied
     const total = await PostMessage.estimatedDocumentCount();
 
-    const posts = await PostMessage.find()
-      .sort({ _id: -1 })
-      .limit(LIMIT)
-      .skip(startIndex);
-
     // If caller requested a lightweight summary (e.g., main feed/dashboard),
     // trim heavy fields so the response is much smaller for hosted clients.
     if (summary === "true") {
-      const summarized = posts.map((p) => {
-        const obj = p.toObject();
+      const summarized = await PostMessage.aggregate([
+        { $sort: { _id: -1 } },
+        { $skip: startIndex },
+        { $limit: LIMIT },
+        {
+          $project: {
+            _id: 1,
+            title: 1,
+            message: 1,
+            name: 1,
+            creator: 1,
+            tags: 1,
+            selectedFile: 1,
+            likes: 1,
+            commentsCount: { $size: { $ifNull: ["$comments", []] } },
+            createdAt: 1,
+            authorImage: 1,
+            locationName: 1,
+            location: 1,
+          },
+        },
+      ]);
 
-        const commentsCount = Array.isArray(obj.comments)
-          ? obj.comments.length
-          : 0;
-
-        // Keep selectedFile as-is so feed cards can navigate through
-        // multiple images using left/right controls.
-        const normalizedSelectedFile = Array.isArray(obj.selectedFile)
+      const normalized = summarized.map((obj) => ({
+        ...obj,
+        selectedFile: Array.isArray(obj.selectedFile)
           ? obj.selectedFile
           : obj.selectedFile
             ? [obj.selectedFile]
-            : [];
-
-        return {
-          _id: obj._id,
-          title: obj.title,
-          message: obj.message,
-          name: obj.name,
-          creator: obj.creator,
-          tags: obj.tags,
-          selectedFile: normalizedSelectedFile,
-          likes: obj.likes,
-          commentsCount,
-          createdAt: obj.createdAt,
-          authorImage: obj.authorImage,
-          locationName: obj.locationName,
-          location: obj.location,
-        };
-      });
+            : [],
+      }));
 
       return res.status(200).json({
-        data: summarized,
+        data: normalized,
         total,
         currentPage: pageNumber,
         numberOfPages: Math.ceil(total / LIMIT),
       });
     }
+
+    const posts = await PostMessage.find()
+      .sort({ _id: -1 })
+      .limit(LIMIT)
+      .skip(startIndex);
 
     res.status(200).json({
       data: posts,
@@ -181,10 +228,17 @@ export const getPostsBySearch = async (req, res) => {
     const radiusMeters = Number.isFinite(Number(radius))
       ? Math.max(1000, Number(radius))
       : 50000;
+    const requestedScanLimit = Number(req.query.scanLimit);
+    const scanLimit = Number.isFinite(requestedScanLimit)
+      ? Math.max(20, Math.min(requestedScanLimit, SEARCH_SCAN_LIMIT_MAX))
+      : SEARCH_SCAN_LIMIT_DEFAULT;
 
     // If no filters at all, just return latest posts (defensive fallback)
     if (!hasSearch && !hasTags && !hasLocationFilter) {
-      const posts = await PostMessage.find().sort({ _id: -1 }).limit(20);
+      const posts = await PostMessage.find({}, SEARCH_FIELDS)
+        .sort({ _id: -1 })
+        .limit(20)
+        .lean();
       return res.status(200).json(posts);
     }
 
@@ -241,7 +295,10 @@ export const getPostsBySearch = async (req, res) => {
 
     const query = andConditions.length > 0 ? { $and: andConditions } : {};
 
-    let posts = await PostMessage.find(query).sort({ _id: -1 });
+    let posts = await PostMessage.find(query, SEARCH_FIELDS)
+      .sort({ _id: -1 })
+      .limit(scanLimit)
+      .lean();
 
     // Re-rank by relevance when doing a text search so that
     // posts with the place/title/message match appear first.
@@ -291,9 +348,10 @@ export const getPostsBySearch = async (req, res) => {
       const baseQuery =
         tagArray && tagArray.length > 0 ? { tags: { $in: tagArray } } : {};
 
-      const candidates = await PostMessage.find(baseQuery)
+      const candidates = await PostMessage.find(baseQuery, SEARCH_FIELDS)
         .sort({ _id: -1 })
-        .limit(200);
+        .limit(scanLimit)
+        .lean();
 
       const scored = candidates
         .map((post) => {
@@ -353,7 +411,7 @@ export const getPostsBySearch = async (req, res) => {
           }
 
           return {
-            ...post.toObject(),
+            ...post,
             distanceMeters,
             distanceKm: Number((distanceMeters / 1000).toFixed(2)),
           };
@@ -382,6 +440,45 @@ export const getPostById = async (req, res) => {
     return res.status(404).json({ message: "Post not found" });
   }
 
+  const likeIds = Array.isArray(post.likes)
+    ? post.likes.map((likeId) => String(likeId)).filter(Boolean)
+    : [];
+
+  let likedUsers = [];
+  if (likeIds.length > 0) {
+    const objectIdLikes = likeIds.filter((likeId) => mongoose.Types.ObjectId.isValid(likeId));
+    const externalLikes = likeIds.filter((likeId) => !mongoose.Types.ObjectId.isValid(likeId));
+
+    const [usersByObjectId, usersByExternalId] = await Promise.all([
+      objectIdLikes.length > 0
+        ? User.find({ _id: { $in: objectIdLikes } }).select("_id id name").lean()
+        : Promise.resolve([]),
+      externalLikes.length > 0
+        ? User.find({ id: { $in: externalLikes } }).select("_id id name").lean()
+        : Promise.resolve([]),
+    ]);
+
+    const userByLikeId = new Map();
+    [...usersByObjectId, ...usersByExternalId].forEach((user) => {
+      if (user?._id) userByLikeId.set(String(user._id), user);
+      if (user?.id) userByLikeId.set(String(user.id), user);
+    });
+
+    const seenProfileIds = new Set();
+    likedUsers = likeIds
+      .map((likeId) => userByLikeId.get(likeId))
+      .filter(Boolean)
+      .map((user) => ({
+        profileId: String(user._id || user.id || ""),
+        name: String(user.name || "User"),
+      }))
+      .filter((user) => {
+        if (!user.profileId || seenProfileIds.has(user.profileId)) return false;
+        seenProfileIds.add(user.profileId);
+        return true;
+      });
+  }
+
   // Also load the latest report for this post (if any) so the
   // frontend can show context like a rejected review banner.
   const latestReport = await PostReport.findOne({ post: id })
@@ -390,6 +487,7 @@ export const getPostById = async (req, res) => {
 
   res.status(200).json({
     ...post.toObject(),
+    likedUsers,
     latestReport,
   });
   } catch (error) {
@@ -400,6 +498,13 @@ export const getPostById = async (req, res) => {
 
 export const createPost = async (req, res) => {
   const post = req.body;
+  const oversizedImage = findOversizedImage(post?.selectedFile);
+  if (oversizedImage) {
+    return res.status(413).json({
+      message: `Each image must be ${MAX_POST_IMAGE_SIZE_MB}MB or smaller. Please compress the image and try again.`,
+    });
+  }
+
   let location = undefined;
   if (post.location && post.location.lat && post.location.lng) {
     location = {
@@ -438,6 +543,12 @@ export const createPost = async (req, res) => {
 export const updatePost = async (req, res) => {
   const { id: _id } = req.params;
   const post = req.body;
+  const oversizedImage = findOversizedImage(post?.selectedFile);
+  if (oversizedImage) {
+    return res.status(413).json({
+      message: `Each image must be ${MAX_POST_IMAGE_SIZE_MB}MB or smaller. Please compress the image and try again.`,
+    });
+  }
 
   try {
     if (!mongoose.Types.ObjectId.isValid(_id))
@@ -515,18 +626,38 @@ export const likePost = async (req, res) => {
     if (!mongoose.Types.ObjectId.isValid(id))
       return res.status(404).send("No post with that id");
 
-    const post = await PostMessage.findById(id);
-    const index = post.likes.findIndex((id) => id === String(req.userId));
+    const userId = String(req.userId);
+    const post = await PostMessage.findById(id).select("_id creator likes");
+    if (!post) {
+      return res.status(404).json({ message: "Post not found" });
+    }
 
-    if (index === -1) {
-      post.likes.push(req.userId);
-      // Update user preferences for recommendation system when user likes a post
+    const alreadyLiked = Array.isArray(post.likes)
+      ? post.likes.some((likeId) => String(likeId) === userId)
+      : false;
+
+    const updatedPost = await PostMessage.findByIdAndUpdate(
+      id,
+      alreadyLiked
+        ? { $pull: { likes: userId } }
+        : { $addToSet: { likes: userId } },
+      { new: true }
+    );
+
+    const nowLiked = Array.isArray(updatedPost?.likes)
+      ? updatedPost.likes.some((likeId) => String(likeId) === userId)
+      : false;
+
+    if (nowLiked) {
+      // Update recommendation profile only when the final state is liked.
       await recommendationService.updateUserPreferences(req.userId, id, "like");
+    }
 
-      // Create notification for post owner (if not liking own post)
-      const isOwner = String(post.creator) === String(req.userId);
-      if (!isOwner) {
-        try {
+    // Create/remove notification based on final state (race-safe for rapid toggles).
+    const isOwner = String(post.creator) === userId;
+    if (!isOwner) {
+      try {
+        if (nowLiked) {
           const existingUnreadLike = await Notification.findOne({
             user: post.creator,
             fromUser: req.userId,
@@ -543,29 +674,18 @@ export const likePost = async (req, res) => {
               type: "like",
             });
           }
-        } catch (notifyError) {
-          console.error("Failed to create like notification:", notifyError);
+        } else {
+          await Notification.deleteMany({
+            user: post.creator,
+            fromUser: req.userId,
+            post: post._id,
+            type: "like",
+          });
         }
-      }
-    } else {
-      post.likes = post.likes.filter((id) => id !== String(req.userId));
-
-      // If user unlikes, remove all like alerts for this post.
-      try {
-        await Notification.deleteMany({
-          user: post.creator,
-          fromUser: req.userId,
-          post: post._id,
-          type: "like",
-        });
       } catch (notifyError) {
-        console.error("Failed to clear like notification on unlike:", notifyError);
+        console.error("Failed to sync like notification:", notifyError);
       }
     }
-
-    const updatedPost = await PostMessage.findByIdAndUpdate(id, post, {
-      new: true,
-    });
 
     res.status(200).json(updatedPost);
   } catch (error) {

@@ -87,7 +87,7 @@ const Posts = () => {
 	}
 
 	return (
-		<div className="space-y-5 max-w-[760px] mx-auto pb-12">
+		<div className="space-y-5 max-w-4xl mx-auto pb-12">
 			{visiblePosts.map((post) => (
 				<Post key={post._id} post={post} />
 			))}

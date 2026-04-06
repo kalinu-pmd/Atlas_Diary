@@ -385,9 +385,9 @@ export default function Home() {
 
 			{/* ── Main content ─────────────────────────────────────────── */}
 		<main className="flex-1 max-w-6xl mx-auto w-full px-4 py-7">
-			<div className="flex flex-col lg:flex-row gap-8 justify-center">
-				{/* Posts feed (centered) */}
-				<div className="w-full lg:max-w-3xl">
+			<div className="w-full">
+				{/* Posts feed */}
+				<div className="w-full">
 					{isLocationResultMode ? (
 						<div className="overflow-hidden rounded-xl border border-dark-green/20 bg-off-white shadow-sm">
 							<table className="w-full text-sm">
@@ -463,9 +463,8 @@ export default function Home() {
 						</div>
 					)}
 				</div>
-				{/* Sidebar removed - create post moved to separate page */}
-				</div>
-			</main>
+			</div>
+		</main>
 
 		{/* Floating scroll-to-top button */}
 		<button

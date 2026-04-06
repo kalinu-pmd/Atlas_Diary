@@ -1,4 +1,4 @@
-import React, { useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useHistory } from "react-router-dom";
 import { toast } from "react-toastify";
@@ -10,7 +10,7 @@ import {
   MdClose,
 } from "react-icons/md";
 import * as api from "../../api";
-import { AUTH } from "../../constants/actionTypes";
+import { AUTH, LOGOUT } from "../../constants/actionTypes";
 
 export default function Settings() {
   const dispatch = useDispatch();
@@ -38,6 +38,39 @@ export default function Settings() {
     newPassword: "",
     confirmPassword: "",
   });
+  const [deletePassword, setDeletePassword] = useState("");
+  const [deleteOtp, setDeleteOtp] = useState("");
+  const [deleteConfirmationText, setDeleteConfirmationText] = useState("");
+  const [deleteStep, setDeleteStep] = useState(1);
+  const [deleteLoading, setDeleteLoading] = useState(false);
+  const [showDeletePassword, setShowDeletePassword] = useState(false);
+  const [showFarewellModal, setShowFarewellModal] = useState(false);
+  const [farewellMessage, setFarewellMessage] = useState(
+    "So sad to see you go. Your account has been deleted.",
+  );
+
+  const DELETE_CONFIRMATION_PHRASE = "DELETE MY ACCOUNT";
+
+  const getSettingsTabClass = (tabName) => {
+    const isActive = settingsView === tabName;
+
+    // Match requested visual direction:
+    // - Profile/Security active tab: light-green pill
+    // - Delete tab: persistent dark pill action style
+    if (tabName === "delete") {
+      return `min-w-[150px] px-4 py-2.5 rounded-xl text-xs font-bold border transition-all text-center leading-tight whitespace-nowrap ${
+        isActive
+          ? "bg-red-600 text-off-white border-red-600 shadow-sm"
+          : "bg-red-500 text-off-white border-red-500 hover:bg-red-600"
+      }`;
+    }
+
+    return `min-w-[150px] px-4 py-2.5 rounded-xl text-xs font-bold border transition-all text-center leading-tight whitespace-nowrap ${
+      isActive
+        ? "bg-light-green/50 text-dark-green border-light-green shadow-sm"
+        : "bg-white/80 text-text-gray border-dark-green/10 hover:bg-light-green/20 hover:text-dark-green"
+    }`;
+  };
 
   const handleCancel = () => {
     history.push("/posts");
@@ -77,6 +110,10 @@ export default function Settings() {
 
   const handleSave = async (e) => {
     e.preventDefault();
+
+    if (settingsView === "delete") {
+      return;
+    }
 
     if (settingsView === "profile") {
       if (!name.trim() || !email.trim()) {
@@ -177,6 +214,76 @@ export default function Settings() {
     }
   };
 
+  useEffect(() => {
+    if (settingsView !== "delete") return;
+
+    setDeleteStep(1);
+    setDeletePassword("");
+    setDeleteOtp("");
+    setDeleteConfirmationText("");
+  }, [settingsView]);
+
+  const handleRequestDeleteOtp = async () => {
+    if (!deletePassword.trim()) {
+      toast.error("Please enter your current password first.");
+      return;
+    }
+
+    setDeleteLoading(true);
+    try {
+      const { data } = await api.requestDeleteAccountOtp({
+        password: deletePassword.trim(),
+      });
+
+      toast.success(data?.message || "Deletion OTP sent to your email.");
+      setDeleteStep(2);
+    } catch (error) {
+      const message =
+        error?.response?.data?.message ||
+        "Failed to request deletion OTP. Please try again.";
+      toast.error(message);
+    } finally {
+      setDeleteLoading(false);
+    }
+  };
+
+  const handleDeleteAccount = async () => {
+    if (!deleteOtp.trim()) {
+      toast.error("Please enter the OTP sent to your email.");
+      return;
+    }
+
+    if (deleteConfirmationText.trim() !== DELETE_CONFIRMATION_PHRASE) {
+      toast.error(`Please type ${DELETE_CONFIRMATION_PHRASE} exactly to confirm.`);
+      return;
+    }
+
+    setDeleteLoading(true);
+    try {
+      const { data } = await api.deleteAccountWithOtp({
+        otp: deleteOtp.trim(),
+        confirmationText: deleteConfirmationText.trim(),
+      });
+
+      setFarewellMessage(
+        data?.message || "So sad to see you go. Your account has been deleted.",
+      );
+      setShowFarewellModal(true);
+    } catch (error) {
+      const message =
+        error?.response?.data?.message || "Failed to delete account. Please try again.";
+      toast.error(message);
+    } finally {
+      setDeleteLoading(false);
+    }
+  };
+
+  const handleGoodbye = () => {
+    setShowFarewellModal(false);
+    dispatch({ type: LOGOUT });
+    history.push("/");
+  };
+
   return (
     <div className="min-h-screen bg-[radial-gradient(circle_at_top,_rgba(175,250,1,0.12),_transparent_28%),radial-gradient(circle_at_bottom_right,_rgba(47,107,79,0.10),_transparent_30%),#f7f6f2] py-10 sm:py-14">
       <div className="max-w-4xl mx-auto px-4">
@@ -197,30 +304,31 @@ export default function Settings() {
                   <button
                     type="button"
                     onClick={() => setSettingsView("profile")}
-                    className={`px-4 py-2 rounded-full text-xs font-bold border transition-all ${
-                      settingsView === "profile"
-                        ? "bg-dark-green text-off-white border-dark-green shadow-sm"
-                        : "bg-white/80 text-text-gray border-dark-green/10 hover:bg-light-green/20 hover:text-dark-green"
-                    }`}
+                    className={getSettingsTabClass("profile")}
                   >
                     Profile Settings
                   </button>
                   <button
                     type="button"
                     onClick={() => setSettingsView("security")}
-                    className={`px-4 py-2 rounded-full text-xs font-bold border transition-all ${
-                      settingsView === "security"
-                        ? "bg-dark-green text-off-white border-dark-green shadow-sm"
-                        : "bg-white/80 text-text-gray border-dark-green/10 hover:bg-light-green/20 hover:text-dark-green"
-                    }`}
+                    className={getSettingsTabClass("security")}
                   >
                     Account Security
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSettingsView("delete")}
+                    className={getSettingsTabClass("delete")}
+                  >
+                    Delete Account
                   </button>
                 </div>
                 <p className="text-xs sm:text-sm text-text-gray max-w-md sm:text-right">
                   {settingsView === "profile"
                     ? "Update the details people see on your profile and posts."
-                    : "Change your password securely with current password verification."}
+                    : settingsView === "security"
+                      ? "Change your password securely with current password verification."
+                      : "Permanently delete your account with password, OTP, and final confirmation."}
                 </p>
               </div>
             </div>
@@ -318,19 +426,6 @@ export default function Settings() {
                         </div>
                       )}
                     </div>
-
-                    <button
-                      type="button"
-                      onClick={handleRemovePhoto}
-                      disabled={!selectedPhotoName}
-                      className={`mt-3 w-full rounded-xl border px-4 py-2.5 text-sm font-bold transition-all ${
-                        selectedPhotoName
-                          ? "border-orange/30 bg-orange/10 text-orange hover:bg-orange/15"
-                          : "border-dark-green/10 bg-off-white text-text-gray cursor-not-allowed"
-                      }`}
-                    >
-                      Remove selected photo
-                    </button>
 
                     <div className="mt-5 rounded-xl bg-light-green/10 border border-light-green/30 p-4">
                       <p className="text-xs font-bold text-text-dark mb-2">Profile preview</p>
@@ -474,9 +569,116 @@ export default function Settings() {
                   </div>
                 </div>
               )}
+
+              {settingsView === "delete" && (
+                <div className="grid gap-5 lg:grid-cols-[1fr_0.85fr] items-start">
+                  <div className="rounded-2xl border border-orange/30 bg-gradient-to-br from-off-white to-orange/10 p-5 shadow-sm">
+                    <div className="flex items-center gap-2 mb-4">
+                      <MdLock size={18} className="text-orange" />
+                      <h2 className="text-lg font-extrabold text-text-dark">Delete Account</h2>
+                    </div>
+
+                    <div className="rounded-xl bg-white border border-orange/20 p-4 text-sm text-text-dark mb-4">
+                      This action is permanent. You will lose your account access and cannot recover it later.
+                    </div>
+
+                    {deleteStep === 1 && (
+                      <div className="space-y-3">
+                        <label className="text-xs font-bold text-dark-green block">
+                          Enter current password
+                        </label>
+                        <div className="relative">
+                          <input
+                            type={showDeletePassword ? "text" : "password"}
+                            value={deletePassword}
+                            onChange={(e) => setDeletePassword(e.target.value)}
+                            placeholder="Enter your current password"
+                            className="w-full px-4 py-3 rounded-xl border border-dark-green/15 focus:outline-none focus:border-light-green hover:border-light-green transition-colors pr-11 bg-white shadow-sm"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowDeletePassword(!showDeletePassword)}
+                            className="absolute right-3 top-1/2 -translate-y-1/2 text-dark-green hover:text-light-green transition-colors"
+                          >
+                            {showDeletePassword ? <MdVisibilityOff size={18} /> : <MdVisibility size={18} />}
+                          </button>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={handleRequestDeleteOtp}
+                          disabled={deleteLoading}
+                          className={`w-full rounded-xl px-4 py-3 text-sm font-bold transition-all ${
+                            deleteLoading
+                              ? "bg-light-green/60 text-text-gray cursor-wait"
+                              : "bg-dark-green text-off-white hover:bg-dark-green-hover"
+                          }`}
+                        >
+                          {deleteLoading ? "Sending OTP..." : "Send Deletion OTP"}
+                        </button>
+                      </div>
+                    )}
+
+                    {deleteStep === 2 && (
+                      <div className="space-y-3">
+                        <div>
+                          <label className="text-xs font-bold text-dark-green block mb-1.5">
+                            Enter OTP from your email
+                          </label>
+                          <input
+                            value={deleteOtp}
+                            onChange={(e) => setDeleteOtp(e.target.value.trim())}
+                            placeholder="6-digit OTP"
+                            maxLength={8}
+                            className="w-full px-4 py-3 rounded-xl border border-dark-green/15 focus:outline-none focus:border-light-green hover:border-light-green transition-colors bg-white shadow-sm"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="text-xs font-bold text-dark-green block mb-1.5">
+                            Type {DELETE_CONFIRMATION_PHRASE} to confirm
+                          </label>
+                          <input
+                            value={deleteConfirmationText}
+                            onChange={(e) => setDeleteConfirmationText(e.target.value)}
+                            placeholder={DELETE_CONFIRMATION_PHRASE}
+                            className="w-full px-4 py-3 rounded-xl border border-orange/30 focus:outline-none focus:border-orange hover:border-orange transition-colors bg-white shadow-sm"
+                          />
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={handleDeleteAccount}
+                          disabled={deleteLoading}
+                          className={`w-full rounded-xl px-4 py-3 text-sm font-bold transition-all ${
+                            deleteLoading
+                              ? "bg-orange/40 text-text-gray cursor-wait"
+                              : "bg-orange text-white hover:bg-orange-hover"
+                          }`}
+                        >
+                          {deleteLoading ? "Deleting account..." : "Permanently Delete Account"}
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="rounded-2xl border border-dark-green/10 bg-white p-5 shadow-sm lg:sticky lg:top-6">
+                    <p className="text-sm font-bold text-text-dark mb-3">Before you continue</p>
+                    <div className="grid grid-cols-1 gap-2 text-[11px] text-text-gray">
+                      <p>• Step 1: Verify your current password.</p>
+                      <p>• Step 2: Enter the OTP sent to your email.</p>
+                      <p>• Step 3: Type DELETE MY ACCOUNT to confirm.</p>
+                    </div>
+
+                    <div className="mt-5 rounded-xl bg-orange/10 border border-orange/25 p-4 text-xs text-text-dark leading-relaxed">
+                      We are truly sad to see you go. Once deleted, your account cannot be restored.
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 
+          {settingsView !== "delete" && (
           <div className="flex flex-wrap gap-3 justify-end">
             <button
               type="button"
@@ -501,8 +703,25 @@ export default function Settings() {
                   : "Update Password"}
             </button>
           </div>
+          )}
         </form>
       </div>
+
+      {showFarewellModal && (
+        <div className="fixed inset-0 z-[1200] bg-black/45 backdrop-blur-[2px] flex items-center justify-center px-4">
+          <div className="w-full max-w-md rounded-2xl border border-light-green/30 bg-off-white shadow-[0_20px_55px_rgba(12,52,44,0.25)] p-6 sm:p-7 text-center">
+            <h3 className="text-2xl font-black text-dark-green mb-3">Good Bye</h3>
+            <p className="text-sm text-text-dark leading-relaxed mb-6">{farewellMessage}</p>
+            <button
+              type="button"
+              onClick={handleGoodbye}
+              className="px-6 py-2.5 rounded-full bg-dark-green text-off-white font-bold text-sm hover:bg-dark-green-hover transition-colors"
+            >
+              Good Bye
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

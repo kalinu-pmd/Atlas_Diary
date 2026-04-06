@@ -10,8 +10,10 @@ import dotenv from "dotenv";
 const app = express();
 dotenv.config();
 
-app.use(bodyParser.json({ limit: "50mb", extended: true }));
-app.use(bodyParser.urlencoded({ limit: "50mb", extended: true }));
+const REQUEST_BODY_LIMIT = process.env.REQUEST_BODY_LIMIT || "20mb";
+
+app.use(bodyParser.json({ limit: REQUEST_BODY_LIMIT, extended: true }));
+app.use(bodyParser.urlencoded({ limit: REQUEST_BODY_LIMIT, extended: true }));
 app.use(cors());
 
 app.use("/posts", postRoutes);
@@ -34,6 +36,7 @@ if (!connectUri) {
 // Mask password for logging
 const maskedLogUri = connectUri.replace(/:(.*)@/, ":****@");
 console.log("Attempting to connect to MongoDB:", maskedLogUri.startsWith('mongodb+srv://') ? 'Atlas cluster' : maskedLogUri);
+console.log("Request body limit:", REQUEST_BODY_LIMIT);
 
 mongoose.connection.on("connected", () => console.log("MongoDB connected"));
 mongoose.connection.on("error", (err) => console.error("MongoDB connection error:", err && err.message ? err.message : err));

@@ -82,6 +82,14 @@ export const verifyResetOtp = (payload) => {
 	return API.post("/users/verify-reset-otp", payload);
 };
 
+export const requestDeleteAccountOtp = (payload) => {
+	return API.post("/users/request-delete-account-otp", payload);
+};
+
+export const deleteAccountWithOtp = (payload) => {
+	return API.post("/users/delete-account", payload);
+};
+
 export const fetchPostsBySearch = (searchQuery) => {
 	const { location, radius } = searchQuery || {};
 	let locationQuery = "";

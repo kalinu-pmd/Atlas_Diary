@@ -5,12 +5,63 @@ const JWT_SECRET = process.env.JWT_SECRET || "secret";
 
 import User from "../models/users.js";
 import PostMessage from "../models/postMessage.js";
+import Notification from "../models/notification.js";
 import {
 	sendOtpEmail,
 	sendPasswordResetOtpEmail,
+	sendDeleteAccountOtpEmail,
 	sendPasswordResetAlertToAdmin,
 	sendAdminPasswordToUserEmail,
 } from "../services/emailService.js";
+
+const parseStoredCommentForCleanup = (rawComment) => {
+	if (!rawComment) {
+		return {
+			userName: "",
+			userId: "",
+			text: "",
+		};
+	}
+
+	if (typeof rawComment === "object" && rawComment !== null) {
+		return {
+			userName: String(rawComment.userName || ""),
+			userId: String(rawComment.userId || ""),
+			text: String(rawComment.text || ""),
+		};
+	}
+
+	const trimmed = String(rawComment || "").trim();
+	if (!trimmed) {
+		return {
+			userName: "",
+			userId: "",
+			text: "",
+		};
+	}
+
+	if (trimmed.startsWith("{")) {
+		try {
+			const parsed = JSON.parse(trimmed);
+			if (parsed && typeof parsed === "object") {
+				return {
+					userName: String(parsed.userName || ""),
+					userId: String(parsed.userId || ""),
+					text: String(parsed.text || ""),
+				};
+			}
+		} catch (_error) {
+			// fall through to legacy parsing
+		}
+	}
+
+	const [userName, ...commentParts] = trimmed.split(": ");
+	return {
+		userName: String(userName || ""),
+		userId: "",
+		text: String(commentParts.join(": ") || ""),
+	};
+};
 
 export const signIn = async (req, res) => {
 	const { email, password, rememberMe } = req.body;
@@ -525,6 +576,162 @@ export const requestPasswordReset = async (req, res) => {
 	} catch (error) {
 		console.error("requestPasswordReset error:", error);
 		return res.status(500).json({ message: "Failed to request password reset." });
+	}
+};
+
+// Authenticated user: verify current password and send OTP for account deletion
+export const requestDeleteAccountOtp = async (req, res) => {
+	const { password } = req.body || {};
+
+	if (!req.userId) {
+		return res.status(401).json({ message: "Unauthorized" });
+	}
+
+	if (!password || !String(password).trim()) {
+		return res.status(400).json({ message: "Current password is required." });
+	}
+
+	try {
+		const user = await User.findById(req.userId);
+		if (!user) {
+			return res.status(404).json({ message: "User not found" });
+		}
+
+		const isMatch = await bcrypt.compare(String(password), user.password);
+		if (!isMatch) {
+			return res.status(400).json({ message: "Current password is incorrect." });
+		}
+
+		const otp = Math.floor(100000 + Math.random() * 900000).toString();
+		const otpHash = await bcrypt.hash(otp, 10);
+		const otpExpiresAt = new Date(Date.now() + 10 * 60 * 1000);
+
+		user.deleteAccountVerification = {
+			otpHash,
+			otpExpiresAt,
+			passwordVerifiedAt: new Date(),
+		};
+		await user.save();
+
+		const sent = await sendDeleteAccountOtpEmail(user.email, otp);
+
+		return res.status(200).json({
+			message: sent
+				? "Deletion OTP sent to your email."
+				: "OTP created, but email delivery failed. Please try again.",
+			emailSent: Boolean(sent),
+		});
+	} catch (error) {
+		console.error("requestDeleteAccountOtp error:", error);
+		return res.status(500).json({ message: "Failed to request account deletion OTP." });
+	}
+};
+
+// Authenticated user: verify OTP + confirmation phrase and delete account
+export const deleteAccountWithOtp = async (req, res) => {
+	const { otp, confirmationText } = req.body || {};
+
+	if (!req.userId) {
+		return res.status(401).json({ message: "Unauthorized" });
+	}
+
+	if (!otp || !String(otp).trim()) {
+		return res.status(400).json({ message: "OTP is required." });
+	}
+
+	if (String(confirmationText || "").trim() !== "DELETE MY ACCOUNT") {
+		return res
+			.status(400)
+			.json({ message: "Please type DELETE MY ACCOUNT to confirm." });
+	}
+
+	try {
+		const user = await User.findById(req.userId);
+		if (!user) {
+			return res.status(404).json({ message: "User not found" });
+		}
+
+		const verification = user.deleteAccountVerification;
+		if (!verification || !verification.otpHash || !verification.passwordVerifiedAt) {
+			return res.status(400).json({
+				message: "Please verify your password and request a deletion OTP first.",
+			});
+		}
+
+		if (!verification.otpExpiresAt || new Date(verification.otpExpiresAt) < new Date()) {
+			return res.status(400).json({
+				message: "Deletion OTP has expired. Please request a new one.",
+			});
+		}
+
+		const isMatch = await bcrypt.compare(String(otp), verification.otpHash);
+		if (!isMatch) {
+			return res.status(400).json({ message: "Invalid deletion OTP." });
+		}
+
+		const userIdString = String(req.userId);
+		const userName = String(user.name || "").trim();
+
+		const ownedPosts = await PostMessage.find({ creator: userIdString }).select("_id");
+		const ownedPostIds = ownedPosts.map((post) => post._id);
+
+		// Delete posts authored by the user.
+		await PostMessage.deleteMany({ creator: userIdString });
+
+		// Remove likes performed by this user on other posts.
+		await PostMessage.updateMany({}, { $pull: { likes: userIdString } });
+
+		// Remove comments authored by this user from remaining posts.
+		const postsWithComments = await PostMessage.find({ comments: { $exists: true, $ne: [] } }).select("_id comments");
+		const commentUpdates = [];
+
+		for (const post of postsWithComments) {
+			if (!Array.isArray(post.comments) || post.comments.length === 0) continue;
+
+			const filteredComments = post.comments.filter((rawComment) => {
+				const parsed = parseStoredCommentForCleanup(rawComment);
+				const byUserId = parsed.userId && String(parsed.userId) === userIdString;
+				const byUserName = !parsed.userId && userName && parsed.userName === userName;
+				return !byUserId && !byUserName;
+			});
+
+			if (filteredComments.length !== post.comments.length) {
+				commentUpdates.push({
+					updateOne: {
+						filter: { _id: post._id },
+						update: { $set: { comments: filteredComments } },
+					},
+				});
+			}
+		}
+
+		if (commentUpdates.length > 0) {
+			await PostMessage.bulkWrite(commentUpdates);
+		}
+
+		// Delete notifications where user was recipient/actor or tied to their deleted posts.
+		const notificationQuery = {
+			$or: [
+				{ user: req.userId },
+				{ fromUser: req.userId },
+			],
+		};
+
+		if (ownedPostIds.length > 0) {
+			notificationQuery.$or.push({ post: { $in: ownedPostIds } });
+		}
+
+		await Notification.deleteMany(notificationQuery);
+
+		// Finally remove the user account document itself.
+		await User.findByIdAndDelete(req.userId);
+
+		return res.status(200).json({
+			message: "So sad to see you go. Your account has been deleted.",
+		});
+	} catch (error) {
+		console.error("deleteAccountWithOtp error:", error);
+		return res.status(500).json({ message: "Failed to delete account." });
 	}
 };
 

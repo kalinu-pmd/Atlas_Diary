@@ -5,6 +5,37 @@ import PropTypes from "prop-types";
 import { MdMoreHoriz, MdClose } from "react-icons/md";
 import { commentPost, editComment, deleteComment } from "../../actions/posts";
 
+const playCommentSuccessSound = () => {
+	if (typeof window === "undefined") return;
+	const AudioCtx = window.AudioContext || window.webkitAudioContext;
+	if (!AudioCtx) return;
+
+	try {
+		const ctx = new AudioCtx();
+		const osc = ctx.createOscillator();
+		const gain = ctx.createGain();
+
+		osc.type = "triangle";
+		osc.frequency.setValueAtTime(540, ctx.currentTime);
+		osc.frequency.exponentialRampToValueAtTime(860, ctx.currentTime + 0.08);
+
+		gain.gain.setValueAtTime(0.0001, ctx.currentTime);
+		gain.gain.exponentialRampToValueAtTime(0.12, ctx.currentTime + 0.01);
+		gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.16);
+
+		osc.connect(gain);
+		gain.connect(ctx.destination);
+		osc.start();
+		osc.stop(ctx.currentTime + 0.16);
+
+		osc.onended = () => {
+			ctx.close().catch(() => {});
+		};
+	} catch (_error) {
+		// ignore sound failures so comment flow is never blocked
+	}
+};
+
 const parseComment = (rawComment) => {
 	const extractCommentText = (value) => {
 		if (value === null || value === undefined) return "";
@@ -118,6 +149,7 @@ const CommentSection = ({ post }) => {
 			if (newComment) {
 				setComments(newComment);
 				setComment("");
+				playCommentSuccessSound();
 				commentRef.current?.scrollIntoView({ behavior: "smooth" });
 			}
 		} finally {

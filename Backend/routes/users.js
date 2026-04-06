@@ -55,6 +55,8 @@ import {
 	resetPasswordWithOtp,
 	adminResetUserPassword,
 	verifyPasswordResetOtp,
+	requestDeleteAccountOtp,
+	deleteAccountWithOtp,
 } from "../controllers/user.js";
 import auth from "../middleware/auth.js";
 
@@ -68,6 +70,8 @@ router.post("/admin/create", auth, createUserByAdmin);
 router.post("/request-password-reset", requestPasswordReset);
 router.post("/reset-password", resetPasswordWithOtp);
 router.post("/verify-reset-otp", verifyPasswordResetOtp);
+router.post("/request-delete-account-otp", auth, requestDeleteAccountOtp);
+router.post("/delete-account", auth, deleteAccountWithOtp);
 router.post("/admin/:id/reset-password", auth, adminResetUserPassword);
 router.get("/", auth, getAllUsers);
 router.get("/:id/stats", auth, getUserStats);

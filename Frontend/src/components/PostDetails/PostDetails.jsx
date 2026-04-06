@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import moment from "moment";
-import { useParams, useHistory } from "react-router-dom";
+import { Link as RouterLink, useParams, useHistory } from "react-router-dom";
 import { MdClose, MdChevronLeft, MdChevronRight, MdThumbUp, MdThumbUpOffAlt, MdExpandMore } from "react-icons/md";
 import LinesEllipsis from "react-lines-ellipsis";
 import { toast } from "react-toastify";
@@ -34,9 +34,11 @@ function PostDetails() {
 	const [latestReportStatus, setLatestReportStatus] = useState(null);
 	const [isPostLoading, setIsPostLoading] = useState(true);
 	const [likes, setLikes] = useState([]);
+	const [likedUsersModalOpen, setLikedUsersModalOpen] = useState(false);
 	const [postCountry, setPostCountry] = useState("");
 	const [showScrollButton, setShowScrollButton] = useState(true);
 	const similarPostsRef = useRef(null);
+	const likedUsers = Array.isArray(post?.likedUsers) ? post.likedUsers : [];
 
 	// Detect when similar posts section is visible to hide button.
 	// In production, data can render later, so re-bind observer after post loads.
@@ -74,6 +76,7 @@ function PostDetails() {
 		if (post && String(post._id) === String(id)) {
 			setIsPostLoading(false);
 			setLikes(post.likes || []);
+			setLikedUsersModalOpen(false);
 			// If backend returned latestReport, keep its status for banners
 			if (post.latestReport && post.latestReport.status) {
 				setLatestReportStatus(post.latestReport.status);
@@ -380,6 +383,45 @@ function PostDetails() {
 			</div>
 		)}
 
+			{/* Liked users modal */}
+			{likedUsersModalOpen && isOwner && likedUsers.length > 0 && (
+				<div
+					className="fixed inset-0 z-[1450] flex items-center justify-center bg-black/35 backdrop-blur-[2px] px-4"
+					onClick={() => setLikedUsersModalOpen(false)}
+				>
+					<div
+						className="w-full max-w-3xl rounded-2xl border-2 border-light-green bg-off-white shadow-2xl"
+						onClick={(e) => e.stopPropagation()}
+					>
+						<div className="flex items-center justify-between px-5 py-4 border-b border-light-green/40">
+							<h3 className="text-3xl font-black text-text-dark">Liked By:</h3>
+							<button
+								type="button"
+								onClick={() => setLikedUsersModalOpen(false)}
+								className="text-text-gray hover:text-text-dark transition-colors"
+								aria-label="Close liked users modal"
+							>
+								<MdClose size={24} />
+							</button>
+						</div>
+						<div className="px-5 py-4 max-h-[45vh] overflow-y-auto">
+							<div className="flex flex-wrap gap-3">
+								{likedUsers.map((likedUser, index) => (
+									<RouterLink
+										key={`${likedUser.profileId}-${index}`}
+										to={`/profile/${likedUser.profileId}`}
+										onClick={() => setLikedUsersModalOpen(false)}
+										className="inline-flex items-center rounded-full border border-light-green/70 bg-light-green/10 px-3 py-1.5 text-sm font-bold text-dark-green hover:bg-light-green/25 hover:underline"
+									>
+										{likedUser.name}
+									</RouterLink>
+								))}
+							</div>
+						</div>
+					</div>
+				</div>
+			)}
+
 			{/* Main content */}
 			<div className="mt-8 sm:mt-7 pb-12">
 			<div className="bg-gradient-to-b from-off-white to-light-green/3 rounded-[20px] shadow-xl p-8 border border-light-green/40">
@@ -496,15 +538,28 @@ function PostDetails() {
 								)}
 							</button>
 							{likes.length > 0 && (
-								<span className="text-sm font-bold text-dark-green">
-									💚 {likes.length} {likes.length === 1 ? "like" : "likes"}
-								</span>
+								<>
+									{isOwner && likedUsers.length > 0 ? (
+										<button
+											type="button"
+										onClick={() => setLikedUsersModalOpen(true)}
+											className="text-sm font-bold text-dark-green hover:underline"
+										>
+											💚 {likes.length} {likes.length === 1 ? "like" : "likes"}
+										</button>
+									) : (
+										<span className="text-sm font-bold text-dark-green">
+											💚 {likes.length} {likes.length === 1 ? "like" : "likes"}
+										</span>
+									)}
+								</>
 							)}
 						</div>
 						<span className="text-xs font-semibold text-text-gray bg-white/60 px-3 py-1 rounded-full">
 							💬 {post.comments?.length || 0} {(post.comments?.length || 0) === 1 ? "comment" : "comments"}
 						</span>
 					</div>
+
 
 					{/* Comments section */}
 					<CommentSection post={post} />
