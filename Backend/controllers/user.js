@@ -127,7 +127,7 @@ export const signUp = async (req, res) => {
 		// Generate 6-digit OTP and hash it
 		const otp = Math.floor(100000 + Math.random() * 900000).toString();
 		const otpHash = await bcrypt.hash(otp, 10);
-		const otpExpiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+		const otpExpiresAt = new Date(Date.now() + 3 * 60 * 1000); // 3 minutes
 
 		let userDoc;
 		if (existingUser && existingUser.isEmailVerified === false) {
@@ -562,7 +562,7 @@ export const requestPasswordReset = async (req, res) => {
 
 		const otp = Math.floor(100000 + Math.random() * 900000).toString();
 		const otpHash = await bcrypt.hash(otp, 10);
-		const otpExpiresAt = new Date(Date.now() + 10 * 60 * 1000);
+		const otpExpiresAt = new Date(Date.now() + 3 * 60 * 1000);
 
 		user.passwordReset = { otpHash, otpExpiresAt };
 		await user.save();
@@ -604,7 +604,7 @@ export const requestDeleteAccountOtp = async (req, res) => {
 
 		const otp = Math.floor(100000 + Math.random() * 900000).toString();
 		const otpHash = await bcrypt.hash(otp, 10);
-		const otpExpiresAt = new Date(Date.now() + 10 * 60 * 1000);
+		const otpExpiresAt = new Date(Date.now() + 3 * 60 * 1000);
 
 		user.deleteAccountVerification = {
 			otpHash,
@@ -940,7 +940,7 @@ export const resendOtp = async (req, res) => {
 		// Reuse the original OTP when possible so resend sends the same code.
 		const otp = user.emailVerification?.otp || Math.floor(100000 + Math.random() * 900000).toString();
 		const otpHash = await bcrypt.hash(otp, 10);
-		const otpExpiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+		const otpExpiresAt = new Date(Date.now() + 3 * 60 * 1000); // 3 minutes
 
 		// Keep the OTP value so future resends can reuse it.
 		user.emailVerification = { otpHash, otpExpiresAt, otp };

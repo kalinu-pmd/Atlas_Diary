@@ -179,7 +179,7 @@ const Signup = ({ onSwitchToSignIn }) => {
 
 					<Input
 						name="password"
-						label="Password"
+						label="Enter Password"
 						value={formData.password}
 						handleChange={handleChange}
 						type={showPassword ? "text" : "password"}
@@ -190,7 +190,7 @@ const Signup = ({ onSwitchToSignIn }) => {
 
 					<Input
 						name="confirmPassword"
-						label="Repeat Password"
+						label="Confirm Password"
 						value={formData.confirmPassword}
 						handleChange={handleChange}
 						type={showPassword ? "text" : "password"}

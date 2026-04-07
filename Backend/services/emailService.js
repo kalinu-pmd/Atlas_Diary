@@ -236,7 +236,7 @@ export async function sendOtpEmail(to, otp) {
           <p>Hi there,</p>
           <p>Your verification code for <strong>Atlas Diary</strong> is:</p>
           <p style="font-size: 24px; font-weight: 700; letter-spacing: 4px; margin: 16px 0;">${otp}</p>
-          <p>This code will expire in <strong>10 minutes</strong>. If you did not request this, you can safely ignore this email.</p>
+          <p>This code will expire in <strong>3 minutes</strong>. If you did not request this, you can safely ignore this email.</p>
           <p style="margin-top: 24px; font-size: 13px; color: #647067;">Thank you,<br/>Atlas Diary Team</p>
         </div>
       `;
@@ -247,7 +247,7 @@ export async function sendOtpEmail(to, otp) {
       from,
       subject,
       html,
-      text: `Your Atlas Diary verification code is ${otp}. It expires in 10 minutes.`,
+      text: `Your Atlas Diary verification code is ${otp}. It expires in 3 minutes.`,
     });
 
     if (sent) return true;
@@ -283,7 +283,7 @@ export async function sendOtpEmail(to, otp) {
             <p>Hi there,</p>
             <p>Your verification code for <strong>Atlas Diary</strong> is:</p>
             <p style="font-size: 24px; font-weight: 700; letter-spacing: 4px; margin: 16px 0;">${otp}</p>
-            <p>This code will expire in <strong>10 minutes</strong>. If you did not request this, you can safely ignore this email.</p>
+            <p>This code will expire in <strong>3 minutes</strong>. If you did not request this, you can safely ignore this email.</p>
             <p style="margin-top: 24px; font-size: 13px; color: #647067;">Thank you,<br/>Atlas Diary Team</p>
           </div>
         `,
@@ -308,7 +308,7 @@ export async function sendPasswordResetOtpEmail(to, otp) {
           <p>Hi there,</p>
           <p>You requested to reset your <strong>Atlas Diary</strong> password. Your reset code is:</p>
           <p style="font-size: 24px; font-weight: 700; letter-spacing: 4px; margin: 16px 0;">${otp}</p>
-          <p>This code will expire in <strong>10 minutes</strong>. If you did not request this, you can ignore this email and your password will stay the same.</p>
+          <p>This code will expire in <strong>3 minutes</strong>. If you did not request this, you can ignore this email and your password will stay the same.</p>
           <p style="margin-top: 24px; font-size: 13px; color: #647067;">Thank you,<br/>Atlas Diary Team</p>
         </div>
       `;
@@ -319,7 +319,7 @@ export async function sendPasswordResetOtpEmail(to, otp) {
       from,
       subject,
       html,
-      text: `Your Atlas Diary password reset code is ${otp}. It expires in 10 minutes.`,
+      text: `Your Atlas Diary password reset code is ${otp}. It expires in 3 minutes.`,
     });
 
     if (sent) return true;
@@ -351,7 +351,7 @@ export async function sendDeleteAccountOtpEmail(to, otp) {
           <p>Hi there,</p>
           <p>We received a request to delete your <strong>Atlas Diary</strong> account. Your confirmation code is:</p>
           <p style="font-size: 24px; font-weight: 700; letter-spacing: 4px; margin: 16px 0;">${otp}</p>
-          <p>This code will expire in <strong>10 minutes</strong>. If you did not request account deletion, please keep your account and change your password immediately.</p>
+          <p>This code will expire in <strong>3 minutes</strong>. If you did not request account deletion, please keep your account and change your password immediately.</p>
           <p style="margin-top: 24px; font-size: 13px; color: #647067;">Thank you,<br/>Atlas Diary Team</p>
         </div>
       `;
@@ -362,7 +362,7 @@ export async function sendDeleteAccountOtpEmail(to, otp) {
       from,
       subject,
       html,
-      text: `Your Atlas Diary account deletion confirmation code is ${otp}. It expires in 10 minutes.`,
+      text: `Your Atlas Diary account deletion confirmation code is ${otp}. It expires in 3 minutes.`,
     });
 
     if (sent) return true;
