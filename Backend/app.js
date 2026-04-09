@@ -5,6 +5,7 @@ import cors from "cors";
 import postRoutes from "./routes/posts.js";
 import userRoutes from "./routes/users.js";
 import notificationRoutes from "./routes/notifications.js";
+import contactRoutes from "./routes/contact.js";
 import dotenv from "dotenv";
 
 const app = express();
@@ -19,6 +20,7 @@ app.use(cors());
 app.use("/posts", postRoutes);
 app.use("/users", userRoutes);
 app.use("/notifications", notificationRoutes);
+app.use("/contact", contactRoutes);
 
 app.get("/", (req, res) => {
   res.send("Hello to Atlas Diary App");

@@ -225,7 +225,7 @@ export default function Privacy() {
 					protects your personal information.
 				</p>
 				<p className="text-white/40 text-xs">
-					Last updated: 1 January 2025
+					Last updated: 1 January 2026
 				</p>
 			</div>
 

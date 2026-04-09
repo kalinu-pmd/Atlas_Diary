@@ -483,3 +483,83 @@ export async function sendAdminPasswordToUserEmail(to, temporaryPassword) {
     return false;
   }
 }
+
+export async function sendContactConfirmationEmail(to, name) {
+  const from = getFromAddress();
+
+  const subject = "We've received your message - Atlas Diary";
+  const html = `
+    <div style="font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-size: 15px; color: #0c342c;">
+      <p>Hi ${name || "there"},</p>
+      <p>Thank you for reaching out to <strong>Atlas Diary</strong>!</p>
+      <p>We have successfully received your message and will review it shortly. Our team will get back to you as soon as possible, typically within <strong>24 hours</strong>.</p>
+      <p style="margin: 20px 0; padding: 15px; background-color: #f0f9f8; border-left: 4px solid #0c7a6a; border-radius: 4px;">
+        <strong style="color: #0c7a6a;">We appreciate your feedback!</strong><br/>
+        Your input helps us improve Atlas Diary and provide better experiences for all our users.
+      </p>
+      <p>If you have any additional information to add, please feel free to contact us again at <strong>hello@atlasdiary.com</strong>.</p>
+      <p style="margin-top: 24px; font-size: 13px; color: #647067;">Best regards,<br/><strong>Atlas Diary Team</strong><br/>Making travel memorable, one diary at a time.</p>
+    </div>
+  `;
+
+  if (EMAIL_PROVIDER === "resend") {
+    const sent = await sendWithResend({
+      to,
+      from,
+      subject,
+      html,
+      text: `Thank you for your message. We have received it and will contact you shortly.`,
+    });
+
+    if (sent) return true;
+    console.warn("[emailService] Resend send failed. Falling back to SMTP legacy path.");
+  }
+
+  const mailer = getTransporter();
+
+  if (!mailer) {
+    console.warn("[emailService] Attempted to send contact confirmation email without SMTP configuration.");
+    return false;
+  }
+
+  try {
+    await sendMailWithPromise(mailer, { from, to, subject, html });
+    return true;
+  } catch (error) {
+    console.error("[emailService] Failed to send contact confirmation email:", error?.message || error);
+
+    const fallbackMailer = getFallbackTransporter();
+    if (!fallbackMailer || fallbackMailer === mailer) {
+      return false;
+    }
+
+    try {
+      console.warn("[emailService] Retrying contact confirmation email with Gmail SSL fallback on port 465.");
+      await sendMailWithPromise(fallbackMailer, {
+        from,
+        to,
+        subject: "We've received your message - Atlas Diary",
+        html: `
+          <div style="font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-size: 15px; color: #0c342c;">
+            <p>Hi ${name || "there"},</p>
+            <p>Thank you for reaching out to <strong>Atlas Diary</strong>!</p>
+            <p>We have successfully received your message and will review it shortly. Our team will get back to you as soon as possible, typically within <strong>24 hours</strong>.</p>
+            <p style="margin: 20px 0; padding: 15px; background-color: #f0f9f8; border-left: 4px solid #0c7a6a; border-radius: 4px;">
+              <strong style="color: #0c7a6a;">We appreciate your feedback!</strong><br/>
+              Your input helps us improve Atlas Diary and provide better experiences for all our users.
+            </p>
+            <p>If you have any additional information to add, please feel free to contact us again at <strong>hello@atlasdiary.com</strong>.</p>
+            <p style="margin-top: 24px; font-size: 13px; color: #647067;">Best regards,<br/><strong>Atlas Diary Team</strong><br/>Making travel memorable, one diary at a time.</p>
+          </div>
+        `,
+      });
+      return true;
+    } catch (fallbackError) {
+      console.error(
+        "[emailService] Gmail SSL fallback also failed:",
+        fallbackError?.message || fallbackError,
+      );
+      return false;
+    }
+  }
+}

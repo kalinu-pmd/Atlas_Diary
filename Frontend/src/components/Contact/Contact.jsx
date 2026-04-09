@@ -10,6 +10,7 @@ import {
 	MdGroup,
 } from "react-icons/md";
 import Footer from "../Footer/Footer";
+import { submitContactMessage } from "../../api/index.js";
 
 const topics = [
 	{
@@ -68,11 +69,24 @@ export default function Contact() {
 		e.preventDefault();
 		if (!validate()) return;
 		setLoading(true);
-		// Simulate a submission delay (no real backend endpoint for contact)
-		setTimeout(() => {
-			setLoading(false);
-			setSubmitted(true);
-		}, 1200);
+
+		submitContactMessage({
+			name: formData.name,
+			email: formData.email,
+			subject: formData.subject,
+			message: formData.message,
+		})
+			.then(() => {
+				setLoading(false);
+				setSubmitted(true);
+			})
+			.catch((error) => {
+				setLoading(false);
+				console.error("Error submitting message:", error);
+				setErrors({
+					submit: error.response?.data?.message || "Failed to submit message. Please try again.",
+				});
+			});
 	};
 
 	const handleReset = () => {
@@ -174,6 +188,12 @@ export default function Contact() {
 										Fill in the form below and we&apos;ll
 										get back to you promptly.
 									</p>
+
+									{errors.submit && (
+										<div className="mb-4 p-3 rounded-lg bg-orange/10 border border-orange text-orange text-sm">
+											{errors.submit}
+										</div>
+									)}
 
 									<form
 										onSubmit={handleSubmit}

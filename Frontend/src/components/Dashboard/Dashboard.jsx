@@ -14,6 +14,7 @@ import {
 	MdReport,
 	MdVisibility,
 	MdVisibilityOff,
+	MdMessage,
 } from "react-icons/md";
 import * as api from "../../api";
 import "./styles.css";
@@ -563,11 +564,82 @@ UserPostsModal.propTypes = {
 	loading: PropTypes.bool,
 };
 
+function ViewMessageModal({ message, onClose }) {
+		if (!message) return null;
+
+		return (
+			<div className="fixed inset-0 z-[2050] flex items-center justify-center bg-dark-green/70 backdrop-blur-sm px-4">
+				<div className="bg-off-white rounded-2xl shadow-[0_16px_48px_rgba(12,52,44,0.3)] border border-light-green p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+					<div className="flex items-center justify-between mb-5">
+						<h3 className="text-text-dark font-extrabold text-xl">Message Details</h3>
+						<button onClick={onClose} className="text-text-gray hover:text-dark-green transition-colors">
+							<MdClose size={24} />
+						</button>
+					</div>
+					<div className="space-y-5">
+						<div className="grid grid-cols-2 gap-4">
+							<div className="bg-light-green/5 rounded-lg p-4 border border-light-green/20">
+								<p className="text-xs font-semibold text-dark-green uppercase tracking-wide mb-1">Name</p>
+								<p className="text-text-dark font-medium">{message.name}</p>
+							</div>
+							<div className="bg-light-green/5 rounded-lg p-4 border border-light-green/20">
+								<p className="text-xs font-semibold text-dark-green uppercase tracking-wide mb-1">Email</p>
+								<p className="text-text-dark font-medium break-all">{message.email}</p>
+							</div>
+						</div>
+						<div className="bg-light-green/5 rounded-lg p-4 border border-light-green/20">
+							<p className="text-xs font-semibold text-dark-green uppercase tracking-wide mb-2">Subject</p>
+							<p className="text-text-dark font-medium">{message.subject}</p>
+						</div>
+						<div className="bg-light-green/5 rounded-lg p-4 border border-light-green/20">
+							<p className="text-xs font-semibold text-dark-green uppercase tracking-wide mb-2">Message</p>
+							<p className="text-text-dark whitespace-pre-wrap">{message.message}</p>
+						</div>
+						<div className="grid grid-cols-2 gap-4">
+							<div className="bg-light-green/5 rounded-lg p-4 border border-light-green/20">
+								<p className="text-xs font-semibold text-dark-green uppercase tracking-wide mb-1">Status</p>
+								{message.isResolved ? (
+									<span className="inline-block bg-light-green text-dark-green text-xs font-bold px-2.5 py-1 rounded-full">Resolved</span>
+								) : (
+									<span className="inline-block bg-orange/10 text-orange text-xs font-bold px-2.5 py-1 rounded-full">Unresolved</span>
+								)}
+							</div>
+							<div className="bg-light-green/5 rounded-lg p-4 border border-light-green/20">
+								<p className="text-xs font-semibold text-dark-green uppercase tracking-wide mb-1">Received</p>
+								<p className="text-text-dark font-medium">{new Date(message.createdAt).toLocaleString()}</p>
+							</div>
+						</div>
+						{message.emailConfirmationSent && (
+							<div className="bg-light-green/10 rounded-lg p-3 border border-light-green/30">
+								<p className="text-xs text-dark-green font-semibold">✓ Confirmation email sent to user</p>
+							</div>
+						)}
+					</div>
+					<div className="flex justify-end gap-3 pt-6 border-t border-dark-green/10">
+						<button
+							type="button"
+							onClick={onClose}
+							className="px-4 py-2 rounded-lg bg-dark-green text-white font-bold text-sm hover:bg-dark-green/90 transition-colors"
+						>
+							Close
+						</button>
+					</div>
+				</div>
+			</div>
+		);
+	}
+
+	ViewMessageModal.propTypes = {
+		message: PropTypes.object,
+		onClose: PropTypes.func.isRequired,
+	};
+
 function Dashboard() {
 	const history = useHistory();
 	const [posts, setPosts] = useState([]);
 	const [users, setUsers] = useState([]);
 	const [reports, setReports] = useState([]);
+	const [messages, setMessages] = useState([]);
 	const [reviewReports, setReviewReports] = useState([]);
 	const [postsPage, setPostsPage] = useState(1);
 	const [postsTotalPages, setPostsTotalPages] = useState(1);
@@ -584,19 +656,23 @@ function Dashboard() {
 	const [reportsView, setReportsView] = useState("active");
 	const [userPostsModal, setUserPostsModal] = useState(null);
 
+	const [messagesView, setMessagesView] = useState("active");
+	const [viewMessageModal, setViewMessageModal] = useState(null);
 	const fetchData = useCallback(
 		async (page = 1) => {
 			setLoading(true);
 			try {
-				const [postsRes, usersRes, reportsRes] = await Promise.all([
+				const [postsRes, usersRes, reportsRes, messagesRes] = await Promise.all([
 					api.fetchPosts(page, { summary: true }),
 					api.getAllUsers(),
 					api.fetchPostReports(),
+					api.fetchContactMessages(1, 100),
 				]);
 
 				const postsList = postsRes?.data?.data || postsRes?.data?.posts || postsRes?.data?.results || postsRes?.data || [];
 				const usersList = usersRes?.data?.users || usersRes?.data?.data || usersRes?.data || [];
 				const reportList = reportsRes?.data?.reports || reportsRes?.data || [];
+				const messageList = messagesRes?.data?.data || messagesRes?.data?.messages || messagesRes?.data || [];
 				const currentPage = postsRes?.data?.currentPage || page;
 				const totalPages = postsRes?.data?.numberOfPages || 1;
 				const totalPosts = Number(postsRes?.data?.total);
@@ -604,6 +680,7 @@ function Dashboard() {
 				setPosts(Array.isArray(postsList) ? postsList : []);
 				setUsers(Array.isArray(usersList) ? usersList : []);
 				setReports(Array.isArray(reportList) ? reportList : []);
+				setMessages(Array.isArray(messageList) ? messageList : []);
 				setReviewReports(Array.isArray(reportList) ? reportList.filter((r) => r.status === "under_review") : []);
 				setPostsPage(currentPage);
 				setPostsTotalPages(totalPages);
@@ -760,6 +837,49 @@ function Dashboard() {
 		history.push(`/posts/${postId}`);
 	};
 
+	const handleMarkMessageAsResolved = (messageId) => {
+		setConfirmModal({
+			message: "Mark this message as resolved?",
+			onConfirm: async () => {
+				setActionLoading(true);
+				try {
+					await api.markContactMessageAsResolved(messageId);
+					toast.success("Message marked as resolved.");
+					setConfirmModal(null);
+					await fetchData(postsPage);
+				} catch (error) {
+					console.error(error);
+					toast.error("Failed to mark message as resolved.");
+				} finally {
+					setActionLoading(false);
+				}
+			},
+			onCancel: () => setConfirmModal(null),
+		});
+	};
+
+	const handleDeleteMessage = (messageId) => {
+		setConfirmModal({
+			message: "Delete this message?",
+			onConfirm: async () => {
+				setConfirmModal(null);
+				setActionLoading(true);
+				try {
+					await api.deleteContactMessage(String(messageId));
+					toast.success("Message deleted.");
+					setMessages((prev) => prev.filter((m) => m._id !== messageId));
+				} catch (error) {
+					console.error(error);
+					const message = error?.response?.data?.message || "Failed to delete message.";
+					toast.error(message);
+				} finally {
+					setActionLoading(false);
+				}
+			},
+			onCancel: () => setConfirmModal(null),
+		});
+	};
+
 	const totalLikes = posts.reduce((sum, p) => sum + (p.likes?.length || 0), 0);
 	const totalReports = reports.length;
 	const activeReports = reports.filter((r) => ["open", "alerted", "under_review"].includes(r.status));
@@ -840,6 +960,12 @@ function Dashboard() {
 					onViewPost={openPostDetails}
 					onDeletePost={handleDeletePost}
 					loading={userPostsModal.loading}
+				/>
+			)}
+			{viewMessageModal && (
+				<ViewMessageModal
+					message={viewMessageModal}
+					onClose={() => setViewMessageModal(null)}
 				/>
 			)}
 
@@ -928,6 +1054,15 @@ function Dashboard() {
 						>
 							<MdReport size={16} />
 							Reports ({openReportsCount} / {receivedReviewsCount})
+						</button>
+						<button
+							onClick={() => setActiveTab("messages")}
+							className={`flex items-center gap-2 px-4 py-2 rounded-t-lg font-semibold text-sm transition-colors border-b-2 -mb-[1px] ${
+								activeTab === "messages" ? "border-dark-green text-dark-green bg-off-white" : "border-transparent text-text-gray hover:text-dark-green"
+							}`}
+						>
+							<MdMessage size={16} />
+							Messages ({messages.length})
 						</button>
 					</div>
 
@@ -1273,6 +1408,96 @@ function Dashboard() {
 										</table>
 									)}
 								</div>
+							)}
+						</div>
+					)}
+
+					{!loading && activeTab === "messages" && (
+						<div className="dashboard-panel overflow-x-auto">
+							<h2 className="text-dark-green font-extrabold text-lg mb-4">Contact Messages</h2>
+							<div className="mb-6 flex items-center justify-between">
+								<div className="flex gap-2">
+									<button
+										onClick={() => setMessagesView("active")}
+										className={`px-3 py-1.5 rounded-lg font-semibold text-sm transition-colors border ${
+											messagesView === "active"
+												? "bg-light-green text-dark-green border-light-green"
+												: "bg-transparent text-text-gray border-dark-green/20 hover:text-dark-green"
+										}`}
+									>
+										Unresolved ({messages.filter((m) => !m.isResolved).length})
+									</button>
+									<button
+										onClick={() => setMessagesView("resolved")}
+										className={`px-3 py-1.5 rounded-lg font-semibold text-sm transition-colors border ${
+											messagesView === "resolved"
+												? "bg-light-green text-dark-green border-light-green"
+												: "bg-transparent text-text-gray border-dark-green/20 hover:text-dark-green"
+										}`}
+									>
+										Resolved ({messages.filter((m) => m.isResolved).length})
+									</button>
+								</div>
+							</div>
+							{(messagesView === "active" ? messages.filter((m) => !m.isResolved) : messages.filter((m) => m.isResolved)).length === 0 ? (
+								<p className="text-text-gray text-sm py-6 text-center">No messages yet.</p>
+							) : (
+								<table>
+									<thead>
+										<tr>
+											<th>Name</th>
+											<th>Email</th>
+											<th>Subject</th>
+											<th>Message</th>
+											<th>Status</th>
+											<th>Date</th>
+											<th>Actions</th>
+										</tr>
+									</thead>
+									<tbody>
+										{(messagesView === "active" ? messages.filter((m) => !m.isResolved) : messages.filter((m) => m.isResolved)).map((message) => (
+											<tr key={message._id}>
+												<td className="font-medium">{message.name}</td>
+												<td className="text-xs">{message.email}</td>
+												<td className="max-w-[150px] truncate text-xs">{message.subject}</td>
+												<td className="max-w-[250px] truncate text-xs" title={message.message}>{message.message}</td>
+												<td className="text-xs">
+													{message.isResolved ? (
+														<span className="bg-light-green text-dark-green text-xs font-bold px-2 py-0.5 rounded-full">Resolved</span>
+													) : (
+														<span className="bg-orange/10 text-orange text-xs font-bold px-2 py-0.5 rounded-full">Unresolved</span>
+													)}
+												</td>
+												<td className="text-xs text-text-gray">{new Date(message.createdAt).toLocaleDateString()}</td>
+												<td className="whitespace-nowrap">
+													<button
+														type="button"
+														onClick={() => setViewMessageModal(message)}
+														className="details mr-2"
+													>
+														View
+													</button>
+													{!message.isResolved && (
+														<button
+															type="button"
+															onClick={() => handleMarkMessageAsResolved(message._id)}
+															className="edit mr-2"
+														>
+															Mark resolved
+														</button>
+													)}
+													<button
+														type="button"
+														onClick={() => handleDeleteMessage(message._id)}
+														className="delete"
+													>
+														Delete
+													</button>
+												</td>
+											</tr>
+										))}
+									</tbody>
+								</table>
 							)}
 						</div>
 					)}

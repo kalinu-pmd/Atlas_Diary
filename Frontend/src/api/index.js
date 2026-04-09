@@ -212,3 +212,24 @@ export const deleteNotification = (id) => {
 export const clearNotifications = () => {
 	return API.delete("/notifications");
 };
+
+// Contact / Message APIs
+export const submitContactMessage = (payload) => {
+	return API.post("/contact/submit", payload);
+};
+
+export const fetchContactMessages = (page = 1, limit = 10) => {
+	return API.get(`/contact?page=${page}&limit=${limit}`);
+};
+
+export const getUnreadContactMessageCount = () => {
+	return API.get("/contact/unread-count");
+};
+
+export const markContactMessageAsResolved = (id) => {
+	return API.patch(`/contact/${id}/resolve`);
+};
+
+export const deleteContactMessage = (id) => {
+	return API.delete(`/contact/${id}`);
+};
