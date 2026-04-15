@@ -9,6 +9,8 @@ import {
 	MdCameraAlt,
 	MdLocationOn,
 	MdFavorite,
+	MdSupportAgent,
+	MdEmail,
 	MdArrowForward,
 } from "react-icons/md";
 import heroImage from "../../Images/heroSection.png";
@@ -502,6 +504,56 @@ export default function Landing() {
 								</div>
 							</div>
 						))}
+					</div>
+				</div>
+			</section>
+
+			{/* ── Contact CTA ───────────────────────────────────────────── */}
+			<section
+				aria-labelledby="contact-cta-heading"
+				className="py-14 sm:py-12 px-4"
+				style={{
+					background:
+						"linear-gradient(180deg, rgba(12,52,44,0.07) 0%, rgba(254,249,245,1) 100%), radial-gradient(circle at 78% 22%, rgba(175,250,1,0.12), transparent 38%)",
+				}}
+			>
+				<div className="max-w-5xl mx-auto">
+					<div className="bg-off-white border border-dark-green/15 rounded-3xl p-7 sm:p-10 shadow-card">
+						<div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6">
+							<div className="max-w-2xl">
+								<span className="inline-flex items-center gap-2 bg-light-green/20 border border-light-green/40 text-dark-green text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wide mb-4">
+									<MdSupportAgent size={14} />
+									Need help?
+								</span>
+								<h2
+									id="contact-cta-heading"
+									className="text-2xl sm:text-xl font-extrabold text-text-dark mb-2"
+								>
+									Questions, feedback, or partnership ideas?
+								</h2>
+								<p className="text-text-gray text-sm sm:text-base leading-relaxed">
+									Our team reads every message. Reach out anytime and we will
+									get back to you as quickly as possible.
+								</p>
+							</div>
+
+							<div className="flex flex-col md:flex-row gap-3 md:justify-end md:items-center">
+								<RouterLink
+									to="/contact"
+									className="inline-flex items-center justify-center gap-2 whitespace-nowrap bg-dark-green hover:bg-dark-green-hover text-off-white font-bold text-sm px-6 py-3 rounded-full no-underline transition-all hover:-translate-y-0.5"
+								>
+									Contact Us
+									<MdArrowForward size={16} />
+								</RouterLink>
+								<a
+									href="mailto:hello@atlasdiary.com"
+									className="inline-flex items-center justify-center gap-2 whitespace-nowrap border border-dark-green/25 text-dark-green font-semibold text-sm px-6 py-3 rounded-full no-underline hover:bg-light-green/15 transition-colors"
+								>
+									<MdEmail size={16} />
+									hello@atlasdiary.com
+								</a>
+							</div>
+						</div>
 					</div>
 				</div>
 			</section>
