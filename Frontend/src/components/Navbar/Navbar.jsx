@@ -379,7 +379,7 @@ function Navbar() {
 
 					{user ? (
 						<>
-							<Link to="/recommendations" onClick={() => setMobileOpen(false)} className="px-3 py-2.5 rounded-lg no-underline text-accent-green font-semibold hover:bg-accent-green/10 transition-colors border border-accent-green/30">✨ For You</Link>
+							<Link to="/recommendations" onClick={() => setMobileOpen(false)} className="px-3 py-2.5 rounded-lg no-underline text-accent-green font-semibold hover:bg-accent-green/10 transition-colors border border-accent-green/30">For You</Link>
 							{user.result?.isAdmin && <Link to="/dashboard" onClick={() => setMobileOpen(false)} className="px-3 py-2.5 rounded-lg no-underline text-accent-green font-extrabold hover:bg-accent-green/10 transition-colors">⚙️ Dashboard</Link>}
 							<div className="flex items-center gap-2 px-3 py-2 bg-accent-green/5 rounded-lg"><div className="w-8 h-8 rounded-full bg-accent-green text-white flex items-center justify-center font-bold text-sm shrink-0">{user.result?.name?.charAt(0).toUpperCase()}</div><span className="text-text-dark font-medium text-sm truncate">{user.result?.name}</span></div>
 							<button onClick={() => { setMobileOpen(false); logout(); }} className="mt-1 w-full bg-orange text-white font-bold py-2 rounded-lg hover:bg-orange-hover transition-colors">Logout</button>

@@ -637,20 +637,17 @@ const Recommendations = () => {
 						{/* Actions */}
 						<div className="flex items-center justify-between px-4 py-3 bg-light-green/10 border-t border-dark-green/10">
 							<div className="flex items-center gap-1">
-								<button
-									onClick={(event) => {
-										event.stopPropagation();
-										handleLike(post._id);
-									}}
-									className={`flex items-center gap-1 text-sm font-medium px-2 py-1 rounded transition-colors ${
+								<div
+									className={`flex items-center gap-1 text-sm font-medium px-2 py-1 rounded ${
 										post.likes?.includes(user?.result?._id)
 											? "text-accent-green bg-accent-green/10"
-											: "text-text-dark hover:bg-light-green/20"
+											: "text-text-dark"
 									}`}
+									title="Open the post to like it"
 								>
 									<MdThumbUp size={16} />
 									{post.likes?.length || 0}
-								</button>
+								</div>
 								<button
 									onClick={(event) => event.stopPropagation()}
 									className="flex items-center gap-1 text-sm font-medium text-text-dark px-2 py-1 rounded hover:bg-light-green/20 transition-colors"

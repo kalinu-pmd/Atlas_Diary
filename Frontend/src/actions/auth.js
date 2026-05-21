@@ -8,7 +8,7 @@ export const signIn = (formData, history) => async (dispatch) => {
     dispatch({ type: AUTH, payload: data });
 
     toast.success(`Welcome back, ${data.result.name}!`);
-    history.push("/");
+    history.push("/posts");
   } catch (error) {
     console.log(error);
     const errorMessage =

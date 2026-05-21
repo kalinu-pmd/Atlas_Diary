@@ -37,7 +37,7 @@ class RecommendationService {
   }
 
 
-  // Clean and preprocess text
+  // Clean and preprocess text (porter stemming)
   preprocessText(text) {
     if (!text) return "";
     return text
