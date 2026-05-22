@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useSelector } from "react-redux";
 import { Link } from "react-router-dom";
 import {
 	MdEmail,
@@ -36,6 +37,7 @@ const topics = [
 ];
 
 export default function Contact() {
+	const user = useSelector((state) => state.auth.authData);
 	const [formData, setFormData] = useState({
 		name: "",
 		email: "",
@@ -45,6 +47,21 @@ export default function Contact() {
 	const [errors, setErrors] = useState({});
 	const [submitted, setSubmitted] = useState(false);
 	const [loading, setLoading] = useState(false);
+	const [attachmentData, setAttachmentData] = useState(null);
+	const [attachmentName, setAttachmentName] = useState("");
+	const userName = user?.result?.name || "";
+	const userEmail = user?.result?.email || "";
+	const isPrefilledUser = Boolean(userName || userEmail);
+	const isSignedIn = Boolean(user?.token);
+
+	useEffect(() => {
+		if (!isPrefilledUser) return;
+		setFormData((prev) => ({
+			...prev,
+			name: userName || prev.name,
+			email: userEmail || prev.email,
+		}));
+	}, [isPrefilledUser, userName, userEmail]);
 
 	const validate = () => {
 		const newErrors = {};
@@ -65,6 +82,22 @@ export default function Contact() {
 		setErrors({ ...errors, [e.target.name]: "" });
 	};
 
+	const handleAttachmentChange = (e) => {
+		const file = e.target.files && e.target.files[0];
+		if (!file) return;
+		const reader = new FileReader();
+		reader.onload = () => {
+			setAttachmentData(reader.result);
+			setAttachmentName(file.name);
+		};
+		reader.readAsDataURL(file);
+	};
+
+	const removeAttachment = () => {
+		setAttachmentData(null);
+		setAttachmentName("");
+	};
+
 	const handleSubmit = (e) => {
 		e.preventDefault();
 		if (!validate()) return;
@@ -75,6 +108,7 @@ export default function Contact() {
 			email: formData.email,
 			subject: formData.subject,
 			message: formData.message,
+			attachment: attachmentData || null,
 		})
 			.then(() => {
 				setLoading(false);
@@ -93,6 +127,7 @@ export default function Contact() {
 		setFormData({ name: "", email: "", subject: "", message: "" });
 		setErrors({});
 		setSubmitted(false);
+		removeAttachment();
 	};
 
 	return (
@@ -217,11 +252,21 @@ export default function Contact() {
 													name="name"
 													value={formData.name}
 													onChange={handleChange}
+													readOnly={isPrefilledUser}
 													placeholder="Jane Explorer"
+													title={
+														isPrefilledUser
+															? "Name is locked to your account"
+															: undefined
+													}
 													className={`w-full bg-off-white border rounded-lg px-3 py-2.5 text-sm text-text-dark outline-none transition-colors placeholder:text-text-gray ${
 														errors.name
 															? "border-orange focus:border-orange"
-															: "border-dark-green focus:border-dark-green hover:border-light-green"
+															: `border-dark-green focus:border-dark-green hover:border-light-green ${
+																isPrefilledUser
+																	? "bg-light-green/10 cursor-not-allowed"
+																	: ""
+																}`
 													}`}
 												/>
 												{errors.name && (
@@ -247,11 +292,21 @@ export default function Contact() {
 													type="email"
 													value={formData.email}
 													onChange={handleChange}
+													readOnly={isPrefilledUser}
 													placeholder="you@example.com"
+													title={
+														isPrefilledUser
+															? "Email is locked to your account"
+															: undefined
+													}
 													className={`w-full bg-off-white border rounded-lg px-3 py-2.5 text-sm text-text-dark outline-none transition-colors placeholder:text-text-gray ${
 														errors.email
 															? "border-orange focus:border-orange"
-															: "border-dark-green focus:border-dark-green hover:border-light-green"
+															: `border-dark-green focus:border-dark-green hover:border-light-green ${
+																isPrefilledUser
+																	? "bg-light-green/10 cursor-not-allowed"
+																	: ""
+																}`
 													}`}
 												/>
 												{errors.email && (
@@ -351,6 +406,22 @@ export default function Contact() {
 									</form>
 								</div>
 							)}
+						{isSignedIn && (
+							<div className="mt-8 bg-light-green/10 border border-light-green rounded-2xl p-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+								<div className="min-w-0">
+									<h3 className="text-text-dark font-extrabold text-lg">Need help with an existing request?</h3>
+									<p className="text-text-gray text-sm mt-1 break-words">
+										Open your Support inbox to see replies, add follow-ups, and keep the thread in one place.
+									</p>
+								</div>
+								<Link
+									to="/support"
+									className="inline-flex items-center justify-center gap-2 self-start bg-dark-green hover:bg-dark-green-hover text-off-white font-bold text-sm px-4 py-2.5 rounded-full transition-colors no-underline whitespace-nowrap"
+								>
+									Open Support inbox
+								</Link>
+							</div>
+						)}
 						</div>
 
 						{/* ── Info sidebar ────────────────────────── */}
@@ -377,7 +448,19 @@ export default function Contact() {
 									hello@atlasdiary.com
 								</a>
 							</div>
-
+							{/* Attachment picker */}
+							<div className="mt-2 flex items-center gap-3">
+								<input id="contact-attachment" type="file" accept="image/*" onChange={handleAttachmentChange} className="hidden" />
+								<label htmlFor="contact-attachment" className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-off-white border border-dark-green/20 text-sm cursor-pointer hover:bg-light-green/5">
+									Attach photo
+								</label>
+								{attachmentData && (
+									<div className="flex items-center gap-2">
+										<img src={attachmentData} alt={attachmentName} className="w-16 h-16 object-cover rounded-md border" />
+										<button type="button" onClick={removeAttachment} className="text-xs text-orange underline ml-1">Remove</button>
+									</div>
+								)}
+							</div>
 							{/* Response time */}
 							<div className="bg-off-white border border-dark-green/10 rounded-2xl p-5 shadow-card">
 								<h3 className="text-dark-green font-bold text-sm mb-3">

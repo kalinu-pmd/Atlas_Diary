@@ -8,7 +8,8 @@ export const getNotifications = async (req, res) => {
       .sort({ createdAt: -1 })
       .limit(30)
       .populate("fromUser", "name")
-      .populate("post", "title");
+      .populate("post", "title")
+      .populate("supportMessage", "subject");
 
     res.status(200).json(notifications);
   } catch (error) {

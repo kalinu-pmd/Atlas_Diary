@@ -3,7 +3,7 @@ import { useSelector, useDispatch } from "react-redux";
 import { Link, useHistory, useLocation } from "react-router-dom";
 import decode from "jwt-decode";
 import { toast } from "react-toastify";
-import { MdMenu, MdClose, MdAdd, MdSettings, MdExitToApp, MdNotifications, MdDashboard } from "react-icons/md";
+import { MdMenu, MdClose, MdAdd, MdSettings, MdExitToApp, MdNotifications, MdDashboard, MdEmail } from "react-icons/md";
 
 import { LOGOUT } from "../../constants/actionTypes";
 import logo from "../../Images/logo.svg";
@@ -158,6 +158,7 @@ function Navbar() {
 							{notificationsState.items && notificationsState.items.map((n) => {
 								const actorName = n.fromUser?.name || "Someone";
 								const postTitle = n.post?.title || "your post";
+								const supportSubject = n.supportMessage?.subject || "your support request";
 								let text;
 								switch (n.type) {
 									case "like":
@@ -165,6 +166,9 @@ function Navbar() {
 										break;
 									case "comment":
 										text = `${actorName} commented on ${postTitle}`;
+										break;
+									case "support_reply":
+										text = `Support replied to ${supportSubject}`;
 										break;
 									case "report_alert":
 										text = `Your post "${postTitle}" was reported. Please review and update it.`;
@@ -191,7 +195,9 @@ function Navbar() {
 										onClick={() => {
 											dispatch(markNotificationAsRead(n._id));
 											setNotificationsOpen(false);
-											if (n.post?._id) {
+											if (n.type === "support_reply") {
+												history.push("/support");
+											} else if (n.post?._id) {
 												history.push(`/posts/${n.post._id}`);
 											}
 										}}
@@ -274,6 +280,16 @@ function Navbar() {
 										<MdSettings size={18} className="text-dark-green" />
 										<span>Account settings</span>
 									</Link>
+									{!user.result?.isAdmin && (
+										<Link
+											to="/support"
+											className="flex items-center gap-3 px-2 py-2 text-sm text-text-dark hover:bg-light-green/5 rounded mb-2"
+											onClick={() => setUserMenuOpen(false)}
+										>
+											<MdEmail size={18} className="text-dark-green" />
+											<span>Support</span>
+										</Link>
+									)}
 							<button onClick={logout} className="flex items-center gap-3 w-full text-left px-3 py-2 text-sm text-white bg-orange rounded-lg hover:bg-orange-hover transition-colors"><MdExitToApp size={18} /><span className="font-semibold">Logout</span></button>
 						</div>
 					</div>

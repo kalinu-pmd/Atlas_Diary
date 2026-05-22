@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import PropTypes from "prop-types";
 import { useHistory } from "react-router-dom";
 import { toast } from "react-toastify";
@@ -15,11 +15,12 @@ import {
 	MdVisibility,
 	MdVisibilityOff,
 	MdMessage,
+	MdNotifications,
 } from "react-icons/md";
 import * as api from "../../api";
 import "./styles.css";
 
-function ConfirmModal({ message, onConfirm, onCancel }) {
+function ConfirmModal({ message, onConfirm, onCancel, confirmLabel = "Delete", cancelLabel = "Cancel" }) {
 	return (
 		<div className="fixed inset-0 z-[2100] flex items-center justify-center bg-dark-green/70 backdrop-blur-sm px-4">
 			<div className="bg-off-white rounded-2xl shadow-[0_16px_48px_rgba(12,52,44,0.3)] border border-light-green p-6 w-full max-w-sm">
@@ -30,15 +31,16 @@ function ConfirmModal({ message, onConfirm, onCancel }) {
 						onClick={onCancel}
 						className="px-4 py-2 rounded-lg border border-dark-green/20 text-dark-green font-semibold text-sm hover:bg-dark-green/5 transition-colors"
 					>
-						Cancel
+						{cancelLabel}
 					</button>
 					<button
 						onClick={onConfirm}
 						className="px-4 py-2 rounded-lg bg-orange hover:bg-orange-hover text-white font-bold text-sm transition-colors"
 					>
-						Delete
+						{confirmLabel}
 					</button>
 				</div>
+
 			</div>
 		</div>
 	);
@@ -48,6 +50,98 @@ ConfirmModal.propTypes = {
 	message: PropTypes.string.isRequired,
 	onConfirm: PropTypes.func.isRequired,
 	onCancel: PropTypes.func.isRequired,
+	confirmLabel: PropTypes.string,
+	cancelLabel: PropTypes.string,
+};
+
+function MessageActionModal({ actionType, message, onCancel, onSubmit, loading }) {
+	const [adminMessage, setAdminMessage] = useState("");
+	const [closeTicket, setCloseTicket] = useState(true);
+
+	if (!message) return null;
+
+	const isDelete = actionType === "delete";
+	const title = isDelete ? "Delete message" : "Mark as resolved";
+	const description = isDelete
+		? "Add a reason so this ticket is archived in the resolved section instead of being permanently removed."
+		: "Write the admin message and choose whether to close the ticket.";
+	const submitLabel = isDelete ? "Archive ticket" : closeTicket ? "Close ticket" : "Save reply";
+
+	const handleSubmit = (e) => {
+		e.preventDefault();
+		const trimmed = adminMessage.trim();
+		if (!trimmed) {
+			toast.error(isDelete ? "Reason is required." : "Admin message is required.");
+			return;
+		}
+		onSubmit(isDelete ? { reason: trimmed } : { message: trimmed, closeTicket });
+	};
+
+	return (
+		<div className="fixed inset-0 z-[2125] flex items-center justify-center bg-dark-green/70 backdrop-blur-sm px-4">
+			<div className="bg-off-white rounded-2xl shadow-[0_16px_48px_rgba(12,52,44,0.3)] border border-light-green p-6 w-full max-w-lg">
+				<div className="flex items-center justify-between mb-3">
+					<h3 className="text-text-dark font-extrabold text-lg">{title}</h3>
+					<button onClick={onCancel} className="text-text-gray hover:text-dark-green transition-colors">
+						<MdClose size={20} />
+					</button>
+				</div>
+				<p className="text-text-gray text-sm mb-4">{description}</p>
+				<div className="mb-4 rounded-xl border border-dark-green/10 bg-light-green/5 p-3">
+					<p className="text-xs font-semibold text-dark-green uppercase tracking-wide mb-1">Subject</p>
+					<p className="text-sm font-semibold text-text-dark break-words">{message.subject}</p>
+					<p className="text-xs text-text-gray mt-2 whitespace-pre-wrap break-words">{message.message}</p>
+				</div>
+				<form onSubmit={handleSubmit} className="space-y-3">
+					<label className="block text-sm font-semibold text-text-dark">
+						{isDelete ? "Reason for archiving" : "Admin message"}
+						<textarea
+							rows={4}
+							value={adminMessage}
+							onChange={(e) => setAdminMessage(e.target.value)}
+							placeholder={isDelete ? "Explain why this message is being archived..." : "Write the message that should appear before closing..."}
+							className="mt-1 w-full rounded-lg border border-dark-green/20 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-dark-green/30"
+						/>
+					</label>
+					{!isDelete && (
+						<label className="inline-flex items-center gap-2 text-sm text-text-dark">
+							<input
+								type="checkbox"
+								checked={closeTicket}
+								onChange={(e) => setCloseTicket(e.target.checked)}
+								className="rounded border-dark-green/30"
+							/>
+							Close ticket
+						</label>
+					)}
+					<div className="flex justify-end gap-3 pt-1">
+						<button
+							type="button"
+							onClick={onCancel}
+							className="px-4 py-2 rounded-lg border border-dark-green/20 text-dark-green font-semibold text-sm hover:bg-dark-green/5 transition-colors"
+						>
+							Cancel
+						</button>
+						<button
+							type="submit"
+							disabled={loading}
+							className="px-4 py-2 rounded-lg bg-dark-green text-white font-bold text-sm hover:bg-dark-green/90 transition-colors disabled:opacity-50"
+						>
+							{loading ? "Working..." : submitLabel}
+						</button>
+					</div>
+				</form>
+			</div>
+		</div>
+	);
+}
+
+MessageActionModal.propTypes = {
+	actionType: PropTypes.oneOf(["resolve", "delete"]).isRequired,
+	message: PropTypes.object,
+	onCancel: PropTypes.func.isRequired,
+	onSubmit: PropTypes.func.isRequired,
+	loading: PropTypes.bool,
 };
 
 function ReportActionModal({ title, description, confirmLabel, onConfirm, onCancel, loading }) {
@@ -564,75 +658,185 @@ UserPostsModal.propTypes = {
 	loading: PropTypes.bool,
 };
 
-function ViewMessageModal({ message, onClose }) {
-		if (!message) return null;
+function ViewMessageModal({ message, onClose, onReply, replyLoading }) {
+	const [replyText, setReplyText] = useState("");
+	const [sendEmail, setSendEmail] = useState(true);
+	const [sendPush, setSendPush] = useState(true);
+	const [previewSrc, setPreviewSrc] = useState(null);
 
-		return (
-			<div className="fixed inset-0 z-[2050] flex items-center justify-center bg-dark-green/70 backdrop-blur-sm px-4">
-				<div className="bg-off-white rounded-2xl shadow-[0_16px_48px_rgba(12,52,44,0.3)] border border-light-green p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-					<div className="flex items-center justify-between mb-5">
-						<h3 className="text-text-dark font-extrabold text-xl">Message Details</h3>
-						<button onClick={onClose} className="text-text-gray hover:text-dark-green transition-colors">
-							<MdClose size={24} />
-						</button>
+	const openPreview = (src) => setPreviewSrc(src);
+	const closePreview = () => setPreviewSrc(null);
+
+	if (!message) return null;
+
+	const handleReply = () => {
+		const trimmed = replyText.trim();
+		if (!trimmed) return;
+		onReply(message._id, {
+			message: trimmed,
+			channels: {
+				email: sendEmail,
+				push: sendPush,
+			},
+		});
+		setReplyText("");
+	};
+
+	return (
+		<div className="fixed inset-0 z-[2050] flex items-center justify-center bg-dark-green/70 backdrop-blur-sm px-4">
+			<div className="bg-off-white rounded-2xl shadow-[0_16px_48px_rgba(12,52,44,0.3)] border border-light-green p-6 w-full max-w-4xl max-h-[95vh] overflow-y-auto">
+				<div className="flex items-center justify-between mb-5">
+					<h3 className="text-text-dark font-extrabold text-xl">Message Details</h3>
+					<button onClick={onClose} className="text-text-gray hover:text-dark-green transition-colors">
+						<MdClose size={24} />
+					</button>
+				</div>
+				<div className="space-y-5">
+					<div className="grid grid-cols-2 gap-4">
+						<div className="bg-light-green/5 rounded-lg p-4 border border-light-green/20">
+							<p className="text-xs font-semibold text-dark-green uppercase tracking-wide mb-1">Name</p>
+							<p className="text-text-dark font-medium">{message.name}</p>
+							{message.user && (
+								<p className="text-[11px] text-dark-green font-semibold mt-2">Signed-in user</p>
+							)}
+						</div>
+						<div className="bg-light-green/5 rounded-lg p-4 border border-light-green/20">
+							<p className="text-xs font-semibold text-dark-green uppercase tracking-wide mb-1">Email</p>
+							<p className="text-text-dark font-medium break-all">{message.email}</p>
+						</div>
 					</div>
-					<div className="space-y-5">
-						<div className="grid grid-cols-2 gap-4">
-							<div className="bg-light-green/5 rounded-lg p-4 border border-light-green/20">
-								<p className="text-xs font-semibold text-dark-green uppercase tracking-wide mb-1">Name</p>
-								<p className="text-text-dark font-medium">{message.name}</p>
-							</div>
-							<div className="bg-light-green/5 rounded-lg p-4 border border-light-green/20">
-								<p className="text-xs font-semibold text-dark-green uppercase tracking-wide mb-1">Email</p>
-								<p className="text-text-dark font-medium break-all">{message.email}</p>
-							</div>
+					<div className="bg-light-green/5 rounded-lg p-4 border border-light-green/20">
+						<p className="text-xs font-semibold text-dark-green uppercase tracking-wide mb-2">Subject</p>
+						<p className="text-text-dark font-medium">{message.subject}</p>
+					</div>
+					<div className="bg-light-green/5 rounded-lg p-4 border border-light-green/20">
+						<p className="text-xs font-semibold text-dark-green uppercase tracking-wide mb-2">Message</p>
+								<p className="text-text-dark whitespace-pre-wrap">{message.message}</p>
+									{message.attachment && (
+										<div className="mt-3">
+											<p className="text-xs text-text-gray mb-2">Attachment</p>
+											<img src={message.attachment} alt="attachment" className="max-w-full rounded-md border border-dark-green/10 cursor-pointer" onClick={() => openPreview(message.attachment)} />
+										</div>
+									)}
+					</div>
+					<div className="grid grid-cols-2 gap-4">
+						<div className="bg-light-green/5 rounded-lg p-4 border border-light-green/20">
+							<p className="text-xs font-semibold text-dark-green uppercase tracking-wide mb-1">Status</p>
+							{message.isResolved ? (
+								<span className="inline-block bg-light-green text-dark-green text-xs font-bold px-2.5 py-1 rounded-full">
+									{message.resolutionType === "deleted" ? "Deleted" : "Closed"}
+								</span>
+							) : (
+								<span className="inline-block bg-orange/10 text-orange text-xs font-bold px-2.5 py-1 rounded-full">Unresolved</span>
+							)}
 						</div>
 						<div className="bg-light-green/5 rounded-lg p-4 border border-light-green/20">
-							<p className="text-xs font-semibold text-dark-green uppercase tracking-wide mb-2">Subject</p>
-							<p className="text-text-dark font-medium">{message.subject}</p>
+							<p className="text-xs font-semibold text-dark-green uppercase tracking-wide mb-1">Received</p>
+							<p className="text-text-dark font-medium">{new Date(message.createdAt).toLocaleString()}</p>
 						</div>
+					</div>
+					{message.emailConfirmationSent && (
+						<div className="bg-light-green/10 rounded-lg p-3 border border-light-green/30">
+							<p className="text-xs text-dark-green font-semibold">✓ Confirmation email sent to user</p>
+						</div>
+					)}
+
+					{message.isResolved && (
 						<div className="bg-light-green/5 rounded-lg p-4 border border-light-green/20">
-							<p className="text-xs font-semibold text-dark-green uppercase tracking-wide mb-2">Message</p>
-							<p className="text-text-dark whitespace-pre-wrap">{message.message}</p>
+							<p className="text-xs font-semibold text-dark-green uppercase tracking-wide mb-2">Resolution details</p>
+							<p className="text-sm text-text-dark font-medium mb-1">
+								Type: {message.resolutionType === "deleted" ? "Deleted" : "Closed"}
+							</p>
+							{message.resolutionMessage && (
+								<p className="text-sm text-text-dark whitespace-pre-wrap break-words mb-1">
+									Message: {message.resolutionMessage}
+								</p>
+							)}
+							{message.resolutionReason && (
+								<p className="text-sm text-text-dark whitespace-pre-wrap break-words">
+									Reason: {message.resolutionReason}
+								</p>
+							)}
 						</div>
-						<div className="grid grid-cols-2 gap-4">
-							<div className="bg-light-green/5 rounded-lg p-4 border border-light-green/20">
-								<p className="text-xs font-semibold text-dark-green uppercase tracking-wide mb-1">Status</p>
-								{message.isResolved ? (
-									<span className="inline-block bg-light-green text-dark-green text-xs font-bold px-2.5 py-1 rounded-full">Resolved</span>
-								) : (
-									<span className="inline-block bg-orange/10 text-orange text-xs font-bold px-2.5 py-1 rounded-full">Unresolved</span>
-								)}
+					)}
+
+					<div className="bg-off-white border border-dark-green/10 rounded-xl p-4">
+						<p className="text-xs font-semibold text-dark-green uppercase tracking-wide mb-2">Conversation</p>
+						{Array.isArray(message.replies) && message.replies.length > 0 ? (
+								<div className="space-y-3 max-h-[70vh] overflow-y-auto pr-1">
+								{message.replies.map((reply, index) => (
+										<div key={`${reply.createdAt || "reply"}-${index}`} className="bg-light-green/5 border border-light-green/20 rounded-lg p-3">
+											<p className="text-xs font-semibold text-text-gray mb-1">
+												{reply.sender === "admin" ? "Admin" : "User"} · {reply.createdAt ? new Date(reply.createdAt).toLocaleString() : ""}
+											</p>
+											<p className="text-text-dark text-sm whitespace-pre-wrap">{reply.message}</p>
+											{reply.attachment && (
+												<div className="mt-2">
+													<img src={reply.attachment} alt="reply-attachment" className="max-w-full max-h-[60vh] object-contain rounded-md border border-dark-green/10 cursor-pointer" onClick={() => openPreview(reply.attachment)} />
+													</div>
+												)}
+										</div>
+								))}
 							</div>
-							<div className="bg-light-green/5 rounded-lg p-4 border border-light-green/20">
-								<p className="text-xs font-semibold text-dark-green uppercase tracking-wide mb-1">Received</p>
-								<p className="text-text-dark font-medium">{new Date(message.createdAt).toLocaleString()}</p>
-							</div>
-						</div>
-						{message.emailConfirmationSent && (
-							<div className="bg-light-green/10 rounded-lg p-3 border border-light-green/30">
-								<p className="text-xs text-dark-green font-semibold">✓ Confirmation email sent to user</p>
-							</div>
+						) : (
+							<p className="text-xs text-text-gray">No replies yet.</p>
 						)}
 					</div>
-					<div className="flex justify-end gap-3 pt-6 border-t border-dark-green/10">
-						<button
-							type="button"
-							onClick={onClose}
-							className="px-4 py-2 rounded-lg bg-dark-green text-white font-bold text-sm hover:bg-dark-green/90 transition-colors"
-						>
-							Close
-						</button>
-					</div>
+
+					{!message.isResolved ? (
+						<div className="bg-light-green/5 border border-light-green/20 rounded-xl p-4">
+							<p className="text-xs font-semibold text-dark-green uppercase tracking-wide mb-2">Reply</p>
+							<textarea
+								rows={4}
+								value={replyText}
+								onChange={(e) => setReplyText(e.target.value)}
+								placeholder="Write a response to the user..."
+								className="w-full rounded-lg border border-dark-green/20 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-dark-green/30 bg-off-white"
+							/>
+							<div className="flex flex-wrap items-center gap-3 mt-3 text-xs text-text-gray">
+								<label className="inline-flex items-center gap-2">
+									<input
+										type="checkbox"
+										checked={sendEmail}
+										onChange={(e) => setSendEmail(e.target.checked)}
+										className="rounded border-dark-green/30"
+									/>
+									Send email
+								</label>
+								<label className="inline-flex items-center gap-2">
+									<input
+										type="checkbox"
+										checked={sendPush}
+										onChange={(e) => setSendPush(e.target.checked)}
+										className="rounded border-dark-green/30"
+									/>
+									Send in-app notification
+								</label>
+							</div>
+							<div className="flex justify-end gap-3 mt-4">
+								<button
+									type="button"
+									onClick={handleReply}
+									disabled={replyLoading || !replyText.trim()}
+									className="px-4 py-2 rounded-lg bg-dark-green text-white font-bold text-sm hover:bg-dark-green/90 transition-colors disabled:opacity-50"
+								>
+									{replyLoading ? "Sending..." : "Send reply"}
+								</button>
+							</div>
+						</div>
+					) : null}
 				</div>
 			</div>
-		);
-	}
+		</div>
+	);
+}
 
-	ViewMessageModal.propTypes = {
-		message: PropTypes.object,
-		onClose: PropTypes.func.isRequired,
-	};
+ViewMessageModal.propTypes = {
+	message: PropTypes.object,
+	onClose: PropTypes.func.isRequired,
+	onReply: PropTypes.func.isRequired,
+	replyLoading: PropTypes.bool,
+};
 
 function Dashboard() {
 	const history = useHistory();
@@ -647,7 +851,9 @@ function Dashboard() {
 	const [activeTab, setActiveTab] = useState("posts");
 	const [loading, setLoading] = useState(true);
 	const [actionLoading, setActionLoading] = useState(false);
+	const [adminReplyLoading, setAdminReplyLoading] = useState(false);
 	const [confirmModal, setConfirmModal] = useState(null);
+	const [messageActionModal, setMessageActionModal] = useState(null);
 	const [editPostModal, setEditPostModal] = useState(null);
 	const [editUserModal, setEditUserModal] = useState(null);
 	const [createUserModal, setCreateUserModal] = useState(false);
@@ -658,6 +864,8 @@ function Dashboard() {
 
 	const [messagesView, setMessagesView] = useState("active");
 	const [viewMessageModal, setViewMessageModal] = useState(null);
+	const [adminNotificationsOpen, setAdminNotificationsOpen] = useState(false);
+	const adminNotificationsRef = useRef(null);
 	const fetchData = useCallback(
 		async (page = 1) => {
 			setLoading(true);
@@ -698,6 +906,17 @@ function Dashboard() {
 	useEffect(() => {
 		fetchData();
 	}, [fetchData]);
+
+	useEffect(() => {
+		const handleOutside = (event) => {
+			if (!adminNotificationsOpen) return;
+			if (adminNotificationsRef.current && !adminNotificationsRef.current.contains(event.target)) {
+				setAdminNotificationsOpen(false);
+			}
+		};
+		document.addEventListener("mousedown", handleOutside);
+		return () => document.removeEventListener("mousedown", handleOutside);
+	}, [adminNotificationsOpen]);
 
 	const handlePostsPageChange = (page) => {
 		if (!page || page === postsPage) return;
@@ -837,47 +1056,48 @@ function Dashboard() {
 		history.push(`/posts/${postId}`);
 	};
 
+	const openUserProfile = (userId) => {
+		if (!userId) return;
+		history.push(`/profile/${userId}`);
+	};
+
 	const handleMarkMessageAsResolved = (messageId) => {
 		setConfirmModal({
 			message: "Mark this message as resolved?",
+			confirmLabel: "Yes",
+			cancelLabel: "No",
 			onConfirm: async () => {
-				setActionLoading(true);
-				try {
-					await api.markContactMessageAsResolved(messageId);
-					toast.success("Message marked as resolved.");
-					setConfirmModal(null);
-					await fetchData(postsPage);
-				} catch (error) {
-					console.error(error);
-					toast.error("Failed to mark message as resolved.");
-				} finally {
-					setActionLoading(false);
-				}
+				setConfirmModal(null);
+				setMessageActionModal({ type: "resolve", messageId, message: messages.find((m) => String(m._id) === String(messageId)) || null });
 			},
 			onCancel: () => setConfirmModal(null),
 		});
 	};
 
 	const handleDeleteMessage = (messageId) => {
-		setConfirmModal({
-			message: "Delete this message?",
-			onConfirm: async () => {
-				setConfirmModal(null);
-				setActionLoading(true);
-				try {
-					await api.deleteContactMessage(String(messageId));
-					toast.success("Message deleted.");
-					setMessages((prev) => prev.filter((m) => m._id !== messageId));
-				} catch (error) {
-					console.error(error);
-					const message = error?.response?.data?.message || "Failed to delete message.";
-					toast.error(message);
-				} finally {
-					setActionLoading(false);
-				}
-			},
-			onCancel: () => setConfirmModal(null),
-		});
+		setMessageActionModal({ type: "delete", messageId, message: messages.find((m) => String(m._id) === String(messageId)) || null });
+	};
+
+	const handleAdminReplyMessage = async (messageId, payload) => {
+		setAdminReplyLoading(true);
+		try {
+			const { data } = await api.adminReplyContactMessage(messageId, payload);
+			const updated = data?.data || data;
+			if (updated?._id) {
+				setMessages((prev) =>
+					prev.map((m) => (m._id === updated._id ? updated : m)),
+				);
+				setViewMessageModal(null);
+				setMessagesView("followup");
+			}
+			toast.success("Reply sent.");
+		} catch (error) {
+			console.error(error);
+			const message = error?.response?.data?.message || "Failed to send reply.";
+			toast.error(message);
+		} finally {
+			setAdminReplyLoading(false);
+		}
 	};
 
 	const totalLikes = posts.reduce((sum, p) => sum + (p.likes?.length || 0), 0);
@@ -886,6 +1106,56 @@ function Dashboard() {
 	const openReportsCount = activeReports.filter((r) => r.status === "open" || r.status === "alerted").length;
 	const receivedReviewsCount = reviewReports.length;
 	const historyReports = reports.filter((r) => !["open", "alerted", "under_review"].includes(r.status));
+	const unresolvedMessages = messages.filter((m) => !m.isResolved);
+	const followUpMessages = messages.filter(
+		(m) => !m.isResolved && Array.isArray(m.replies) && m.replies.length > 0,
+	);
+	const activeMessages = messages.filter(
+		(m) => !m.isResolved && (!Array.isArray(m.replies) || m.replies.length === 0),
+	);
+	const resolvedMessages = messages.filter((m) => m.isResolved);
+
+	const adminNotifications = [
+		...openReportsCount
+			? activeReports
+				.filter((report) => report.status === "open" || report.status === "alerted")
+				.map((report) => ({
+					id: `report-open-${report._id}`,
+					type: "report_open",
+					label: `Report needs review: ${report.post?.title || "Untitled post"}`,
+					createdAt: report.createdAt,
+					onClick: () => {
+						setActiveTab("reports");
+						setReportsView("active");
+						setAdminNotificationsOpen(false);
+					},
+				}))
+			: [],
+		...reviewReports.map((report) => ({
+			id: `report-review-${report._id}`,
+			type: "report_review",
+			label: `Review submitted changes: ${report.post?.title || "Untitled post"}`,
+			createdAt: report.updatedAt || report.createdAt,
+			onClick: () => {
+				setActiveTab("reports");
+				setReportsView("active");
+				setAdminNotificationsOpen(false);
+			},
+		})),
+		...unresolvedMessages.map((message) => ({
+			id: `message-${message._id}`,
+			type: "message",
+			label: `New message: ${message.subject || "(No subject)"}`,
+			createdAt: message.createdAt,
+			onClick: () => {
+				setActiveTab("messages");
+				setMessagesView("active");
+				setAdminNotificationsOpen(false);
+			},
+		})),
+	]
+		.filter(Boolean)
+		.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 
 	return (
 		<div className="min-h-screen bg-off-white">
@@ -894,6 +1164,41 @@ function Dashboard() {
 					message={confirmModal.message}
 					onConfirm={confirmModal.onConfirm}
 					onCancel={confirmModal.onCancel}
+					confirmLabel={confirmModal.confirmLabel}
+					cancelLabel={confirmModal.cancelLabel}
+				/>
+			)}
+			{messageActionModal && (
+				<MessageActionModal
+					actionType={messageActionModal.type}
+					message={messageActionModal.message}
+					onCancel={() => setMessageActionModal(null)}
+					onSubmit={async (payload) => {
+						setActionLoading(true);
+						try {
+							const isDelete = messageActionModal.type === "delete";
+							const { data } = isDelete
+								? await api.deleteContactMessage(String(messageActionModal.messageId), payload)
+								: await api.markContactMessageAsResolved(String(messageActionModal.messageId), payload);
+							const updated = data?.data || data;
+							if (updated?._id) {
+								setMessages((prev) => prev.map((m) => (String(m._id) === String(updated._id) ? updated : m)));
+								setViewMessageModal((prev) => (prev && String(prev._id) === String(updated._id) ? updated : prev));
+							}
+							toast.success(isDelete ? "Message archived in resolved history." : payload.closeTicket ? "Message closed." : "Reply saved.");
+							setMessageActionModal(null);
+							if (isDelete || payload.closeTicket) {
+								setMessagesView("resolved");
+							}
+						} catch (error) {
+							console.error(error);
+							const message = error?.response?.data?.message || (messageActionModal.type === "delete" ? "Failed to archive message." : "Failed to update message.");
+							toast.error(message);
+						} finally {
+							setActionLoading(false);
+						}
+					}}
+					loading={actionLoading}
 				/>
 			)}
 			{editPostModal && (
@@ -966,6 +1271,8 @@ function Dashboard() {
 				<ViewMessageModal
 					message={viewMessageModal}
 					onClose={() => setViewMessageModal(null)}
+					onReply={handleAdminReplyMessage}
+					replyLoading={adminReplyLoading}
 				/>
 			)}
 
@@ -981,14 +1288,69 @@ function Dashboard() {
 									<p className="text-white/55 text-xs">Manage posts and users</p>
 								</div>
 						</div>
-						<button
-							onClick={() => fetchData(postsPage)}
-							disabled={loading}
-							className="flex items-center gap-1.5 bg-light-green/15 hover:bg-light-green/25 border border-light-green/30 text-light-green font-semibold text-sm px-4 py-2 rounded-lg transition-colors disabled:opacity-50"
-						>
-							<MdRefresh size={18} className={loading ? "animate-spin" : ""} />
-							Refresh
-						</button>
+						<div className="flex items-center gap-3" ref={adminNotificationsRef}>
+							<div className="relative">
+								<button
+									type="button"
+									aria-label="Admin notifications"
+									onClick={() => setAdminNotificationsOpen((open) => !open)}
+									className="relative w-10 h-10 flex items-center justify-center rounded-full border border-light-green/30 text-light-green hover:bg-light-green/15 transition-colors"
+								>
+									<MdNotifications size={18} />
+									{adminNotifications.length > 0 && (
+										<span className="absolute -top-1 -right-1 bg-orange text-white text-[10px] leading-none px-1.5 py-0.5 rounded-full font-bold">
+											{adminNotifications.length}
+										</span>
+									)}
+								</button>
+
+								{adminNotificationsOpen && (
+									<div className="absolute right-0 top-full mt-2 w-80 bg-white/95 rounded-2xl shadow-lg border border-dark-green/5 backdrop-blur-sm z-50">
+										<div className="flex items-center justify-between px-3 py-2 border-b border-dark-green/10">
+											<p className="text-xs font-semibold text-text-dark">Admin notifications</p>
+											<p className="text-[11px] text-text-gray">
+												{adminNotifications.length} total
+											</p>
+										</div>
+										<div className="max-h-80 overflow-y-auto">
+											{adminNotifications.length === 0 && (
+												<p className="px-3 py-4 text-[11px] text-text-gray text-center">
+													No admin notifications right now.
+												</p>
+											)}
+											{adminNotifications.map((item) => (
+												<button
+													key={item.id}
+													type="button"
+													onClick={item.onClick}
+													className="w-full text-left px-3 py-2.5 text-[11px] border-b border-dark-green/5 last:border-b-0 hover:bg-light-green/10 text-text-dark"
+												>
+													<div className="flex items-start gap-2">
+														<div className="mt-0.5 text-dark-green">
+															{item.type === "message" ? (
+																<MdMessage size={14} />
+															) : (
+																<MdReport size={14} />
+															)}
+														</div>
+														<span className="block truncate">{item.label}</span>
+													</div>
+												</button>
+											))}
+										</div>
+									</div>
+								)}
+							</div>
+
+							<button
+								onClick={() => fetchData(postsPage)}
+								disabled={loading}
+								className="flex items-center gap-1.5 bg-light-green/15 hover:bg-light-green/25 border border-light-green/30 text-light-green font-semibold text-sm px-4 py-2 rounded-lg transition-colors disabled:opacity-50"
+							>
+								<MdRefresh size={18} className={loading ? "animate-spin" : ""} />
+								Refresh
+							</button>
+						</div>
 					</div>
 
 					<div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-6">
@@ -1425,7 +1787,17 @@ function Dashboard() {
 												: "bg-transparent text-text-gray border-dark-green/20 hover:text-dark-green"
 										}`}
 									>
-										Unresolved ({messages.filter((m) => !m.isResolved).length})
+										Unresolved ({activeMessages.length})
+									</button>
+									<button
+										onClick={() => setMessagesView("followup")}
+										className={`px-3 py-1.5 rounded-lg font-semibold text-sm transition-colors border ${
+											messagesView === "followup"
+												? "bg-light-green text-dark-green border-light-green"
+												: "bg-transparent text-text-gray border-dark-green/20 hover:text-dark-green"
+										}`}
+									>
+										Follow up ({followUpMessages.length})
 									</button>
 									<button
 										onClick={() => setMessagesView("resolved")}
@@ -1435,18 +1807,22 @@ function Dashboard() {
 												: "bg-transparent text-text-gray border-dark-green/20 hover:text-dark-green"
 										}`}
 									>
-										Resolved ({messages.filter((m) => m.isResolved).length})
+										Resolved ({resolvedMessages.length})
 									</button>
 								</div>
 							</div>
-							{(messagesView === "active" ? messages.filter((m) => !m.isResolved) : messages.filter((m) => m.isResolved)).length === 0 ? (
+							{(messagesView === "active"
+								? activeMessages
+								: messagesView === "followup"
+									? followUpMessages
+									: resolvedMessages
+							).length === 0 ? (
 								<p className="text-text-gray text-sm py-6 text-center">No messages yet.</p>
 							) : (
 								<table>
 									<thead>
 										<tr>
 											<th>Name</th>
-											<th>Email</th>
 											<th>Subject</th>
 											<th>Message</th>
 											<th>Status</th>
@@ -1455,15 +1831,38 @@ function Dashboard() {
 										</tr>
 									</thead>
 									<tbody>
-										{(messagesView === "active" ? messages.filter((m) => !m.isResolved) : messages.filter((m) => m.isResolved)).map((message) => (
-											<tr key={message._id}>
-												<td className="font-medium">{message.name}</td>
-												<td className="text-xs">{message.email}</td>
-												<td className="max-w-[150px] truncate text-xs">{message.subject}</td>
+										{(messagesView === "active"
+											? activeMessages
+											: messagesView === "followup"
+												? followUpMessages
+												: resolvedMessages
+										).map((message) => (
+												<tr key={message._id} className={message.user?._id ? "signed-in-row" : ""}>
+													<td className="font-medium align-top text-left message-name-cell">
+														<div className="flex flex-col items-start text-left gap-1">
+															<div className="flex items-center justify-start text-left">
+															{message.user?._id ? (
+																<button
+																	type="button"
+																	onClick={() => openUserProfile(message.user._id)}
+																	className="text-dark-green hover:underline font-semibold leading-tight text-left"
+																>
+																	{message.user?.name || message.name}
+																</button>
+															) : (
+																<span className="font-semibold leading-tight text-left">{message.name}</span>
+															)}
+														</div>
+														<span className="text-[11px] text-text-gray leading-tight">{message.user?.email || message.email}</span>
+													</div>
+												</td>
+												<td className="max-w-[180px] truncate text-xs">{message.subject}</td>
 												<td className="max-w-[250px] truncate text-xs" title={message.message}>{message.message}</td>
 												<td className="text-xs">
 													{message.isResolved ? (
-														<span className="bg-light-green text-dark-green text-xs font-bold px-2 py-0.5 rounded-full">Resolved</span>
+														<span className="bg-light-green text-dark-green text-xs font-bold px-2 py-0.5 rounded-full">
+															{message.resolutionType === "deleted" ? "Deleted" : "Closed"}
+														</span>
 													) : (
 														<span className="bg-orange/10 text-orange text-xs font-bold px-2 py-0.5 rounded-full">Unresolved</span>
 													)}
@@ -1486,13 +1885,15 @@ function Dashboard() {
 															Mark resolved
 														</button>
 													)}
-													<button
-														type="button"
-														onClick={() => handleDeleteMessage(message._id)}
-														className="delete"
-													>
-														Delete
-													</button>
+													{!message.isResolved ? (
+														<button
+															type="button"
+															onClick={() => handleDeleteMessage(message._id)}
+															className="delete"
+														>
+															Delete
+														</button>
+													) : null}
 												</td>
 											</tr>
 										))}

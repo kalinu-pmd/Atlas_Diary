@@ -563,3 +563,52 @@ export async function sendContactConfirmationEmail(to, name) {
     }
   }
 }
+
+export async function sendSupportReplyEmail({ to, name, subject, reply }) {
+  const from = getFromAddress();
+  const safeName = name || "there";
+  const safeSubject = subject || "Your support request";
+  const safeReply = reply || "";
+
+  const mailSubject = `Support reply: ${safeSubject}`;
+  const html = `
+    <div style="font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-size: 15px; color: #0c342c;">
+      <p>Hi ${safeName},</p>
+      <p>We have replied to your support request:</p>
+      <p style="margin: 16px 0; font-weight: 700;">${safeSubject}</p>
+      <div style="margin: 16px 0; padding: 14px; background-color: #f6fbf8; border-left: 4px solid #0c7a6a; border-radius: 6px;">
+        ${safeReply.replace(/\n/g, "<br/>")}
+      </div>
+      <p>You can continue the conversation by replying inside Atlas Diary.</p>
+      <p style="margin-top: 24px; font-size: 13px; color: #647067;">Best regards,<br/><strong>Atlas Diary Support</strong></p>
+    </div>
+  `;
+
+  if (EMAIL_PROVIDER === "resend") {
+    const sent = await sendWithResend({
+      to,
+      from,
+      subject: mailSubject,
+      html,
+      text: `Support reply for "${safeSubject}": ${safeReply}`,
+    });
+
+    if (sent) return true;
+    console.warn("[emailService] Resend send failed. Falling back to SMTP legacy path.");
+  }
+
+  const mailer = getTransporter();
+
+  if (!mailer) {
+    console.warn("[emailService] Attempted to send support reply email without SMTP configuration.");
+    return false;
+  }
+
+  try {
+    await sendMailWithPromise(mailer, { from, to, subject: mailSubject, html });
+    return true;
+  } catch (error) {
+    console.error("[emailService] Failed to send support reply email:", error?.message || error);
+    return false;
+  }
+}

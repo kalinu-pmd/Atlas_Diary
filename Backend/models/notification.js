@@ -4,12 +4,14 @@ const notificationSchema = mongoose.Schema(
   {
     user: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true }, // recipient
     fromUser: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true }, // actor
-    post: { type: mongoose.Schema.Types.ObjectId, ref: "Post", required: true },
+    post: { type: mongoose.Schema.Types.ObjectId, ref: "Post" },
+    supportMessage: { type: mongoose.Schema.Types.ObjectId, ref: "ContactMessage" },
     type: {
       type: String,
       enum: [
         "like",
         "comment",
+        "support_reply",
         // Admin alerted the post owner that their post was reported
         "report_alert",
         // Admin resolved a report (accepted changes)

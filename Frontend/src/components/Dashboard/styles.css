@@ -130,6 +130,21 @@ table td button.details:hover {
 	/* Off white */
 }
 
+/* Tighter name column spacing in admin messages table */
+.message-name-cell {
+	padding-left: 2px !important;
+	padding-right: 10px !important;
+}
+
+/* Highlight rows from signed-in users */
+.signed-in-row {
+	background-color: rgba(175, 250, 1, 0.08);
+}
+
+.signed-in-row:hover {
+	background-color: rgba(175, 250, 1, 0.16);
+}
+
 .dashboard-panel {
 	background-color: #fef9f5;
 	/* Off white */

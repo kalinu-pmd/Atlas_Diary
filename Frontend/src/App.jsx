@@ -17,6 +17,7 @@ import Profile from "./components/Profile/Profile";
 import HowItWorks from "./components/HowItWorks/HowItWorks";
 import About from "./components/About/About";
 import Contact from "./components/Contact/Contact";
+import Support from "./components/Support/Support";
 import Privacy from "./components/Privacy/Privacy";
 import NotFound from "./components/NotFound/NotFound";
 
@@ -85,6 +86,13 @@ const App = () => {
 						{/* Static / info pages */}
 						<Route path="/how-it-works" component={HowItWorks} />
 						<Route path="/about" component={About} />
+						<Route
+							path="/support"
+							exact
+							component={() =>
+								user ? <Support /> : <Redirect to="/auth" />
+							}
+						/>
 						<Route path="/contact" component={Contact} />
 						<Route path="/privacy" component={Privacy} />
 

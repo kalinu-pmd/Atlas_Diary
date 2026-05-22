@@ -222,14 +222,26 @@ export const fetchContactMessages = (page = 1, limit = 10) => {
 	return API.get(`/contact?page=${page}&limit=${limit}`);
 };
 
+export const fetchMyContactMessages = () => {
+	return API.get("/contact/mine");
+};
+
 export const getUnreadContactMessageCount = () => {
 	return API.get("/contact/unread-count");
 };
 
-export const markContactMessageAsResolved = (id) => {
-	return API.patch(`/contact/${id}/resolve`);
+export const markContactMessageAsResolved = (id, payload = {}) => {
+	return API.patch(`/contact/${id}/resolve`, payload);
 };
 
-export const deleteContactMessage = (id) => {
-	return API.delete(`/contact/${id}`);
+export const replyContactMessage = (id, payload) => {
+	return API.post(`/contact/${id}/reply`, payload);
+};
+
+export const adminReplyContactMessage = (id, payload) => {
+	return API.post(`/contact/${id}/admin-reply`, payload);
+};
+
+export const deleteContactMessage = (id, payload = {}) => {
+	return API.delete(`/contact/${id}`, { data: payload });
 };
