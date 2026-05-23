@@ -1424,7 +1424,7 @@ function Dashboard() {
 							}`}
 						>
 							<MdMessage size={16} />
-							Messages ({messages.length})
+							Messages ({unresolvedMessages.length})
 						</button>
 					</div>
 
