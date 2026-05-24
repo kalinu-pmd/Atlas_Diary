@@ -168,7 +168,7 @@ class RecommendationService {
       maxContentSimilarity = Math.max(maxContentSimilarity, similarity);
     });
     score += maxContentSimilarity * 0.35;
-
+    
     // Popularity score (15% weight) - based on likes and comments
     const popularityScore = (post.likes.length + post.comments.length) / 100;
     score += Math.min(popularityScore, 1) * 0.15;

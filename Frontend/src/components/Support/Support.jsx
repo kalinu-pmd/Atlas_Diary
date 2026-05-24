@@ -111,7 +111,7 @@ function Support() {
 		<div className="min-h-screen bg-off-white flex flex-col">
 			<section className="bg-gradient-to-br from-dark-green via-[#0a2d26] to-[#071e18] px-4 py-14 text-center">
 				<div className="max-w-3xl mx-auto">
-					<h1 className="text-white font-extrabold text-3xl sm:text-4xl mb-3">Support Center</h1>
+					<h1 className="text-white font-extrabold text-3xl sm:text-4xl mb-3">Support Centre</h1>
 				</div>
 			</section>
 

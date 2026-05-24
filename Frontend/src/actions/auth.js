@@ -26,6 +26,7 @@ export const signUp = (formData, history) => async (dispatch) => {
     );
     history.push(
       `/verify-email?email=${encodeURIComponent(
+        
         data?.email || formData.email,
       )}`,
       { formData },
