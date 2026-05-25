@@ -17,6 +17,10 @@ const postSchema = mongoose.Schema({
     type: [String],
     default: [],
   },
+  views: {
+    type: Number,
+    default: 0,
+  },
   comments: { type: [String], default: [] },
   location: {
     type: {

@@ -14,13 +14,13 @@ export default function CreatePost() {
   const reportId = location.state?.reportId || null;
 
   return (
-    <div className="min-h-screen bg-off-white py-12">
-      <div className="max-w-3xl mx-auto px-4">
-        <div className="bg-white/5 border border-light-green rounded-2xl p-6 shadow-lg">
-          <h1 className="text-2xl font-extrabold text-text-dark mb-3">
+    <div className="min-h-screen bg-off-white py-10 sm:py-14">
+      <div className="max-w-6xl mx-auto px-4">
+        <div className="bg-white/90 border border-light-green/60 rounded-3xl p-6 sm:p-8 lg:p-10 shadow-[0_18px_40px_rgba(12,52,44,0.12)]">
+          <h1 className="text-3xl sm:text-4xl font-extrabold text-text-dark mb-3">
             {isEditing ? "Update Your Post" : "Create a New Post"}
           </h1>
-          <p className="text-text-gray text-sm mb-6">
+          <p className="text-text-gray text-base mb-8 max-w-2xl">
             {isEditing
               ? "Edit your existing diary entry — adjust the text, tags, photos and location before resubmitting."
               : "Share your latest adventure with the community — upload photos, add tags and tell your story."}

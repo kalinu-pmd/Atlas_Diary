@@ -515,390 +515,397 @@ import { verifyPostLocation, sendPostForReview } from "../../api";
 					<p className="text-red-500 text-sm font-medium">{error}</p>
 				)}
 
-				{/* Title */}
-				<div className="flex flex-col gap-1">
-					<label
-						htmlFor="title"
-						className="text-xs font-semibold text-dark-green"
-					>
-						Title <span className="text-red-500">*</span>
-					</label>
-					<input
-						id="title"
-						name="title"
-						value={postData.title}
-						maxLength={MAX_TITLE_CHARS}
-						onChange={(e) =>
-							setPostData({
-								...postData,
-								title: e.target.value,
-							})
-						}
-						placeholder="e.g. Sunset walk at Lakeside"
-						className="w-full bg-off-white border border-dark-green hover:border-light-green focus:border-dark-green focus:outline-none rounded-md px-3 py-2 text-sm text-text-dark transition-colors"
-					/>
-					<p className="text-[11px] text-text-gray text-right">
-						{postData.title.length}/{MAX_TITLE_CHARS}
-					</p>
-				</div>
-
-				{/* Message */}
-				<div className="flex flex-col gap-1">
-					<label
-						htmlFor="message"
-						className="text-xs font-semibold text-dark-green"
-					>
-						Message <span className="text-red-500">*</span>
-					</label>
-					<textarea
-						id="message"
-						name="message"
-						rows={4}
-						value={postData.message}
-						maxLength={MAX_MESSAGE_CHARS}
-						onChange={(e) =>
-							setPostData({
-								...postData,
-								message: e.target.value,
-							})
-						}
-						placeholder="What's on your mind?"
-						className="w-full bg-off-white border border-dark-green hover:border-light-green focus:border-dark-green focus:outline-none rounded-md px-3 py-2 text-sm text-text-dark transition-colors resize-y"
-					/>
-					<p className="text-[11px] text-text-gray text-right">
-						{postData.message.length}/{MAX_MESSAGE_CHARS}
-					</p>
-				</div>
-
-				{/* Tags */}
-				<div className="flex flex-col gap-1">
-					<label
-						htmlFor="tags"
-						className="text-xs font-semibold text-dark-green"
-					>
-						Add hashtags (no need to add #, separate words using comma){" "}
-						<span className="text-red-500">*</span>
-					</label>
-					<input
-						id="tags"
-						name="tags"
-						value={
-							Array.isArray(postData.tags)
-								? postData.tags.join(",")
-								: postData.tags
-						}
-						onChange={(e) =>
-							setPostData({
-								...postData,
-								tags: e.target.value.split(","),
-							})
-						}
-						placeholder="mountains, cafe, chiya break"
-						className="w-full bg-off-white border border-dark-green hover:border-light-green focus:border-dark-green focus:outline-none rounded-md px-3 py-2 text-sm text-text-dark transition-colors"
-					/>
-				</div>
-
-				{/* Location (Search + Pin) */}
-				<div className="rounded-xl border-2 border-light-green/60 bg-gradient-to-br from-off-white via-off-white to-light-green/10 p-4 shadow-sm">
-					<div className="mb-2">
-						<p className="text-sm font-bold text-dark-green">
-							Find Your Place <span className="text-red-500">*</span>
-						</p>
-						<p className="text-xs text-text-gray">
-							Search first for best accuracy. If needed, fine-tune by pinning on map.
-						</p>
-					</div>
-
-					<LocationPicker
-						value={postData.location}
-						onChange={(loc, meta) => {
-							setPostData((prev) => {
-								const next = { ...prev, location: loc };
-								if (meta?.source === "search" && meta?.placeName) {
-									next.locationName = meta.placeName;
+				<div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+					<div className="space-y-4">
+						{/* Title */}
+						<div className="flex flex-col gap-1">
+							<label
+								htmlFor="title"
+								className="text-xs font-semibold text-dark-green"
+							>
+								Title <span className="text-red-500">*</span>
+							</label>
+							<input
+								id="title"
+								name="title"
+								value={postData.title}
+								maxLength={MAX_TITLE_CHARS}
+								onChange={(e) =>
+									setPostData({
+										...postData,
+										title: e.target.value,
+									})
 								}
-								return next;
-							});
-							setAutoVerifyAfterSearch(meta?.source === "search");
-							setLocationVerification(null);
-						}}
-					/>
-
-					<div className="mt-2 flex flex-col gap-1">
-						<label
-							htmlFor="locationName"
-							className="text-xs font-semibold text-dark-green"
-						>
-							Enter location name <span className="text-red-500">*</span>
-						</label>
-						<input
-							id="locationName"
-							name="locationName"
-							value={postData.locationName || ""}
-							onChange={(e) =>
-								setPostData({ ...postData, locationName: e.target.value })
-							}
-							placeholder="Auto-filled from search (you can edit)"
-							className="w-full bg-white border border-dark-green/40 hover:border-light-green focus:border-dark-green focus:outline-none rounded-md px-3 py-2 text-sm text-text-dark transition-colors"
-						/>
-					</div>
-
-					{postData.location && (
-						<div className="mt-2 text-xs text-text-gray bg-white/70 border border-dark-green/10 rounded-md px-2 py-1">
-							Selected pin: Lat {postData.location.lat}, Lng {postData.location.lng}
+								placeholder="e.g. Sunset walk at Lakeside"
+								className="w-full bg-off-white border border-dark-green hover:border-light-green focus:border-dark-green focus:outline-none rounded-md px-4 py-2.5 text-sm text-text-dark transition-colors"
+							/>
+							<p className="text-[11px] text-text-gray text-right">
+								{postData.title.length}/{MAX_TITLE_CHARS}
+							</p>
 						</div>
-					)}
 
-					<div className="flex gap-2 mt-3">
-						<button
-							type="button"
-							onClick={handleVerifyLocation}
-							disabled={isVerifyingLocation}
-							className={`flex-1 px-4 py-3 rounded-lg text-sm font-bold border-2 transition-all transform ${
-								locationVerification?.status === "within-radius"
-									? "bg-dark-green text-off-white border-dark-green shadow-lg hover:shadow-xl"
-									: "bg-light-green text-text-dark border-dark-green shadow-md hover:shadow-lg hover:bg-light-green-hover"
-							} ${
-								isVerifyingLocation ? "opacity-75 cursor-not-allowed" : "cursor-pointer"
-							}`}
-						>
-							{isVerifyingLocation ? (
-								<>
-									<span className="inline-block mr-2">⏳</span>
-									Verifying Location...
-								</>
-							) : locationVerification?.status === "within-radius" ? (
-								<>
-									<span className="inline-block mr-2">✅</span>
-									Location Verified!
-								</>
-							) : (
-								<>
-									<span className="inline-block mr-2">📍</span>
-									Verify Location
-								</>
-							)}
-						</button>
-					</div>
-					<p className="text-xs text-text-gray italic mt-2">
-						⭐ Tip: Searching by place name is usually more accurate than manual pinning.
-					</p>
-					{locationVerification && (
-						<div
-							className={`text-[11px] mt-1 ${
-								locationVerification.status === "within-radius"
-									? "text-dark-green"
-								: locationVerification.status === "within-search-radius" ||
-								  locationVerification.status === "outside-radius"
-									? "text-orange"
-								: locationVerification.status === "service-unavailable" ||
-								  locationVerification.status === "error" ||
-								  locationVerification.status === "no-text"
-									? "text-orange"
-								: "text-text-gray"
-							}`}
-						>
-							{locationVerification.status === "within-radius" && (
-								<span>
-									Location verified within 20km
-									{locationVerification.placeName
-										? `: ${locationVerification.placeName}`
-										: "."}
-								</span>
-							)}
-							{locationVerification.status === "within-search-radius" && (
-								<span>
-									Location is within 50km, move pin closer to the location.
-								</span>
-							)}
-							{locationVerification.status === "outside-radius" && (
-								<span>
-									Mentioned place is more than 50km away from the pin.
-								</span>
-							)}
-							{locationVerification.status === "no-match" && (
-								<span>
-									No nearby place could be verified automatically.
-								</span>
-							)}
-							{locationVerification.status === "no-text" && (
-								<span>
-									Add a place name in the Location name field to verify the location.
-								</span>
-							)}
-							{locationVerification.status === "service-unavailable" && (
-								<span>
-									Place verification service is unavailable; using your pin as-is.
-								</span>
-							)}
-							{locationVerification.status === "error" && (
-								<span>
-									Could not contact the verification service; using your pin as-is.
-								</span>
-							)}
+						{/* Message */}
+						<div className="flex flex-col gap-1">
+							<label
+								htmlFor="message"
+								className="text-xs font-semibold text-dark-green"
+							>
+								Message <span className="text-red-500">*</span>
+							</label>
+							<textarea
+								id="message"
+								name="message"
+								rows={6}
+								value={postData.message}
+								maxLength={MAX_MESSAGE_CHARS}
+								onChange={(e) =>
+									setPostData({
+										...postData,
+										message: e.target.value,
+									})
+								}
+								placeholder="What's on your mind?"
+								className="w-full bg-off-white border border-dark-green hover:border-light-green focus:border-dark-green focus:outline-none rounded-md px-4 py-2.5 text-sm text-text-dark transition-colors resize-y"
+							/>
+							<p className="text-[11px] text-text-gray text-right">
+								{postData.message.length}/{MAX_MESSAGE_CHARS}
+							</p>
 						</div>
-					)}
-				</div>
 
-				{/* File upload */}
-				<div className="w-full p-4 bg-light-green/5 border border-dark-green rounded-xl">
-					<p className="text-dark-green font-semibold text-sm mb-2">
-						Upload Images (Optional)
-					</p>
-					<div
-						onPaste={handlePasteImages}
-						tabIndex={0}
-						className="mb-3 rounded-md border border-dashed border-dark-green/40 bg-white/70 px-3 py-2 text-xs text-text-gray focus:outline-none focus:ring-2 focus:ring-light-green/70"
-						title="Click here and press Ctrl+V to paste an image from clipboard"
-					>
-						Paste from clipboard: click this box and press Ctrl+V
-					</div>
-					{(Array.isArray(postData.selectedFile)
-						? postData.selectedFile.length > 0
-						: !!postData.selectedFile) && (
-						<div className="mb-3 grid grid-cols-2 sm:grid-cols-3 gap-2">
-							{(Array.isArray(postData.selectedFile)
-								? postData.selectedFile
-								: [postData.selectedFile]
-							).map((image, idx) => (
-								<div key={idx} className="relative">
-									<img
-										src={image}
-										alt={`Existing upload ${idx + 1}`}
-										className="w-full h-24 object-cover rounded-md border border-dark-green/20"
-										onError={(e) => {
-											e.target.onerror = null;
-											e.target.src =
-												"https://user-images.githubusercontent.com/194400/49531010-48dad180-f8b1-11e8-8d89-1e61320e1d82.png";
-										}}
+						{/* Tags */}
+						<div className="flex flex-col gap-1">
+							<label
+								htmlFor="tags"
+								className="text-xs font-semibold text-dark-green"
+							>
+								Add hashtags (no need to add #, separate words using comma){" "}
+								<span className="text-red-500">*</span>
+							</label>
+							<input
+								id="tags"
+								name="tags"
+								value={
+									Array.isArray(postData.tags)
+										? postData.tags.join(",")
+										: postData.tags
+								}
+								onChange={(e) =>
+									setPostData({
+										...postData,
+										tags: e.target.value.split(","),
+									})
+								}
+								placeholder="mountains, cafe, chiya break"
+								className="w-full bg-off-white border border-dark-green hover:border-light-green focus:border-dark-green focus:outline-none rounded-md px-4 py-2.5 text-sm text-text-dark transition-colors"
+							/>
+						</div>
+
+							{/* File upload */}
+							<div className="w-full p-4 bg-light-green/5 border border-dark-green rounded-xl">
+								<p className="text-dark-green font-semibold text-sm mb-2">
+									Upload Images (Optional)
+								</p>
+								<div
+									onPaste={handlePasteImages}
+									tabIndex={0}
+									className="mb-3 rounded-md border border-dashed border-dark-green/40 bg-white/70 px-3 py-2 text-xs text-text-gray focus:outline-none focus:ring-2 focus:ring-light-green/70"
+									title="Click here and press Ctrl+V to paste an image from clipboard"
+								>
+									Paste from clipboard: click this box and press Ctrl+V
+								</div>
+								{(Array.isArray(postData.selectedFile)
+									? postData.selectedFile.length > 0
+									: !!postData.selectedFile) && (
+									<div className="mb-3 grid grid-cols-2 sm:grid-cols-3 gap-2">
+										{(Array.isArray(postData.selectedFile)
+											? postData.selectedFile
+											: [postData.selectedFile]
+										).map((image, idx) => (
+											<div key={idx} className="relative">
+												<img
+													src={image}
+													alt={`Existing upload ${idx + 1}`}
+													className="w-full h-24 object-cover rounded-md border border-dark-green/20"
+													onError={(e) => {
+														e.target.onerror = null;
+														e.target.src =
+														"https://user-images.githubusercontent.com/194400/49531010-48dad180-f8b1-11e8-8d89-1e61320e1d82.png";
+												}}
+												/>
+												{idx === 0 && (
+													<span className="absolute left-1 top-1 text-[10px] font-bold bg-dark-green text-off-white px-2 py-0.5 rounded-full">
+														1st
+													</span>
+												)}
+												<button
+													type="button"
+													onClick={() => handleRemoveImage(idx)}
+													className="absolute top-1 right-1 w-6 h-6 rounded-full bg-black/70 text-white text-xs font-bold hover:bg-orange transition-colors"
+													title="Remove this image"
+												>
+													×
+												</button>
+												<div className="absolute bottom-1 left-1 right-1 flex gap-1">
+													<button
+														type="button"
+														onClick={() => moveImage(idx, idx - 1)}
+														disabled={idx === 0}
+														className="flex-1 text-[10px] font-semibold bg-black/65 text-white rounded px-1 py-0.5 disabled:opacity-40"
+														title="Move left"
+													>
+														←
+													</button>
+													<button
+														type="button"
+														onClick={() => setImageAsFirst(idx)}
+														disabled={idx === 0}
+														className="flex-1 text-[10px] font-semibold bg-black/65 text-white rounded px-1 py-0.5 disabled:opacity-40"
+														title="Set as first image"
+													>
+														1st
+													</button>
+													<button
+														type="button"
+														onClick={() => moveImage(idx, idx + 1)}
+														disabled={
+														idx ===
+														(Array.isArray(postData.selectedFile)
+															? postData.selectedFile.length
+															: [postData.selectedFile].length) -
+															1
+													}
+													className="flex-1 text-[10px] font-semibold bg-black/65 text-white rounded px-1 py-0.5 disabled:opacity-40"
+													title="Move right"
+												>
+													→
+												</button>
+											</div>
+										</div>
+									))}
+								</div>
+								)}
+								<div className="flex flex-wrap gap-2 items-center">
+									<input
+										ref={fileInputRef}
+										type="file"
+										accept="image/*"
+										multiple
+										onChange={handleSelectImages}
+										className="hidden"
 									/>
-									{idx === 0 && (
-										<span className="absolute left-1 top-1 text-[10px] font-bold bg-dark-green text-off-white px-2 py-0.5 rounded-full">
-											1st
-										</span>
-									)}
 									<button
 										type="button"
-										onClick={() => handleRemoveImage(idx)}
-										className="absolute top-1 right-1 w-6 h-6 rounded-full bg-black/70 text-white text-xs font-bold hover:bg-orange transition-colors"
-										title="Remove this image"
+										onClick={() => fileInputRef.current?.click()}
+										className="px-3 py-2 rounded-md bg-dark-green text-off-white text-sm font-semibold hover:bg-dark-green-hover transition-colors"
 									>
-										×
+										Add Photos
 									</button>
-									<div className="absolute bottom-1 left-1 right-1 flex gap-1">
-										<button
-											type="button"
-											onClick={() => moveImage(idx, idx - 1)}
-											disabled={idx === 0}
-											className="flex-1 text-[10px] font-semibold bg-black/65 text-white rounded px-1 py-0.5 disabled:opacity-40"
-											title="Move left"
-										>
-											←
-										</button>
-										<button
-											type="button"
-											onClick={() => setImageAsFirst(idx)}
-											disabled={idx === 0}
-											className="flex-1 text-[10px] font-semibold bg-black/65 text-white rounded px-1 py-0.5 disabled:opacity-40"
-											title="Set as first image"
-										>
-											1st
-										</button>
-										<button
-											type="button"
-											onClick={() => moveImage(idx, idx + 1)}
-											disabled={
-												idx ===
-												(Array.isArray(postData.selectedFile)
-													? postData.selectedFile.length
-													: [postData.selectedFile].length) -
-													1
-											}
-											className="flex-1 text-[10px] font-semibold bg-black/65 text-white rounded px-1 py-0.5 disabled:opacity-40"
-											title="Move right"
-										>
-											→
-										</button>
-									</div>
+									{(Array.isArray(postData.selectedFile)
+										? postData.selectedFile.length > 0
+										: !!postData.selectedFile) && (
+										<>
+											<span className="text-xs text-text-gray font-medium">
+												{Array.isArray(postData.selectedFile)
+													? `${postData.selectedFile.length} image${postData.selectedFile.length > 1 ? "s" : ""} selected`
+													: "1 image selected"}
+											</span>
+											<button
+												type="button"
+												onClick={handleClearImages}
+												className="px-3 py-2 rounded-md bg-orange/10 text-orange text-sm font-semibold hover:bg-orange/20 transition-colors"
+											>
+												Remove All
+											</button>
+										</>
+									)}
 								</div>
-							))}
+								<p className="text-text-gray text-xs italic mt-2">
+									Max file size: 12 MB. Use arrows or "1st" to rearrange display order.
+									Supported formats: JPG, PNG, GIF
+								</p>
+							</div>
 						</div>
-					)}
-					<div className="flex flex-wrap gap-2 items-center">
-						<input
-							ref={fileInputRef}
-							type="file"
-							accept="image/*"
-							multiple
-							onChange={handleSelectImages}
-							className="hidden"
-						/>
-						<button
-							type="button"
-							onClick={() => fileInputRef.current?.click()}
-							className="px-3 py-2 rounded-md bg-dark-green text-off-white text-sm font-semibold hover:bg-dark-green-hover transition-colors"
-						>
-							Add Photos
-						</button>
-						{(Array.isArray(postData.selectedFile)
-							? postData.selectedFile.length > 0
-							: !!postData.selectedFile) && (
-							<>
-								<span className="text-xs text-text-gray font-medium">
-									{Array.isArray(postData.selectedFile)
-										? `${postData.selectedFile.length} image${postData.selectedFile.length > 1 ? "s" : ""} selected`
-										: "1 image selected"}
-								</span>
+
+						<div className="space-y-4">
+						{/* Location (Search + Pin) */}
+						<div className="rounded-xl border-2 border-light-green/60 bg-gradient-to-br from-off-white via-off-white to-light-green/10 p-4 shadow-sm">
+							<div className="mb-2">
+								<p className="text-sm font-bold text-dark-green">
+									Find Your Place <span className="text-red-500">*</span>
+								</p>
+								<p className="text-xs text-text-gray">
+									Search first for best accuracy. If needed, fine-tune by pinning on map.
+								</p>
+							</div>
+
+							<LocationPicker
+								value={postData.location}
+								onChange={(loc, meta) => {
+									setPostData((prev) => {
+										const next = { ...prev, location: loc };
+										if (meta?.source === "search" && meta?.placeName) {
+											next.locationName = meta.placeName;
+										}
+										return next;
+									});
+									setAutoVerifyAfterSearch(meta?.source === "search");
+									setLocationVerification(null);
+								}}
+							/>
+
+							<div className="mt-2 flex flex-col gap-1">
+								<label
+									htmlFor="locationName"
+									className="text-xs font-semibold text-dark-green"
+								>
+									Enter location name <span className="text-red-500">*</span>
+								</label>
+								<input
+									id="locationName"
+									name="locationName"
+									value={postData.locationName || ""}
+									onChange={(e) =>
+										setPostData({ ...postData, locationName: e.target.value })
+									}
+									placeholder="Auto-filled from search (you can edit)"
+									className="w-full bg-white border border-dark-green/40 hover:border-light-green focus:border-dark-green focus:outline-none rounded-md px-3 py-2 text-sm text-text-dark transition-colors"
+								/>
+							</div>
+
+							{postData.location && (
+								<div className="mt-2 text-xs text-text-gray bg-white/70 border border-dark-green/10 rounded-md px-2 py-1">
+									Selected pin: Lat {postData.location.lat}, Lng {postData.location.lng}
+								</div>
+							)}
+
+							<div className="flex gap-2 mt-3">
 								<button
 									type="button"
-									onClick={handleClearImages}
-									className="px-3 py-2 rounded-md bg-orange/10 text-orange text-sm font-semibold hover:bg-orange/20 transition-colors"
+									onClick={handleVerifyLocation}
+									disabled={isVerifyingLocation}
+									className={`flex-1 px-4 py-3 rounded-lg text-sm font-bold border-2 transition-all transform ${
+										locationVerification?.status === "within-radius"
+											? "bg-dark-green text-off-white border-dark-green shadow-lg hover:shadow-xl"
+											: "bg-light-green text-text-dark border-dark-green shadow-md hover:shadow-lg hover:bg-light-green-hover"
+									} ${
+										isVerifyingLocation ? "opacity-75 cursor-not-allowed" : "cursor-pointer"
+									}`}
 								>
-									Remove All
+									{isVerifyingLocation ? (
+										<>
+											<span className="inline-block mr-2">⏳</span>
+											Verifying Location...
+										</>
+									) : locationVerification?.status === "within-radius" ? (
+										<>
+											<span className="inline-block mr-2">✅</span>
+											Location Verified!
+										</>
+									) : (
+										<>
+											<span className="inline-block mr-2">📍</span>
+											Verify Location
+										</>
+									)}
 								</button>
-							</>
-						)}
+							</div>
+							<p className="text-xs text-text-gray italic mt-2">
+								⭐ Tip: Searching by place name is usually more accurate than manual pinning.
+							</p>
+							{locationVerification && (
+								<div
+									className={`text-[11px] mt-1 ${
+										locationVerification.status === "within-radius"
+											? "text-dark-green"
+										: locationVerification.status === "within-search-radius" ||
+										  locationVerification.status === "outside-radius"
+											? "text-orange"
+										: locationVerification.status === "service-unavailable" ||
+										  locationVerification.status === "error" ||
+										  locationVerification.status === "no-text"
+											? "text-orange"
+										: "text-text-gray"
+									}`}
+								>
+									{locationVerification.status === "within-radius" && (
+										<span>
+											Location verified within 20km
+											{locationVerification.placeName
+												? `: ${locationVerification.placeName}`
+												: "."}
+										</span>
+									)}
+									{locationVerification.status === "within-search-radius" && (
+										<span>
+											Location is within 50km, move pin closer to the location.
+										</span>
+									)}
+									{locationVerification.status === "outside-radius" && (
+										<span>
+											Mentioned place is more than 50km away from the pin.
+										</span>
+									)}
+									{locationVerification.status === "no-match" && (
+										<span>
+											No nearby place could be verified automatically.
+										</span>
+									)}
+									{locationVerification.status === "no-text" && (
+										<span>
+											Add a place name in the Location name field to verify the location.
+										</span>
+									)}
+									{locationVerification.status === "service-unavailable" && (
+										<span>
+											Place verification service is unavailable; using your pin as-is.
+										</span>
+									)}
+									{locationVerification.status === "error" && (
+										<span>
+											Could not contact the verification service; using your pin as-is.
+										</span>
+									)}
+								</div>
+							)}
+						</div>
+
 					</div>
-					<p className="text-text-gray text-xs italic mt-2">
-						Max file size: 12 MB. Use arrows or "1st" to rearrange display order.
-						Supported formats: JPG, PNG, GIF
-					</p>
 				</div>
 
-				{/* Submit */}
-				<button
-					type="submit"
-							disabled={
-								isSubmitting ||
-								(!selectedPost && (!locationVerification || locationVerification.status !== "within-radius"))
-							}
-							className={`w-full font-bold py-2.5 rounded-md transition-colors mt-1 ${
-								isSubmitting ||
-								(!selectedPost && (!locationVerification || locationVerification.status !== "within-radius"))
-									? "bg-light-green/40 text-text-gray cursor-not-allowed"
-									: "bg-light-green hover:bg-light-green-hover text-text-dark"
-							}`}
-				>
-							{isSubmitting
-								? selectedPost
-									? "Updating..."
-									: "Uploading..."
-								: selectedPost
-									? "Update Post"
-									: "Submit"}
-				</button>
+				<div className="flex flex-col sm:flex-row gap-3 pt-2">
+					<button
+						type="submit"
+						disabled={
+							isSubmitting ||
+							(!selectedPost && (!locationVerification || locationVerification.status !== "within-radius"))
+						}
+						className={`w-full font-bold py-2.5 rounded-md transition-colors ${
+							isSubmitting ||
+							(!selectedPost && (!locationVerification || locationVerification.status !== "within-radius"))
+								? "bg-light-green/40 text-text-gray cursor-not-allowed"
+								: "bg-light-green hover:bg-light-green-hover text-text-dark"
+						}`}
+					>
+						{isSubmitting
+							? selectedPost
+								? "Updating..."
+								: "Uploading..."
+							: selectedPost
+								? "Update Post"
+								: "Submit"}
+					</button>
 
-				{/* Clear */}
-				<button
-					type="button"
-					onClick={() => {
-						clearPost();
-						toast.info("Form cleared!");
-					}}
-					className="w-full bg-orange/10 hover:bg-orange/20 text-orange font-semibold py-2 rounded-md text-sm transition-colors"
-				>
-					Clear
-				</button>
+					<button
+						type="button"
+						onClick={() => {
+							clearPost();
+							toast.info("Form cleared!");
+						}}
+						className="w-full bg-orange/10 hover:bg-orange/20 text-orange font-semibold py-2 rounded-md text-sm transition-colors"
+					>
+						Clear
+					</button>
+				</div>
 			</form>
 		</div>
 	);

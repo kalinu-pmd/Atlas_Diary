@@ -11,6 +11,37 @@ const SEARCH_SCAN_LIMIT_MAX = 500;
 const SEARCH_SCAN_LIMIT_DEFAULT = 200;
 const MAX_POST_IMAGE_SIZE_MB = Number(process.env.MAX_POST_IMAGE_SIZE_MB || 12);
 const MAX_POST_IMAGE_SIZE_BYTES = MAX_POST_IMAGE_SIZE_MB * 1024 * 1024;
+const FEED_RECENT_WEIGHT = Number(process.env.FEED_RECENT_WEIGHT || 0.55);
+const FEED_RECENT_RATIO = Number.isFinite(FEED_RECENT_WEIGHT)
+  ? Math.min(1, Math.max(0, FEED_RECENT_WEIGHT))
+  : 0.55;
+
+const stemWord = (value) => {
+  const raw = String(value || "").toLowerCase().trim();
+  if (raw.length < 4) return raw;
+
+  if (raw.endsWith("ies") && raw.length > 4) {
+    return `${raw.slice(0, -3)}y`;
+  }
+
+  if (raw.endsWith("ing") && raw.length > 5) {
+    return raw.slice(0, -3);
+  }
+
+  if (raw.endsWith("ed") && raw.length > 4) {
+    return raw.slice(0, -2);
+  }
+
+  if (raw.endsWith("es") && raw.length > 4) {
+    return raw.slice(0, -2);
+  }
+
+  if (raw.endsWith("s") && !raw.endsWith("ss") && raw.length > 4) {
+    return raw.slice(0, -1);
+  }
+
+  return raw;
+};
 
 const SEARCH_FIELDS = {
   _id: 1,
@@ -68,30 +99,122 @@ export const getPosts = async (req, res) => {
     // If caller requested a lightweight summary (e.g., main feed/dashboard),
     // trim heavy fields so the response is much smaller for hosted clients.
     if (summary === "true") {
-      const summarized = await PostMessage.aggregate([
-        { $sort: { _id: -1 } },
-        { $skip: startIndex },
-        { $limit: LIMIT },
-        {
-          $project: {
-            _id: 1,
-            title: 1,
-            message: 1,
-            name: 1,
-            creator: 1,
-            tags: 1,
-            selectedFile: 1,
-            likes: 1,
-            commentsCount: { $size: { $ifNull: ["$comments", []] } },
-            createdAt: 1,
-            authorImage: 1,
-            locationName: 1,
-            location: 1,
+      const [recent, popular] = await Promise.all([
+        PostMessage.aggregate([
+          { $sort: { _id: -1 } },
+          { $skip: startIndex },
+          { $limit: LIMIT },
+          {
+            $project: {
+              _id: 1,
+              title: 1,
+              message: 1,
+              name: 1,
+              creator: 1,
+              tags: 1,
+              selectedFile: 1,
+              likes: 1,
+              views: 1,
+              commentsCount: { $size: { $ifNull: ["$comments", []] } },
+              createdAt: 1,
+              authorImage: 1,
+              locationName: 1,
+              location: 1,
+            },
           },
-        },
+        ]),
+        PostMessage.aggregate([
+          {
+            $addFields: {
+              likesCount: { $size: { $ifNull: ["$likes", []] } },
+              commentsCount: { $size: { $ifNull: ["$comments", []] } },
+              viewsCount: { $ifNull: ["$views", 0] },
+            },
+          },
+          {
+            $addFields: {
+              popularityScore: {
+                $add: ["$likesCount", "$commentsCount", "$viewsCount"],
+              },
+            },
+          },
+          { $sort: { popularityScore: -1, createdAt: -1 } },
+          { $skip: startIndex },
+          { $limit: LIMIT },
+          {
+            $project: {
+              _id: 1,
+              title: 1,
+              message: 1,
+              name: 1,
+              creator: 1,
+              tags: 1,
+              selectedFile: 1,
+              likes: 1,
+              views: 1,
+              commentsCount: { $size: { $ifNull: ["$comments", []] } },
+              createdAt: 1,
+              authorImage: 1,
+              locationName: 1,
+              location: 1,
+            },
+          },
+        ]),
       ]);
 
-      const normalized = summarized.map((obj) => ({
+      const merged = [];
+      const seen = new Set();
+      const recentTarget = Math.max(1, Math.ceil(LIMIT * FEED_RECENT_RATIO));
+      const popularTarget = Math.max(0, LIMIT - recentTarget);
+      let recentAdded = 0;
+      let popularAdded = 0;
+      let i = 0;
+      let j = 0;
+
+      while (merged.length < LIMIT && (i < recent.length || j < popular.length)) {
+        if (recentAdded < recentTarget && i < recent.length) {
+          const item = recent[i++];
+          const key = String(item?._id || "");
+          if (key && !seen.has(key)) {
+            seen.add(key);
+            merged.push(item);
+            recentAdded += 1;
+          }
+          continue;
+        }
+
+        if (popularAdded < popularTarget && j < popular.length) {
+          const item = popular[j++];
+          const key = String(item?._id || "");
+          if (key && !seen.has(key)) {
+            seen.add(key);
+            merged.push(item);
+            popularAdded += 1;
+          }
+          continue;
+        }
+
+        if (i < recent.length) {
+          const item = recent[i++];
+          const key = String(item?._id || "");
+          if (key && !seen.has(key)) {
+            seen.add(key);
+            merged.push(item);
+          }
+          continue;
+        }
+
+        if (j < popular.length) {
+          const item = popular[j++];
+          const key = String(item?._id || "");
+          if (key && !seen.has(key)) {
+            seen.add(key);
+            merged.push(item);
+          }
+        }
+      }
+
+      const normalized = merged.map((obj) => ({
         ...obj,
         selectedFile: Array.isArray(obj.selectedFile)
           ? obj.selectedFile
@@ -108,10 +231,83 @@ export const getPosts = async (req, res) => {
       });
     }
 
-    const posts = await PostMessage.find()
-      .sort({ _id: -1 })
-      .limit(LIMIT)
-      .skip(startIndex);
+    const [recentPosts, popularPosts] = await Promise.all([
+      PostMessage.find()
+        .sort({ _id: -1 })
+        .limit(LIMIT)
+        .skip(startIndex),
+      PostMessage.aggregate([
+        {
+          $addFields: {
+            likesCount: { $size: { $ifNull: ["$likes", []] } },
+            commentsCount: { $size: { $ifNull: ["$comments", []] } },
+            viewsCount: { $ifNull: ["$views", 0] },
+          },
+        },
+        {
+          $addFields: {
+            popularityScore: {
+              $add: ["$likesCount", "$commentsCount", "$viewsCount"],
+            },
+          },
+        },
+        { $sort: { popularityScore: -1, createdAt: -1 } },
+        { $skip: startIndex },
+        { $limit: LIMIT },
+      ]),
+    ]);
+
+    const posts = [];
+    const seen = new Set();
+    const recentTarget = Math.max(1, Math.ceil(LIMIT * FEED_RECENT_RATIO));
+    const popularTarget = Math.max(0, LIMIT - recentTarget);
+    let recentAdded = 0;
+    let popularAdded = 0;
+    let i = 0;
+    let j = 0;
+
+    while (posts.length < LIMIT && (i < recentPosts.length || j < popularPosts.length)) {
+      if (recentAdded < recentTarget && i < recentPosts.length) {
+        const item = recentPosts[i++];
+        const key = String(item?._id || "");
+        if (key && !seen.has(key)) {
+          seen.add(key);
+          posts.push(item);
+          recentAdded += 1;
+        }
+        continue;
+      }
+
+      if (popularAdded < popularTarget && j < popularPosts.length) {
+        const item = popularPosts[j++];
+        const key = String(item?._id || "");
+        if (key && !seen.has(key)) {
+          seen.add(key);
+          posts.push(item);
+          popularAdded += 1;
+        }
+        continue;
+      }
+
+      if (i < recentPosts.length) {
+        const item = recentPosts[i++];
+        const key = String(item?._id || "");
+        if (key && !seen.has(key)) {
+          seen.add(key);
+          posts.push(item);
+        }
+        continue;
+      }
+
+      if (j < popularPosts.length) {
+        const item = popularPosts[j++];
+        const key = String(item?._id || "");
+        if (key && !seen.has(key)) {
+          seen.add(key);
+          posts.push(item);
+        }
+      }
+    }
 
     res.status(200).json({
       data: posts,
@@ -260,23 +456,33 @@ export const getPostsBySearch = async (req, res) => {
     const escapeRegExp = (str) => str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
     let words = [];
+    let stemmedWords = [];
     let tagArray = [];
     const andConditions = [];
 
     if (hasSearch) {
       // Split search into words and require **all** words to be present
       words = search.trim().split(/\s+/).filter(Boolean);
+      stemmedWords = words.map((word) => stemWord(word));
 
-      words.forEach((word) => {
-        const safe = escapeRegExp(word);
-        // Match whole words in title/message and also check tags
-        const regex = new RegExp(`\\b${safe}\\b`, "i");
+      words.forEach((word, index) => {
+        const stem = stemmedWords[index];
+        const safeStem = escapeRegExp(stem);
+        const useStem = stem.length >= 4;
+        const regex = useStem
+          ? new RegExp(`\\b${safeStem}\\w*\\b`, "i")
+          : new RegExp(`\\b${escapeRegExp(word)}\\b`, "i");
+        const tagCandidates = useStem
+          ? [word.toLowerCase(), stem, `${stem}s`]
+          : [word.toLowerCase()];
+        const tagMatches = Array.from(new Set(tagCandidates.filter(Boolean)));
+
         andConditions.push({
           $or: [
             { title: regex },
             { message: regex },
             { locationName: regex },
-            { tags: { $in: [word.toLowerCase()] } },
+            { tags: { $in: tagMatches } },
           ],
         });
       });
@@ -304,6 +510,9 @@ export const getPostsBySearch = async (req, res) => {
     // posts with the place/title/message match appear first.
     if (hasSearch && words.length > 0 && posts.length > 1) {
       const lowerWords = words.map((w) => w.toLowerCase());
+      const lowerStems = stemmedWords.length > 0
+        ? stemmedWords.map((w) => w.toLowerCase())
+        : lowerWords;
 
       posts = posts
         .map((post) => {
@@ -315,11 +524,11 @@ export const getPostsBySearch = async (req, res) => {
             ? post.tags.map((t) => (t || "").toLowerCase())
             : [];
 
-          lowerWords.forEach((word) => {
+          lowerStems.forEach((word) => {
             const inLocation = locationName.includes(word);
             const inTitle = title.includes(word);
             const inMessage = message.includes(word);
-            const inTags = tags.includes(word);
+            const inTags = tags.some((tag) => tag.startsWith(word));
 
             if (inLocation) score += 6; // strongest signal for place searches
             if (inTitle) score += 5;
@@ -1025,6 +1234,7 @@ export const trackPostView = async (req, res) => {
   const { id } = req.params;
   try {
     if (req.userId) {
+      await PostMessage.updateOne({ _id: id }, { $inc: { views: 1 } });
       await recommendationService.updateUserPreferences(req.userId, id, "view");
     }
     res.status(200).json({ message: "View tracked" });

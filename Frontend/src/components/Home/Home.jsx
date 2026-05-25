@@ -35,9 +35,16 @@ export default function Home() {
 	const [hasMore, setHasMore] = useState(true);
 	const loadMoreRef = useRef(null);
 	const [showScrollTop, setShowScrollTop] = useState(false);
+	const searchDispatchRef = useRef(false);
 
+	const hasSearchQuery = Boolean(searchQuery && searchQuery !== "none");
+	const hasLocationQuery =
+		Number.isFinite(Number(latQuery)) && Number.isFinite(Number(lngQuery));
+	const hasLocalFilters = Boolean(search.trim()) || Boolean(pinnedLocation);
+	const isSearchRoute = routeLocation.pathname === "/posts/search";
 	const isSearchActive =
-		Boolean(search.trim()) || Boolean(pinnedLocation);
+		isSearchRoute &&
+		(hasSearchQuery || hasLocationQuery || hasLocalFilters);
 	const isLocationResultMode =
 		locationModeQuery === "1" &&
 		Number.isFinite(Number(latQuery)) &&
@@ -107,6 +114,10 @@ export default function Home() {
 
 	useEffect(() => {
 		if (routeLocation.pathname !== "/posts/search") return;
+		if (searchDispatchRef.current) {
+			searchDispatchRef.current = false;
+			return;
+		}
 
 		const hasSearch = searchQuery && searchQuery !== "none";
 		const parsedLat = Number(latQuery);
@@ -155,8 +166,6 @@ export default function Home() {
 			setShowFilters(false);
 		}
 
-		dispatch(getPostsBySearch(searchPayload));
-
 		const params = new URLSearchParams();
 		if (searchPayload.search !== "none") {
 			params.set("searchQuery", searchPayload.search);
@@ -169,14 +178,15 @@ export default function Home() {
 		}
 
 		history.push(`/posts/search?${params.toString()}`);
+		searchDispatchRef.current = true;
+		dispatch(getPostsBySearch(searchPayload));
 	};
 
 	// Initial feed load when not in search mode
 	useEffect(() => {
-		if (!isSearchActive) {
-			dispatch(getPosts(1));
-		}
-	}, [dispatch, isSearchActive]);
+		if (routeLocation.pathname !== "/posts") return;
+		dispatch(getPosts(1));
+	}, [dispatch, routeLocation.pathname]);
 
 	// Track whether more pages are available
 	useEffect(() => {
@@ -288,7 +298,7 @@ export default function Home() {
 									placeholder="Search destinations, stories, and tags"
 									className="flex-1 bg-transparent text-text-dark text-sm outline-none placeholder:text-text-gray min-w-0"
 								/>
-								{isSearchActive && (
+								{(hasLocalFilters || isSearchActive) && (
 									<button
 										type="button"
 										onClick={handleClearSearch}

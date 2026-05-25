@@ -23,6 +23,15 @@ export const getPosts = (page) => async (dispatch) => {
 		// this avoids sending full comments and all images for every post.
 		const { data } = await api.fetchPosts(page, { summary: true });
 
+		// Avoid overwriting search results if the user navigated to /posts/search
+		// while the feed request was in flight.
+		if (typeof window !== "undefined") {
+			const path = window.location?.pathname || "";
+			if (path.startsWith("/posts/search")) {
+				return;
+			}
+		}
+
 		dispatch({ type: FETCH_ALL, payload: data });
 		dispatch({ type: END_LOADING });
 	} catch (error) {
