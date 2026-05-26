@@ -6,7 +6,7 @@ services:
     ports:
       - "27018:27017"
     volumes:
-      - mongo-data:/opt/db/atlas
+      - mongo-data:/data/db
 
   web-backend:
     build: ./Backend/
@@ -15,7 +15,6 @@ services:
       - "5000:5000"
     volumes:
       - ./Backend:/app # Maps your local Backend folder into the container
-      - /app/node_modules # Safeguards container dependencies
     depends_on:
       - database
     environment:
@@ -30,7 +29,6 @@ services:
       - "5173:5173" # Maps your local machine port 5173 to Vite's container port
     volumes:
       - ./Frontend:/app # Maps your local Frontend folder into the container
-      - /app/node_modules # Safeguards container dependencies
     depends_on:
       - web-backend # Changed this to wait for backend to boot up instead of just the DB
 
