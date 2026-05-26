@@ -1,0 +1,38 @@
+services:
+  database:
+    image: mongo:latest
+    container_name: atlas-db
+    command: mongod --quiet
+    ports:
+      - "27018:27017"
+    volumes:
+      - mongo-data:/opt/db/atlas
+
+  web-backend:
+    build: ./Backend/
+    container_name: atlas-backend
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./Backend:/app # Maps your local Backend folder into the container
+      - /app/node_modules # Safeguards container dependencies
+    depends_on:
+      - database
+    environment:
+      # This forces your backend to automatically create and use the "atlas_db" database inside Mongo
+      - MONGO_URI=mongodb://database:27017/atlas_db
+
+  # --- FRONTEND SERVICE ---
+  web-frontend:
+    build: ./Frontend/
+    container_name: atlas-frontend
+    ports:
+      - "5173:5173" # Maps your local machine port 5173 to Vite's container port
+    volumes:
+      - ./Frontend:/app # Maps your local Frontend folder into the container
+      - /app/node_modules # Safeguards container dependencies
+    depends_on:
+      - web-backend # Changed this to wait for backend to boot up instead of just the DB
+
+volumes:
+  mongo-data:
