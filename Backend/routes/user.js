@@ -9,6 +9,7 @@ import {
 	resendOtp,
 	requestDeleteAccountOtp,
 	deleteAccountWithOtp,
+	requestAdminDeleteUserOtp,
 } from "../controllers/user.js";
 
 import auth from "../middleware/auth.js";
@@ -21,6 +22,7 @@ router.post("/verify-otp", verifyEmailOtp);
 router.post("/resend-otp", resendOtp);
 router.post("/request-delete-account-otp", auth, requestDeleteAccountOtp);
 router.post("/delete-account", auth, deleteAccountWithOtp);
+router.post("/admin/request-delete-otp", auth, requestAdminDeleteUserOtp);
 router.get("/users", auth, getAllUsers);
 
 router.delete("/users/:id", auth, deleteUser);

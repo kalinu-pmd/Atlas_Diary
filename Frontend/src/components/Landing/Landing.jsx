@@ -275,6 +275,7 @@ export default function Landing() {
 							{user ? (
 								<>
 									{/* Logged-in: highlight Public Diaries as the main CTA */}
+									{/* BUTTON: Explore Public Diaries (hero, signed in) */}
 									<RouterLink
 										to="/posts"
 										className="group relative inline-flex items-center gap-2 bg-gradient-to-r from-light-green via-[#c6ff3a] to-[#aef501] text-dark-green font-black text-base px-7 py-3.5 rounded-full no-underline shadow-[0_18px_50px_rgba(175,250,1,0.22)] transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_24px_62px_rgba(175,250,1,0.34)] hover:brightness-110 border border-white/20 overflow-hidden"
@@ -289,6 +290,7 @@ export default function Landing() {
 										</span>
 									</RouterLink>
 
+									{/* BUTTON: For You (hero, signed in) */}
 									<RouterLink
 										to="/recommendations"
 										className="group relative inline-flex items-center gap-2 bg-white/12 hover:bg-white/24 text-white font-semibold text-sm px-5 py-3 rounded-full no-underline border border-white/25 transition-all backdrop-blur-sm hover:-translate-y-px overflow-hidden"
@@ -303,6 +305,7 @@ export default function Landing() {
 								</>
 							) : (
 								<>
+									{/* BUTTON: Start Your Journey (hero, signed out) */}
 									<RouterLink
 										to="/signup"
 										className="group relative inline-flex items-center gap-2 bg-gradient-to-r from-light-green via-[#c6ff3a] to-[#aef501] text-dark-green font-black text-base px-7 py-3.5 rounded-full no-underline shadow-[0_18px_50px_rgba(175,250,1,0.22)] transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_24px_62px_rgba(175,250,1,0.34)] hover:brightness-110 border border-white/20 overflow-hidden"
@@ -317,6 +320,7 @@ export default function Landing() {
 										</span>
 									</RouterLink>
 
+									{/* BUTTON: Explore Public Diaries (hero, signed out) */}
 									<RouterLink
 										to="/posts"
 										className="inline-flex items-center gap-2 bg-white/12 hover:bg-white/20 text-white font-semibold text-base px-5 py-3 rounded-full no-underline border border-white/25 transition-all backdrop-blur-sm hover:-translate-y-px"
@@ -448,6 +452,7 @@ export default function Landing() {
 					</div>
 
 					<div className="mt-10 flex justify-center">
+						{/* BUTTON: Learn more (How it works) */}
 						<RouterLink
 							to="/how-it-works"
 							className="text-dark-green font-bold text-sm hover:text-accent-green transition-colors no-underline border-b-2 border-light-green pb-0.5"
@@ -538,6 +543,7 @@ export default function Landing() {
 							</div>
 
 							<div className="flex flex-col md:flex-row gap-3 md:justify-end md:items-center">
+								{/* BUTTON: Contact Us */}
 								<RouterLink
 									to="/contact"
 									className="inline-flex items-center justify-center gap-2 whitespace-nowrap bg-dark-green hover:bg-dark-green-hover text-off-white font-bold text-sm px-6 py-3 rounded-full no-underline transition-all hover:-translate-y-0.5"
@@ -545,6 +551,7 @@ export default function Landing() {
 									Contact Us
 									<MdArrowForward size={16} />
 								</RouterLink>
+								{/* BUTTON: Email support */}
 								<a
 									href="mailto:hello@atlasdiary.com"
 									className="inline-flex items-center justify-center gap-2 whitespace-nowrap border border-dark-green/25 text-dark-green font-semibold text-sm px-6 py-3 rounded-full no-underline hover:bg-light-green/15 transition-colors"
@@ -593,6 +600,7 @@ export default function Landing() {
 
 					<div className="flex flex-wrap items-center justify-center gap-4">
 						{user ? (
+							/* BUTTON: Go to Your Feed */
 							<RouterLink
 								to="/posts"
 								className="inline-flex items-center gap-2 bg-light-green hover:bg-light-green-hover text-text-dark font-extrabold text-base px-7 py-3.5 rounded-full no-underline shadow-[0_8px_32px_rgba(175,250,1,0.2)] transition-all hover:-translate-y-0.5"
@@ -601,12 +609,14 @@ export default function Landing() {
 							</RouterLink>
 						) : (
 							<>
+								{/* BUTTON: Create Free Account */}
 								<RouterLink
 									to="/signup"
 									className="inline-flex items-center gap-2 bg-light-green hover:bg-light-green-hover text-text-dark font-extrabold text-base px-7 py-3.5 rounded-full no-underline shadow-[0_8px_32px_rgba(175,250,1,0.2)] transition-all hover:-translate-y-0.5"
 								>
 									Create Free Account
 								</RouterLink>
+								{/* BUTTON: Sign In (final CTA) */}
 								<RouterLink
 									to="/auth"
 									className="inline-flex items-center gap-2 text-white/80 hover:text-white font-semibold text-base px-5 py-3.5 rounded-full no-underline border border-white/20 hover:border-white/40 transition-all"

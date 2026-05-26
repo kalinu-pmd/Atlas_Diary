@@ -54,6 +54,81 @@ ConfirmModal.propTypes = {
 	cancelLabel: PropTypes.string,
 };
 
+function DeleteUserOtpModal({ userName, onConfirm, onCancel, onResend, loading }) {
+	const [otp, setOtp] = useState("");
+
+	const handleSubmit = (e) => {
+		e.preventDefault();
+		if (!otp.trim()) {
+			toast.error("OTP is required.");
+			return;
+		}
+		onConfirm(otp.trim());
+	};
+
+	return (
+		<div className="fixed inset-0 z-[2100] flex items-center justify-center bg-dark-green/70 backdrop-blur-sm px-4">
+			<div className="bg-off-white rounded-2xl shadow-[0_16px_48px_rgba(12,52,44,0.3)] border border-light-green p-6 w-full max-w-sm">
+				<div className="flex items-center justify-between mb-2">
+					<h3 className="text-text-dark font-extrabold text-lg">Verify deletion</h3>
+					<button onClick={onCancel} className="text-text-gray hover:text-dark-green transition-colors">
+						<MdClose size={20} />
+					</button>
+				</div>
+				<p className="text-text-gray text-sm mb-4">
+					Enter the OTP sent to your admin email to delete {userName || "this user"}.
+				</p>
+				<form onSubmit={handleSubmit} className="space-y-3">
+					<label className="block text-sm font-semibold text-text-dark">
+						OTP Code
+						<input
+							type="text"
+							value={otp}
+							onChange={(e) => setOtp(e.target.value)}
+							placeholder="Enter 6-digit OTP"
+							className="mt-1 w-full rounded-lg border border-dark-green/20 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-dark-green/30"
+						/>
+					</label>
+					<div className="flex items-center justify-between gap-3">
+						<button
+							type="button"
+							onClick={onResend}
+							disabled={loading}
+							className="text-sm font-semibold text-dark-green hover:text-dark-green-hover disabled:opacity-50"
+						>
+							Resend OTP
+						</button>
+						<div className="flex gap-3">
+							<button
+								type="button"
+								onClick={onCancel}
+								className="px-4 py-2 rounded-lg border border-dark-green/20 text-dark-green font-semibold text-sm hover:bg-dark-green/5 transition-colors"
+							>
+								Cancel
+							</button>
+							<button
+								type="submit"
+								disabled={loading}
+								className="px-4 py-2 rounded-lg bg-orange hover:bg-orange-hover text-white font-bold text-sm transition-colors disabled:opacity-50"
+							>
+								{loading ? "Verifying..." : "Delete user"}
+							</button>
+						</div>
+					</div>
+				</form>
+			</div>
+		</div>
+	);
+}
+
+DeleteUserOtpModal.propTypes = {
+	userName: PropTypes.string,
+	onConfirm: PropTypes.func.isRequired,
+	onCancel: PropTypes.func.isRequired,
+	onResend: PropTypes.func.isRequired,
+	loading: PropTypes.bool,
+};
+
 function MessageActionModal({ actionType, message, onCancel, onSubmit, loading }) {
 	const [adminMessage, setAdminMessage] = useState("");
 	const [closeTicket, setCloseTicket] = useState(true);
@@ -491,7 +566,7 @@ function CreateUserModal({ onSave, onClose, loading }) {
 		<div className="fixed inset-0 z-[2000] flex items-center justify-center bg-dark-green/70 backdrop-blur-sm px-4">
 			<div className="bg-off-white rounded-2xl shadow-[0_16px_48px_rgba(12,52,44,0.3)] border border-light-green p-6 w-full max-w-lg">
 				<div className="flex items-center justify-between mb-4">
-					<h3 className="text-text-dark font-extrabold text-lg">Add User</h3>
+					<h3 className="text-text-dark font-extrabold text-lg">Add User</h3> 
 					<button onClick={onClose} className="text-text-gray hover:text-dark-green transition-colors">
 						<MdClose size={20} />
 					</button>
@@ -861,6 +936,7 @@ function Dashboard() {
 	const [reviewDiffModal, setReviewDiffModal] = useState(null);
 	const [reportsView, setReportsView] = useState("active");
 	const [userPostsModal, setUserPostsModal] = useState(null);
+	const [deleteUserOtpModal, setDeleteUserOtpModal] = useState(null);
 
 	const [messagesView, setMessagesView] = useState("active");
 	const [viewMessageModal, setViewMessageModal] = useState(null);
@@ -967,19 +1043,29 @@ function Dashboard() {
 		}
 	};
 
-	const handleDeleteUser = (userId) => {
+	const handleDeleteUser = (user) => {
+		if (!user?._id) {
+			toast.error("User not found.");
+			return;
+		}
+
 		setConfirmModal({
-			message: "Delete this user?",
+			message: "Send an OTP to your admin email to delete this user?",
+			confirmLabel: "Send OTP",
 			onConfirm: async () => {
 				setActionLoading(true);
 				try {
-					await api.deleteUser(userId);
-					toast.success("User deleted.");
+					await api.requestAdminDeleteUserOtp(user._id);
+					toast.success("OTP sent to your admin email.");
 					setConfirmModal(null);
-					fetchData(postsPage);
+					setDeleteUserOtpModal({
+						userId: user._id,
+						userName: user.name,
+					});
 				} catch (error) {
 					console.error(error);
-					toast.error("Failed to delete user.");
+					const message = error?.response?.data?.message || "Failed to send OTP.";
+					toast.error(message);
 				} finally {
 					setActionLoading(false);
 				}
@@ -1166,6 +1252,41 @@ function Dashboard() {
 					onCancel={confirmModal.onCancel}
 					confirmLabel={confirmModal.confirmLabel}
 					cancelLabel={confirmModal.cancelLabel}
+				/>
+			)}
+			{deleteUserOtpModal && (
+				<DeleteUserOtpModal
+					userName={deleteUserOtpModal.userName}
+					onCancel={() => setDeleteUserOtpModal(null)}
+					onResend={async () => {
+						setActionLoading(true);
+						try {
+							await api.requestAdminDeleteUserOtp(deleteUserOtpModal.userId);
+							toast.success("OTP resent to your admin email.");
+						} catch (error) {
+							console.error(error);
+							const message = error?.response?.data?.message || "Failed to resend OTP.";
+							toast.error(message);
+						} finally {
+							setActionLoading(false);
+						}
+					}}
+					onConfirm={async (otp) => {
+						setActionLoading(true);
+						try {
+							await api.deleteUser(deleteUserOtpModal.userId, otp);
+							toast.success("User deleted.");
+							setDeleteUserOtpModal(null);
+							fetchData(postsPage);
+						} catch (error) {
+							console.error(error);
+							const message = error?.response?.data?.message || "Failed to delete user.";
+							toast.error(message);
+						} finally {
+							setActionLoading(false);
+						}
+					}}
+					loading={actionLoading}
 				/>
 			)}
 			{messageActionModal && (
@@ -1528,6 +1649,7 @@ function Dashboard() {
 							)}
 						</div>
 					)}
+{/* This is a Add user button */}
 
 					{!loading && activeTab === "users" && (
 						<div className="dashboard-panel overflow-x-auto">
@@ -1540,7 +1662,8 @@ function Dashboard() {
 								>
 									<span className="text-base leading-none">+</span>
 									<span>Add User</span>
-								</button>
+								</button>   {/* This is a Add user button */}
+
 							</div>
 							{users.length === 0 ? (
 								<p className="text-text-gray text-sm py-6 text-center">No users found.</p>
@@ -1572,7 +1695,7 @@ function Dashboard() {
 														<MdEdit size={14} className="inline mr-1" />
 														Edit
 													</button>
-													<button className="delete" onClick={() => handleDeleteUser(user._id)}>
+													<button className="delete" onClick={() => handleDeleteUser(user)}>
 														<MdDelete size={14} className="inline mr-1" />
 														Delete
 													</button>

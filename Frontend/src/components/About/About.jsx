@@ -44,59 +44,25 @@ const values = [
 
 const team = [
 	{
-		name: "Alex Rivera",
-		role: "Co-founder & CEO",
-		bio: "Former travel blogger turned entrepreneur. Has visited 70+ countries and believes every trip deserves a permanent record.",
-		avatar: "A",
+		name: "Pramod Gyawali",
+		role: "Algorithms",
+		bio: "Focuses on recommendation and ranking logic that keep exploration smart and relevant.",
+		avatar: "P",
 		color: "bg-dark-green",
 	},
 	{
-		name: "Yuki Tanaka",
-		role: "Co-founder & CTO",
-		bio: "Full-stack engineer with a passion for hiking and machine learning. Built the recommendation engine from scratch.",
-		avatar: "Y",
+		name: "Ritesh Pokhrel",
+		role: "Frontend & UI/UX",
+		bio: "Designs and builds the interface to keep Atlas Diary clean, fast, and delightful.",
+		avatar: "R",
 		color: "bg-accent-green",
 	},
 	{
-		name: "Nia Okonkwo",
-		role: "Head of Design",
-		bio: "UX designer and solo traveller. Ensures every pixel on Atlas Diary feels as adventurous as the stories it holds.",
-		avatar: "N",
+		name: "Binod Kandel",
+		role: "Backend & Frontend",
+		bio: "Connects the client and server with reliable APIs and smooth integrations.",
+		avatar: "B",
 		color: "bg-[#2b6f4f]",
-	},
-	{
-		name: "Carlos Mendez",
-		role: "Community Lead",
-		bio: "Backpacker and community builder. Grew our explorer community to over 10,000 members in under a year.",
-		avatar: "C",
-		color: "bg-dark-green",
-	},
-];
-
-const milestones = [
-	{
-		year: "2022",
-		event: "Atlas Diary founded by two travellers tired of losing their memories in social media feeds.",
-	},
-	{
-		year: "2023 Q1",
-		event: "Launched public beta. First 500 explorers joined within the first week.",
-	},
-	{
-		year: "2023 Q3",
-		event: "Reached 5,000 active users and 20,000 diary entries published.",
-	},
-	{
-		year: "2024 Q1",
-		event: "Launched the AI-powered recommendation engine — personalised feeds for every explorer.",
-	},
-	{
-		year: "2024 Q3",
-		event: "Crossed 10,000 community members across 120+ countries.",
-	},
-	{
-		year: "2025",
-		event: "Continuing to build the world's best adventure diary platform.",
 	},
 ];
 
@@ -234,51 +200,6 @@ export default function About() {
 				</div>
 			</section>
 
-			{/* ── Story / Timeline ──────────────────────────────────── */}
-			<section
-				aria-labelledby="story-heading"
-				className="py-16 sm:py-12 px-4"
-			>
-				<div className="max-w-3xl mx-auto">
-					<div className="text-center mb-10">
-						<span className="text-dark-green font-bold text-xs uppercase tracking-widest">
-							Our Story
-						</span>
-						<h2
-							id="story-heading"
-							className="mt-2 text-2xl sm:text-3xl font-extrabold text-text-dark"
-						>
-							How we got here
-						</h2>
-					</div>
-
-					<div className="relative pl-8 border-l-2 border-light-green/40">
-						{milestones.map((m, i) => (
-							<div
-								key={m.year}
-								className={`relative mb-8 last:mb-0 ${
-									i === milestones.length - 1
-										? "opacity-70"
-										: ""
-								}`}
-							>
-								{/* Dot */}
-								<div className="absolute -left-[2.35rem] top-1 w-4 h-4 rounded-full bg-light-green border-2 border-dark-green shadow" />
-
-								<div className="bg-off-white border border-dark-green/10 rounded-xl p-4 shadow-card hover:shadow-card-hover transition-shadow">
-									<span className="text-dark-green font-extrabold text-sm">
-										{m.year}
-									</span>
-									<p className="text-text-gray text-sm leading-relaxed mt-1">
-										{m.event}
-									</p>
-								</div>
-							</div>
-						))}
-					</div>
-				</div>
-			</section>
-
 			{/* ── Team ──────────────────────────────────────────────── */}
 			<section
 				aria-labelledby="team-heading"
@@ -301,7 +222,7 @@ export default function About() {
 						</p>
 					</div>
 
-					<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+					<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 justify-items-center">
 						{team.map((member) => (
 							<div
 								key={member.name}

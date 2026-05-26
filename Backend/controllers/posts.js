@@ -33,7 +33,12 @@ const stemWord = (value) => {
   }
 
   if (raw.endsWith("es") && raw.length > 4) {
-    return raw.slice(0, -2);
+    const lower = raw.toLowerCase();
+    const esCluster = ["ses", "xes", "zes", "ches", "shes"];
+    if (esCluster.some((ending) => lower.endsWith(ending))) {
+      return raw.slice(0, -2);
+    }
+    return raw.slice(0, -1);
   }
 
   if (raw.endsWith("s") && !raw.endsWith("ss") && raw.length > 4) {

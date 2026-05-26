@@ -108,15 +108,18 @@ function Navbar() {
 	// Simple auth controls variable (keeps JSX tidy)
 	const authControls = user ? (
 		<div className="flex items-center gap-3">
+			{/* BUTTON: Create Post (desktop) */}
 			<Link to="/create-post" className="hidden sm:inline-flex items-center gap-2 bg-gradient-to-b from-accent-green to-accent-green-2 text-white font-extrabold text-sm px-4 py-2 rounded-full shadow-[0_8px_30px_rgba(47,107,79,0.12)] hover:-translate-y-0.5 transition-transform no-underline whitespace-nowrap">
 				<MdAdd size={16} />
 				<span>Post</span>
 			</Link>
 
+			{/* BUTTON: For You (desktop) */}
 					<Link to="/recommendations" className="hidden sm:inline-flex items-center gap-2 border border-accent-green/50 bg-accent-green/10 text-accent-green font-black text-sm px-4 py-2 rounded-full hover:bg-accent-green/15 hover:text-[#1f4f3f] transition-all no-underline whitespace-nowrap shadow-[0_8px_22px_rgba(47,107,79,0.08)] hover:-translate-y-0.5">For You</Link>
 
 			{/* Notifications bell */}
 			<div ref={notificationsRef} className="relative hidden sm:flex">
+				{/* BUTTON: Notifications */}
 				<button
 					type="button"
 					aria-label="Notifications"
@@ -138,15 +141,18 @@ function Navbar() {
 								Notifications
 							</p>
 							{notificationsState.items && notificationsState.items.length > 0 && (
-								<button
-									type="button"
-									className="text-[11px] text-accent-green font-semibold hover:underline"
-									onClick={() => {
-										dispatch(clearAllNotifications());
-									}}
-								>
-									Clear all
-								</button>
+								<>
+									{/* BUTTON: Clear notifications */}
+									<button
+										type="button"
+										className="text-[11px] text-accent-green font-semibold hover:underline"
+										onClick={() => {
+											dispatch(clearAllNotifications());
+										}}
+									>
+										Clear all
+									</button>
+								</>
 							)}
 						</div>
 						<div className="max-h-80 overflow-y-auto">
@@ -214,6 +220,7 @@ function Navbar() {
 
 			{/* Avatar + menu */}
 				<div ref={menuRef} className="relative flex items-center">
+				{/* BUTTON: User menu toggle */}
 				<button
 					aria-label="Open user menu"
 					onClick={() => setUserMenuOpen((s) => !s)}
@@ -227,6 +234,7 @@ function Navbar() {
 					)}
 				</button>
 
+				{/* BUTTON: Go to profile */}
 				<button
 					type="button"
 					className="hidden lg:inline-flex ml-2 items-center h-9 px-2 text-text-dark font-medium rounded hover:bg-light-green/5 transition-colors"
@@ -252,8 +260,10 @@ function Navbar() {
 									<p className="text-text-gray text-xs">{user.result?.email}</p>
 								</div>
 								</button>
-							{user.result?.isAdmin && (
-								<Link
+								{user.result?.isAdmin && (
+									<>
+										{/* BUTTON: Admin dashboard */}
+										<Link
 									to="/dashboard"
 									className="flex items-center gap-3 px-2 py-2 text-sm text-text-dark hover:bg-light-green/5 rounded mb-1 no-underline"
 									onClick={() => setUserMenuOpen(false)}
@@ -261,7 +271,9 @@ function Navbar() {
 									<MdDashboard size={18} className="text-dark-green" />
 									<span>Admin dashboard</span>
 								</Link>
-							)}
+									</>
+								)}
+									{/* BUTTON: View profile */}
 									<Link
 										to={`/profile/${user.result?._id || user.result?.googleId}`}
 										className="flex items-center gap-3 px-2 py-2 text-sm text-text-dark hover:bg-light-green/5 rounded mb-1"
@@ -272,6 +284,7 @@ function Navbar() {
 										</span>
 										<span>View profile</span>
 									</Link>
+									{/* BUTTON: Account settings */}
 									<Link
 										to="/settings"
 										className="flex items-center gap-3 px-2 py-2 text-sm text-text-dark hover:bg-light-green/5 rounded mb-2"
@@ -281,7 +294,9 @@ function Navbar() {
 										<span>Account settings</span>
 									</Link>
 									{!user.result?.isAdmin && (
-										<Link
+										<>
+											{/* BUTTON: Support */}
+											<Link
 											to="/support"
 											className="flex items-center gap-3 px-2 py-2 text-sm text-text-dark hover:bg-light-green/5 rounded mb-2"
 											onClick={() => setUserMenuOpen(false)}
@@ -289,7 +304,9 @@ function Navbar() {
 											<MdEmail size={18} className="text-dark-green" />
 											<span>Support</span>
 										</Link>
+										</>
 									)}
+							{/* BUTTON: Logout */}
 							<button onClick={logout} className="flex items-center gap-3 w-full text-left px-3 py-2 text-sm text-white bg-orange rounded-lg hover:bg-orange-hover transition-colors"><MdExitToApp size={18} /><span className="font-semibold">Logout</span></button>
 						</div>
 					</div>
@@ -298,12 +315,14 @@ function Navbar() {
 		</div>
 	) : (
 		<div className="flex items-center gap-2 sm:gap-3">
+			{/* BUTTON: Login */}
 			<Link
 				to="/auth"
 				className="inline-flex items-center justify-center h-9 px-4 text-dark-green font-semibold text-sm rounded-full border border-dark-green/30 hover:border-dark-green hover:bg-dark-green/5 transition-all no-underline whitespace-nowrap"
 			>
 				Login
 			</Link>
+			{/* BUTTON: Sign Up */}
 			<Link
 				to="/signup"
 				className="inline-flex items-center justify-center h-9 px-5 bg-gradient-to-b from-accent-green to-accent-green-2 text-white font-bold text-sm rounded-full shadow-md hover:brightness-95 transition-all no-underline whitespace-nowrap"
@@ -335,6 +354,7 @@ function Navbar() {
 
 				<div className="flex items-center gap-6">
 					<nav aria-label="Primary navigation" className="hidden md:flex gap-6 items-center">
+						{/* BUTTONS: Primary navigation */}
 						{navItems.map((item) => {
 							if (item.label === "How it Works" && user) return null;
 
@@ -368,15 +388,19 @@ function Navbar() {
 						})}
 					</nav>
 
+					{/* BUTTON: Mobile menu toggle */}
 					<button className="md:hidden text-accent-green p-1 rounded" aria-label={mobileOpen ? "Close menu" : "Open menu"} onClick={toggleMobile}>{mobileOpen ? <MdClose size={24} /> : <MdMenu size={24} />}</button>
 
 					{user && (
-						<Link
+						<>
+							{/* BUTTON: Create Post (mobile) */}
+							<Link
 							to="/create-post"
 							className="md:hidden ml-2 inline-flex items-center justify-center bg-gradient-to-b from-accent-green to-accent-green-2 text-white p-2 rounded-full shadow-sm"
 						>
 							<MdAdd size={18} />
 						</Link>
+						</>
 					)}
 
 					{authControls}
@@ -395,14 +419,23 @@ function Navbar() {
 
 					{user ? (
 						<>
+							{/* BUTTON: For You (mobile) */}
 							<Link to="/recommendations" onClick={() => setMobileOpen(false)} className="px-3 py-2.5 rounded-lg no-underline text-accent-green font-semibold hover:bg-accent-green/10 transition-colors border border-accent-green/30">For You</Link>
-							{user.result?.isAdmin && <Link to="/dashboard" onClick={() => setMobileOpen(false)} className="px-3 py-2.5 rounded-lg no-underline text-accent-green font-extrabold hover:bg-accent-green/10 transition-colors">⚙️ Dashboard</Link>}
+							{user.result?.isAdmin && (
+								<>
+									{/* BUTTON: Admin dashboard (mobile) */}
+									<Link to="/dashboard" onClick={() => setMobileOpen(false)} className="px-3 py-2.5 rounded-lg no-underline text-accent-green font-extrabold hover:bg-accent-green/10 transition-colors">⚙️ Dashboard</Link>
+								</>
+							)}
 							<div className="flex items-center gap-2 px-3 py-2 bg-accent-green/5 rounded-lg"><div className="w-8 h-8 rounded-full bg-accent-green text-white flex items-center justify-center font-bold text-sm shrink-0">{user.result?.name?.charAt(0).toUpperCase()}</div><span className="text-text-dark font-medium text-sm truncate">{user.result?.name}</span></div>
+							{/* BUTTON: Logout (mobile) */}
 							<button onClick={() => { setMobileOpen(false); logout(); }} className="mt-1 w-full bg-orange text-white font-bold py-2 rounded-lg hover:bg-orange-hover transition-colors">Logout</button>
 						</>
 					) : (
 						<div className="flex gap-2 mt-2">
+							{/* BUTTON: Login (mobile) */}
 							<Link to="/auth" onClick={() => setMobileOpen(false)} className="flex-1 text-center text-accent-green font-semibold py-2 rounded-lg border border-accent-green/30 hover:bg-accent-green/10 transition-colors no-underline">Login</Link>
+							{/* BUTTON: Sign Up (mobile) */}
 							<Link to="/signup" onClick={() => setMobileOpen(false)} className="flex-1 text-center bg-gradient-to-b from-accent-green to-accent-green-2 text-white font-bold py-2 rounded-lg no-underline hover:brightness-95 transition-all">Sign Up</Link>
 						</div>
 					)}

@@ -132,8 +132,12 @@ export const getAllUsers = (page) => {
 	return API.get(url);
 };
 
-export const deleteUser = (userId) => {
-	return API.delete(`/users/${userId}`);
+export const requestAdminDeleteUserOtp = (targetUserId) => {
+	return API.post("/users/admin/request-delete-otp", { targetUserId });
+};
+
+export const deleteUser = (userId, otp) => {
+	return API.delete(`/users/${userId}`, { data: { otp } });
 };
 
 export const editUser = (userId, userData) => {

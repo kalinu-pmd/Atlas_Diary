@@ -12,6 +12,7 @@ import {
 	sendDeleteAccountOtpEmail,
 	sendPasswordResetAlertToAdmin,
 	sendAdminPasswordToUserEmail,
+	sendAdminDeleteUserOtpEmail,
 } from "../services/emailService.js";
 
 const parseStoredCommentForCleanup = (rawComment) => {
@@ -173,9 +174,92 @@ export const getAllUsers = async (req, res, next) => {
 
 export const deleteUser = async (req, res, next) => {
 	const id = req.params.id;
+	const { otp } = req.body || {};
+
+	if (!req.userId) {
+		return res.status(401).json({ message: "Unauthorized" });
+	}
+
+	const adminUser = await User.findById(req.userId);
+	if (!adminUser || !adminUser.isAdmin) {
+		return res.status(403).json({ message: "Admin access required" });
+	}
+
+	if (!otp || !String(otp).trim()) {
+		return res.status(400).json({ message: "OTP is required to delete a user." });
+	}
+
+	const verification = adminUser.adminDeleteUserVerification;
+	if (!verification || !verification.otpHash || !verification.targetUserId) {
+		return res.status(400).json({ message: "Please request a delete OTP first." });
+	}
+
+	if (String(verification.targetUserId) !== String(id)) {
+		return res.status(400).json({ message: "OTP does not match this user." });
+	}
+
+	if (!verification.otpExpiresAt || new Date(verification.otpExpiresAt) < new Date()) {
+		return res.status(400).json({ message: "OTP has expired. Please request a new one." });
+	}
+
+	const isMatch = await bcrypt.compare(String(otp), verification.otpHash);
+	if (!isMatch) {
+		return res.status(400).json({ message: "Invalid OTP." });
+	}
+
 	const user = await User.findByIdAndDelete(id);
+	adminUser.adminDeleteUserVerification = undefined;
+	await adminUser.save();
+
 	if (user) return res.status(200).json({ msg: "User deleted" });
-	else return res.status(404).json({ msg: "No user found" });
+	return res.status(404).json({ msg: "No user found" });
+};
+
+export const requestAdminDeleteUserOtp = async (req, res) => {
+	const { targetUserId } = req.body || {};
+
+	if (!req.userId) {
+		return res.status(401).json({ message: "Unauthorized" });
+	}
+
+	if (!targetUserId) {
+		return res.status(400).json({ message: "Target user is required." });
+	}
+
+	const adminUser = await User.findById(req.userId);
+	if (!adminUser || !adminUser.isAdmin) {
+		return res.status(403).json({ message: "Admin access required" });
+	}
+
+	if (!adminUser.email) {
+		return res.status(400).json({ message: "Admin email is required to send OTP." });
+	}
+
+	const targetUser = await User.findById(targetUserId);
+	if (!targetUser) {
+		return res.status(404).json({ message: "User not found" });
+	}
+
+	const otp = Math.floor(100000 + Math.random() * 900000).toString();
+	const otpHash = await bcrypt.hash(otp, 10);
+	const otpExpiresAt = new Date(Date.now() + 2 * 60 * 1000);
+
+	adminUser.adminDeleteUserVerification = {
+		otpHash,
+		otpExpiresAt,
+		targetUserId,
+		requestedAt: new Date(),
+	};
+	await adminUser.save();
+
+	const sent = await sendAdminDeleteUserOtpEmail(adminUser.email, otp, targetUser);
+
+	return res.status(200).json({
+		message: sent
+			? "OTP sent to your admin email."
+			: "OTP generated, but email delivery failed. Please try again.",
+		emailSent: Boolean(sent),
+	});
 };
 export const editUser = async (req, res, next) => {
 	const id = req.params.id;

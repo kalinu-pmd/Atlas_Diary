@@ -88,13 +88,16 @@ export default function Profile() {
               <p className="text-sm text-text-dark whitespace-pre-line mb-2">{profile.bio}</p>
             )}
             {isOwnProfile && (
-              <button
-                type="button"
-                onClick={() => history.push("/settings")}
-                className="mt-1 inline-flex items-center px-4 py-1.5 rounded-full border border-dark-green/40 text-dark-green text-xs font-semibold hover:bg-dark-green/5 transition-colors"
-              >
-                Edit profile
-              </button>
+              <>
+                {/* BUTTON: Edit profile */}
+                <button
+                  type="button"
+                  onClick={() => history.push("/settings")}
+                  className="mt-1 inline-flex items-center px-4 py-1.5 rounded-full border border-dark-green/40 text-dark-green text-xs font-semibold hover:bg-dark-green/5 transition-colors"
+                >
+                  Edit profile
+                </button>
+              </>
             )}
           </div>
         </div>

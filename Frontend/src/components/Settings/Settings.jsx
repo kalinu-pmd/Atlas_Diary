@@ -301,6 +301,7 @@ export default function Settings() {
             <div className="px-5 sm:px-6 pt-5 sm:pt-6 pb-4 border-b border-dark-green/10 bg-gradient-to-r from-off-white via-light-green/10 to-off-white">
               <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
                 <div className="flex items-center gap-2">
+                  {/* BUTTON: Settings tab - Profile */}
                   <button
                     type="button"
                     onClick={() => setSettingsView("profile")}
@@ -308,6 +309,7 @@ export default function Settings() {
                   >
                     Profile Settings
                   </button>
+                  {/* BUTTON: Settings tab - Security */}
                   <button
                     type="button"
                     onClick={() => setSettingsView("security")}
@@ -315,6 +317,7 @@ export default function Settings() {
                   >
                     Account Security
                   </button>
+                  {/* BUTTON: Settings tab - Delete Account */}
                   <button
                     type="button"
                     onClick={() => setSettingsView("delete")}
@@ -415,6 +418,7 @@ export default function Settings() {
                           <span className="truncate max-w-[200px] sm:max-w-[240px]">
                             {selectedPhotoName}
                           </span>
+                          {/* BUTTON: Remove selected photo */}
                           <button
                             type="button"
                             onClick={handleRemovePhoto}
@@ -680,6 +684,7 @@ export default function Settings() {
 
           {settingsView !== "delete" && (
           <div className="flex flex-wrap gap-3 justify-end">
+            {/* BUTTON: Cancel settings */}
             <button
               type="button"
               onClick={handleCancel}
@@ -687,6 +692,7 @@ export default function Settings() {
             >
               Cancel
             </button>
+            {/* BUTTON: Save settings */}
             <button
               type="submit"
               disabled={loading}
@@ -712,6 +718,7 @@ export default function Settings() {
           <div className="w-full max-w-md rounded-2xl border border-light-green/30 bg-off-white shadow-[0_20px_55px_rgba(12,52,44,0.25)] p-6 sm:p-7 text-center">
             <h3 className="text-2xl font-black text-dark-green mb-3">Good Bye</h3>
             <p className="text-sm text-text-dark leading-relaxed mb-6">{farewellMessage}</p>
+            {/* BUTTON: Goodbye confirm */}
             <button
               type="button"
               onClick={handleGoodbye}

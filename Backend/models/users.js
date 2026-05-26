@@ -28,6 +28,14 @@ const userSchema = mongoose.Schema({
     passwordVerifiedAt: { type: Date },
   },
 
+  // Admin: delete user verification via OTP
+  adminDeleteUserVerification: {
+    otpHash: { type: String },
+    otpExpiresAt: { type: Date },
+    targetUserId: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+    requestedAt: { type: Date },
+  },
+
   // Profile fields
   bio: { type: String, default: "" },
   profileImage: { type: String }, // URL or base64 image

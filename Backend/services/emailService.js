@@ -484,6 +484,52 @@ export async function sendAdminPasswordToUserEmail(to, temporaryPassword) {
   }
 }
 
+export async function sendAdminDeleteUserOtpEmail(to, otp, targetUser) {
+  const from = getFromAddress();
+  const targetName = targetUser?.name || "the selected user";
+  const targetEmail = targetUser?.email ? ` (${targetUser.email})` : "";
+
+  const subject = "Atlas Diary admin delete-user OTP";
+  const html = `
+        <div style="font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-size: 15px; color: #0c342c;">
+          <p>Hi there,</p>
+          <p>You requested to delete <strong>${targetName}${targetEmail}</strong> from <strong>Atlas Diary</strong>.</p>
+          <p>Your admin verification code is:</p>
+          <p style="font-size: 24px; font-weight: 700; letter-spacing: 4px; margin: 16px 0;">${otp}</p>
+          <p>This code will expire in <strong>2 minutes</strong>. If you did not request this, please secure your account immediately.</p>
+          <p style="margin-top: 24px; font-size: 13px; color: #647067;">Thank you,<br/>Atlas Diary Team</p>
+        </div>
+      `;
+
+  if (EMAIL_PROVIDER === "resend") {
+    const sent = await sendWithResend({
+      to,
+      from,
+      subject,
+      html,
+      text: `Your Atlas Diary admin delete-user code is ${otp}. It expires in 2 minutes.`,
+    });
+
+    if (sent) return true;
+    console.warn("[emailService] Resend send failed. Falling back to SMTP legacy path.");
+  }
+
+  const mailer = getTransporter();
+
+  if (!mailer) {
+    console.warn("[emailService] Attempted to send admin delete-user OTP without SMTP configuration.");
+    return false;
+  }
+
+  try {
+    await sendMailWithPromise(mailer, { from, to, subject, html });
+    return true;
+  } catch (error) {
+    console.error("[emailService] Failed to send admin delete-user OTP:", error?.message || error);
+    return false;
+  }
+}
+
 export async function sendContactConfirmationEmail(to, name) {
   const from = getFromAddress();
 
